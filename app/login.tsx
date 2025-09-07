@@ -1,78 +1,73 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
-import { app } from '../constants/firebaseConfig';
+import React, { useState } from "react";
+import { View, Text, TextInput, Button, ActivityIndicator, Alert, TouchableOpacity } from "react-native";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { app } from "../constants/firebaseConfig";
+import { useRouter } from "expo-router";
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const router = useRouter();
 
   const handleLogin = async () => {
+    if (!username || !password) {
+      Alert.alert("Error", "Please enter both username and password");
+      return;
+    }
     setLoading(true);
-    setError('');
     const auth = getAuth(app);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      Alert.alert('Success', 'Logged in successfully!');
-      // TODO: Navigate to the main app screen
+      await signInWithEmailAndPassword(auth, username, password);
+      Alert.alert("Success", `Logged in as ${username}`);
+      setUsername("");
+      setPassword("");
+      router.replace("/(tabs)");
     } catch (err: any) {
-      setError(err.message || 'Login failed');
+      Alert.alert("Error", err.message || "Login failed");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Login</Text>
+    <View style={{ flex: 1, justifyContent: "center", padding: 20, backgroundColor: "#fff" }}>
+      <Text style={{ marginBottom: 10, fontSize: 24, fontWeight: "bold", textAlign: "center", color: "#111" }}>Login</Text>
+      <Text style={{ marginBottom: 10, color: "#111" }}>Username (Email)</Text>
       <TextInput
-        style={styles.input}
-        placeholder="Email"
+        value={username}
+        onChangeText={setUsername}
         autoCapitalize="none"
         keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
+        style={{
+          borderWidth: 1,
+          padding: 10,
+          marginBottom: 20,
+          borderRadius: 8,
+          backgroundColor: "#fff",
+          color: "#111",
+        }}
+        placeholderTextColor="#888"
       />
+      <Text style={{ marginBottom: 10, color: "#111" }}>Password</Text>
       <TextInput
-        style={styles.input}
-        placeholder="Password"
-        secureTextEntry
         value={password}
         onChangeText={setPassword}
+        secureTextEntry
+        style={{
+          borderWidth: 1,
+          padding: 10,
+          marginBottom: 20,
+          borderRadius: 8,
+          backgroundColor: "#fff",
+          color: "#111",
+        }}
+        placeholderTextColor="#888"
       />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <Button title={loading ? 'Logging in...' : 'Login'} onPress={handleLogin} disabled={loading} />
+      {loading ? <ActivityIndicator size="large" color="#007AFF" /> : <Button title="Login" onPress={handleLogin} />}
+      <TouchableOpacity onPress={() => router.replace("/register")} style={{ marginTop: 20 }}>
+        <Text style={{ color: "#007AFF", textAlign: "center" }}>Don&apos;t have an account? Register</Text>
+      </TouchableOpacity>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 24,
-    backgroundColor: '#fff',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  input: {
-    height: 48,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 8,
-    marginBottom: 16,
-    paddingHorizontal: 12,
-    fontSize: 16,
-  },
-  error: {
-    color: 'red',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-});
