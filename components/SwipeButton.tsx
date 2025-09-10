@@ -25,7 +25,7 @@ const SwipeButton: FC<SwipeButtonProps> = ({ onSwipeComplete, text }) => {
   const nudgeAnimation = useSharedValue(0);
 
   useEffect(() => {
-    nudgeAnimation.value = withRepeat(withSequence(withTiming(15, { duration: 800 }), withTiming(0, { duration: 800 })), -1);
+    nudgeAnimation.value = withRepeat(withSequence(withTiming(15, { duration: 800 }), withTiming(0, { duration: 800 })), -1, true);
   }, []);
 
   const gestureHandler = useAnimatedGestureHandler<PanGestureHandlerGestureEvent, { startX: number }>({
@@ -48,14 +48,11 @@ const SwipeButton: FC<SwipeButtonProps> = ({ onSwipeComplete, text }) => {
     },
   });
 
-  // --- MODIFIED THIS BLOCK ---
   const animatedHandleStyle = useAnimatedStyle(() => {
-    // The nudge animation is removed from the handle. It will only move with the user's gesture.
     return {
       transform: [{ translateX: translateX.value }],
     };
   });
-  // --- END OF MODIFICATION ---
 
   const animatedTextStyle = useAnimatedStyle(() => {
     const nudge = isInteracting.value ? 0 : nudgeAnimation.value;
@@ -98,6 +95,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 5,
     elevation: 3,
+    borderWidth: 2, // Added for the outline
+    borderColor: "#000000ff", // Added for the outline color
   },
   buttonText: {
     fontSize: 18,
@@ -111,6 +110,8 @@ const styles = StyleSheet.create({
     left: 5,
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 0.5,
+    borderColor: "#fff", // Outline color
   },
 });
 
