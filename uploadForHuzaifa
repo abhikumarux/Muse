@@ -81,9 +81,7 @@ from botocore.exceptions import ClientError
 from werkzeug.utils import secure_filename
 
 # AWS S3 configuration
-AWS_ACCESS_KEY_ID = "AKIA2UC3DC74M4N7PT4B"
-AWS_SECRET_ACCESS_KEY = "q9+6w6nSey0rkthBYVpF2jHucV5A3g0n5EqgeSdd"
-AWS_REGION = "us-east-2"  # replace with your bucket's region
+
 S3_BUCKET_NAME = "techtylistsimagestorage"
 S3_FOLDER = "test/"  # folder path inside the bucket
 
