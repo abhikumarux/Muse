@@ -18,6 +18,7 @@ export default function RegisterScreen() {
       Alert.alert("Error", "Please enter both username and password");
       return;
     }
+    console.log("hi");
     setLoading(true);
     const auth = getAuth(app);
     try {
