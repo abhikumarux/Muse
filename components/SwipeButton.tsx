@@ -1,7 +1,17 @@
 import React, { FC, useEffect } from "react";
 import { StyleSheet, Dimensions } from "react-native";
-import Animated, { useSharedValue, useAnimatedStyle, useAnimatedGestureHandler, withSpring, withTiming, runOnJS, interpolate, withRepeat, withSequence } from "react-native-reanimated";
-import { PanGestureHandler, PanGestureHandlerGestureEvent } from "react-native-gesture-handler";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  runOnJS,
+  interpolate,
+  withRepeat,
+  withSequence,
+} from "react-native-reanimated";
+// Highlight: Import Gesture and GestureDetector
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { ThemedText } from "@/components/ThemedText";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
@@ -23,30 +33,46 @@ const SwipeButton: FC<SwipeButtonProps> = ({ onSwipeComplete, text }) => {
   const translateX = useSharedValue(0);
   const isInteracting = useSharedValue(false);
   const nudgeAnimation = useSharedValue(0);
+  // Highlight: A shared value to store context, replacing the old `ctx` object
+  const context = useSharedValue({ startX: 0 });
 
   useEffect(() => {
-    nudgeAnimation.value = withRepeat(withSequence(withTiming(15, { duration: 800 }), withTiming(0, { duration: 800 })), -1, true);
+    nudgeAnimation.value = withRepeat(
+      withSequence(
+        withTiming(15, { duration: 800 }),
+        withTiming(0, { duration: 800 })
+      ),
+      -1,
+      true
+    );
   }, []);
 
-  const gestureHandler = useAnimatedGestureHandler<PanGestureHandlerGestureEvent, { startX: number }>({
-    onStart: (_, ctx) => {
+  // Highlight: Replaced useAnimatedGestureHandler with the Gesture builder API
+  const panGesture = Gesture.Pan()
+    .onBegin(() => {
       isInteracting.value = true;
-      ctx.startX = translateX.value;
-    },
-    onActive: (event, ctx) => {
-      const newTranslateX = ctx.startX + event.translationX;
-      translateX.value = Math.min(Math.max(newTranslateX, 0), BUTTON_WIDTH - BUTTON_HEIGHT);
-    },
-    onEnd: (event) => {
+    })
+    .onStart(() => {
+      context.value.startX = translateX.value;
+    })
+    .onUpdate((event) => {
+      const newTranslateX = context.value.startX + event.translationX;
+      translateX.value = Math.min(
+        Math.max(newTranslateX, 0),
+        BUTTON_WIDTH - BUTTON_HEIGHT
+      );
+    })
+    .onEnd(() => {
       if (translateX.value > SWIPE_THRESHOLD) {
         translateX.value = withTiming(BUTTON_WIDTH - BUTTON_HEIGHT);
         runOnJS(onSwipeComplete)();
       } else {
         translateX.value = withSpring(0);
       }
+    })
+    .onFinalize(() => {
       isInteracting.value = false;
-    },
-  });
+    });
 
   const animatedHandleStyle = useAnimatedStyle(() => {
     return {
@@ -57,7 +83,12 @@ const SwipeButton: FC<SwipeButtonProps> = ({ onSwipeComplete, text }) => {
   const animatedTextStyle = useAnimatedStyle(() => {
     const nudge = isInteracting.value ? 0 : nudgeAnimation.value;
     return {
-      opacity: interpolate(translateX.value, [0, SWIPE_THRESHOLD / 2], [1, 0], "clamp"),
+      opacity: interpolate(
+        translateX.value,
+        [0, SWIPE_THRESHOLD / 2],
+        [1, 0],
+        "clamp"
+      ),
       transform: [
         {
           translateX: translateX.value * 0.5 + nudge,
@@ -69,15 +100,31 @@ const SwipeButton: FC<SwipeButtonProps> = ({ onSwipeComplete, text }) => {
   const themeColors = Colors[colorScheme];
 
   return (
-    <LinearGradient colors={[...themeColors.buttonGradient]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.buttonContainer}>
+    <LinearGradient
+      colors={[...themeColors.buttonGradient]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.buttonContainer}
+    >
       <Animated.View style={animatedTextStyle}>
         <ThemedText style={styles.buttonText}>{text}</ThemedText>
       </Animated.View>
-      <PanGestureHandler onGestureEvent={gestureHandler}>
-        <Animated.View style={[styles.swipeHandle, { backgroundColor: themeColors.swipeHandleBackground }, animatedHandleStyle]}>
-          <Feather name="chevrons-right" size={24} color={themeColors.swipeHandleIcon} />
+      {/* Highlight: Replaced PanGestureHandler with GestureDetector */}
+      <GestureDetector gesture={panGesture}>
+        <Animated.View
+          style={[
+            styles.swipeHandle,
+            { backgroundColor: themeColors.swipeHandleBackground },
+            animatedHandleStyle,
+          ]}
+        >
+          <Feather
+            name="chevrons-right"
+            size={24}
+            color={themeColors.swipeHandleIcon}
+          />
         </Animated.View>
-      </PanGestureHandler>
+      </GestureDetector>
     </LinearGradient>
   );
 };
@@ -95,8 +142,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 5,
     elevation: 3,
-    borderWidth: 2, // Added for the outline
-    borderColor: "#000000ff", // Added for the outline color
+    borderWidth: 2,
+    borderColor: "#000000ff",
   },
   buttonText: {
     fontSize: 18,
@@ -111,7 +158,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 0.5,
-    borderColor: "#fff", // Outline color
+    borderColor: "#fff",
   },
 });
 
