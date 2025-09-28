@@ -1,172 +1,1486 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  Image,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
-import { updateImageWithPrompt } from '../../api/imageApi'; // We will create this file next
+import React, { useState, useEffect, useRef } from "react";
+import { Button, SafeAreaView, TextInput, useColorScheme as useDeviceColorScheme, Animated } from "react-native";
+import * as FileSystem from "expo-file-system";
+import { captureRef } from "react-native-view-shot";
+import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Alert } from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import { Colors } from "@/constants/Colors"; // Import the Colors constant
 
-export default function CreateNewDesign() {
-  const [prompt, setPrompt] = useState('');
-  const [image, setImage] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+interface Category {
+  id: number;
+  parent_id: number;
+  image_url: string;
+  size: string;
+  title: string;
+}
 
-  const selectImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert(
-        'Permission Denied',
-        'Sorry, we need camera roll permissions to make this work!'
-      );
-      return;
+interface Product {
+  id: number;
+  main_category_id: number;
+  type: string;
+  type_name: string;
+  title: string;
+  brand: string;
+  model: string;
+  image: string;
+  variant_count: number;
+  currency: string;
+  files: any[];
+  options: any[];
+  is_discontinued: boolean;
+  avg_fulfillment_time: number;
+  description: string;
+  techniques: any[];
+  origin_country: string;
+}
+
+interface Variant {
+  id: number;
+  product_id: number;
+  name: string;
+  size: string;
+  color: string;
+  color_code: string;
+  color_code2?: string;
+  image: string;
+  price: string;
+  in_stock: boolean;
+  availability_regions: Record<string, string>;
+  availability_status: Array<{
+    region: string;
+    status: string;
+  }>;
+  material: Array<{
+    name: string;
+    percentage: number;
+  }>;
+}
+
+interface ProductDetails {
+  product: Product;
+  variants: Variant[];
+}
+
+interface PrintFilesResponse {
+  code: number;
+  result: {
+    available_placements: Record<string, string>;
+    option_groups: string[];
+    options: string[];
+    printfiles: any[];
+    product_id: number;
+    variant_printfiles: any[];
+  };
+}
+
+interface CategoriesResponse {
+  code: number;
+  result: {
+    categories: Category[];
+  };
+}
+
+interface ProductsResponse {
+  code: number;
+  result: Product[];
+}
+
+interface ProductDetailsResponse {
+  code: number;
+  result: ProductDetails;
+}
+
+const { width } = Dimensions.get("window");
+const CARD_WIDTH = (width - 60) / 2;
+const API_KEY = "bN327lVKvW0qlqbQqCD7FH2n7erra872HXUKvAVk";
+
+// Mock image URL for testing the final design step
+const MOCK_GENERATED_OUTFIT_URL = "https://placehold.co/400x400/8A2BE2/ffffff?text=Generated+Outfit";
+
+export default function CreateNewDesignTab() {
+  const colorScheme = useDeviceColorScheme();
+  const theme = Colors[colorScheme ?? "light"];
+  const styles = getStyles(theme);
+
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productDetails, setProductDetails] = useState<ProductDetails | null>(null);
+  const [placementFiles, setPlacementFiles] = useState<Record<string, string>>({});
+  const [selectedPlacements, setSelectedPlacements] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentView, setCurrentView] = useState<"categories" | "products" | "variants" | "viewFinalDesign" | "placements" | "design">("categories");
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
+  const [uploadedImages, setUploadedImages] = useState<{ left: string | null; right: string | null }>({
+    left: null,
+    right: null,
+  });
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const [selectedColor, setSelectedColor] = useState<Variant | null>(null);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState(1);
+  // State for the prompt used in the final design/remix step
+  const [prompt, setPrompt] = useState("");
+
+  const progress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Animate progress bar
+    Animated.timing(progress, {
+      toValue: currentStep - 1,
+      duration: 500,
+      useNativeDriver: false,
+    }).start();
+  }, [currentStep]);
+
+  useEffect(() => {
+    // Update current step based on currentView
+    if (["categories", "products", "variants"].includes(currentView)) {
+      setCurrentStep(1);
+    } else if (["placements", "design"].includes(currentView)) {
+      setCurrentStep(2);
+    } else if (currentView === "viewFinalDesign") {
+      setCurrentStep(3);
     }
+  }, [currentView]);
 
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
-    });
+  useEffect(() => {
+    fetchCategories();
+    requestPermissions();
+  }, []);
 
-    if (!result.canceled) {
-      setImage(result.assets[0].uri);
+  const requestPermissions = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission Required", "Camera permission is needed to take photos.");
     }
   };
 
-  const handleRemix = async () => {
-    if (!image) {
-      Alert.alert('No Image', 'Please select an image first.');
-      return;
-    }
-    if (!prompt) {
-      Alert.alert('No Prompt', 'Please enter a prompt to remix the image.');
-      return;
-    }
-
-    setLoading(true);
+  const fetchCategories = async () => {
     try {
-      const newImageUri = await updateImageWithPrompt(image, prompt);
-      setImage(newImageUri);
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Error', 'Failed to remix the image.');
+      setLoading(true);
+      const response = await fetch("https://api.printful.com/categories", {
+        headers: {
+          Authorization: `Bearer ${API_KEY}`,
+        },
+      });
+      const data: CategoriesResponse = await response.json();
+
+      if (data.code === 200) {
+        setCategories(data.result.categories);
+      } else {
+        setError("Failed to fetch categories");
+      }
+    } catch (err) {
+      setError("Network error occurred");
+      console.error("Error fetching categories:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>DESIGN RESULTS</Text>
+  const fetchProducts = async (categoryId: number) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`https://api.printful.com/products?category_id=${categoryId}`, {
+        headers: {
+          Authorization: `Bearer ${API_KEY}`,
+        },
+      });
+      const data: ProductsResponse = await response.json();
 
-      <TouchableOpacity onPress={selectImage}>
-        <View style={styles.imageContainer}>
-          {image ? (
-            <Image source={{ uri: image }} style={styles.image} />
-          ) : (
-            <Text>Tap to select an image</Text>
+      if (data.code === 200) {
+        setProducts(data.result);
+        setCurrentView("products");
+      } else {
+        setError("Failed to fetch products");
+      }
+    } catch (err) {
+      setError("Network error occurred");
+      console.error("Error fetching products:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCategorySelect = (category: Category) => {
+    setSelectedCategory(category);
+    const subcategories = categories.filter((c) => c.parent_id === category.id);
+    if (subcategories.length > 0) {
+      return;
+    }
+    fetchProducts(category.id);
+  };
+
+  const fetchProductDetails = async (productId: number) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`https://api.printful.com/products/${productId}`, {
+        headers: {
+          Authorization: `Bearer ${API_KEY}`,
+        },
+      });
+      const data: ProductDetailsResponse = await response.json();
+      if (data.code === 200) {
+        setProductDetails(data.result);
+        setCurrentView("variants");
+      } else {
+        setError("Failed to fetch product details");
+      }
+    } catch (err) {
+      setError("Network error occurred");
+      console.error("Error fetching product details:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleProductSelect = (product: Product) => {
+    setSelectedProduct(product);
+    fetchProductDetails(product.id);
+  };
+
+  const handleBackToCategories = () => {
+    if (selectedCategory && selectedCategory.parent_id !== 0) {
+      const parentCategory = categories.find((c) => c.id === selectedCategory.parent_id);
+      setSelectedCategory(parentCategory || null);
+    } else {
+      setSelectedCategory(null);
+    }
+    setCurrentView("categories");
+    setProducts([]);
+    setProductDetails(null);
+    setSelectedProduct(null);
+    setSearchQuery("");
+  };
+
+  async function getStoreId() {
+    const resp = await fetch(`https://api.printful.com/stores`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+      },
+    });
+
+    const data = await resp.json();
+    const stores = data.result || [];
+
+    if (stores.length === 0) {
+      throw new Error("No stores found for this API key.");
+    }
+
+    return stores[0].id;
+  }
+
+  const fetchPlacementFiles = async (productId: number) => {
+    try {
+      const storeId = await getStoreId();
+      setLoading(true);
+      const response = await fetch(`https://api.printful.com/mockup-generator/printfiles/${productId}?store_id=${storeId}`, {
+        headers: {
+          Authorization: `Bearer ${API_KEY}`,
+        },
+      });
+      const data: PrintFilesResponse = await response.json();
+      if (data.code === 200) {
+        setPlacementFiles(data.result.available_placements);
+        setCurrentView("placements");
+      } else {
+        setError("Failed to fetch placement options");
+      }
+    } catch (err) {
+      setError("Network error occurred");
+      console.error("Error fetching placement files:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVariantSelect = (variant: Variant) => {
+    setSelectedVariant(variant);
+    fetchPlacementFiles(variant.product_id);
+  };
+
+  const handlePlacementToggle = (placementId: string) => {
+    setSelectedPlacements((prev) => (prev.includes(placementId) ? prev.filter((id) => id !== placementId) : [...prev, placementId]));
+  };
+
+  // The original image merging view is kept here, but the function below mocks the final step.
+  const mergeRef = useRef<View>(null);
+
+  /**
+   * MOCK FUNCTION: Directly sets a placeholder image and moves to the final step (Step 3).
+   * In a real application, this is where the AI image generation API call would go.
+   */
+  const GenerateFinalDesign = async () => {
+    // 1. Show Loading state (optional for mock, but good practice)
+    setLoading(true);
+    Alert.alert("Generating Design", "Skipping API call for testing. Navigating to final view in 1 second...");
+
+    // 2. Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    try {
+        // 3. Set a mock generated image
+        setGeneratedImage(MOCK_GENERATED_OUTFIT_URL);
+
+        // 4. Move to the final design view
+        setCurrentView("viewFinalDesign");
+    } catch (err) {
+        console.error("Mock generation failed:", err);
+        Alert.alert("Error", "Failed to mock the final design.");
+    } finally {
+        // 5. Hide Loading state
+        setLoading(false);
+    }
+  };
+  
+  const handleRemix = async () => {
+    if (!generatedImage) {
+        Alert.alert('No Design', 'Please generate an initial design first.');
+        return;
+    }
+    if (!prompt) {
+        Alert.alert('No Prompt', 'Please enter a prompt to remix the image.');
+        return;
+    }
+    // MOCK REMIX LOGIC: In a real app, this would call the API with the current image and prompt
+    setLoading(true);
+    Alert.alert("Remixing Design", `Remixing with prompt: "${prompt}". Simulating delay...`);
+    
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // For the mock, we just use a slightly different placeholder URL
+    const REMIXED_URL = `https://placehold.co/400x400/2B8A2B/ffffff?text=Remixed+by+AI`;
+    setGeneratedImage(REMIXED_URL);
+    setPrompt(""); // Clear prompt after "remixing"
+    setLoading(false);
+  };
+
+  const handleGenerateDesign = () => {
+    if (selectedPlacements.length === 0) {
+      Alert.alert("No Placements Selected", "Please select at least one placement before generating your design.");
+      return;
+    }
+
+    setCurrentView("design");
+  };
+
+  const pickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setUploadedImages((prev) => {
+          if (!prev.left) {
+            return { ...prev, left: result.assets[0].uri };
+          } else if (!prev.right) {
+            return { ...prev, right: result.assets[0].uri };
+          }
+          return prev;
+        });
+      }
+    } catch (error) {
+      console.error("Image picker error:", error);
+      Alert.alert("Error", "Failed to open photo library. Please try again.");
+    }
+  };
+
+  const takePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission Required", "Camera permission is needed to take photos.");
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setUploadedImages((prev) => {
+          if (!prev.left) {
+            return { ...prev, left: result.assets[0].uri };
+          } else if (!prev.right) {
+            return { ...prev, right: result.assets[0].uri };
+          }
+          return prev;
+        });
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to open camera. Please try again.");
+    }
+  };
+
+  const deleteImage = (position: "left" | "right") => {
+    setUploadedImages((prev) => ({
+      ...prev,
+      [position]: null,
+    }));
+  };
+const sortSizes = (sizes: string[]): string[] => {
+    const sizeOrderMap: { [key: string]: number } = {
+      // Define a logical order for standard sizes
+      "XS": 1,
+      "S": 2,
+      "M": 3,
+      "L": 4,
+      "XL": 5,
+      "2XL": 6,
+      "XXL": 6, // Treat 2XL and XXL the same
+      "3XL": 7,
+      "XXXL": 7, // Treat 3XL and XXXL the same
+      "4XL": 8,
+      "5XL": 9,
+    };
+
+    return [...sizes].sort((a, b) => {
+      const aIsNum = /^\d+$/.test(a);
+      const bIsNum = /^\d+$/.test(b);
+
+      // If both are simple numbers (like for shoes or pants), sort them numerically
+      if (aIsNum && bIsNum) {
+        return parseInt(a, 10) - parseInt(b, 10);
+      }
+
+      const aOrder = sizeOrderMap[a.toUpperCase()];
+      const bOrder = sizeOrderMap[b.toUpperCase()];
+
+      // If both sizes are in our defined map, use that order
+      if (aOrder && bOrder) {
+        return aOrder - bOrder;
+      }
+      
+      // If only one is in our map, it should come first
+      if (aOrder) return -1;
+      if (bOrder) return 1;
+
+      // For any other sizes not in our map (e.g., "One Size"), sort them alphabetically
+      return a.localeCompare(b);
+    });
+  };
+
+  const handleBackToProducts = () => {
+    setCurrentView("products");
+    setProductDetails(null);
+    setSelectedProduct(null);
+    setSelectedVariant(null);
+    setSelectedColor(null);
+    setSelectedSize(null);
+    setPlacementFiles({});
+    setSelectedPlacements([]);
+  };
+
+  const handleBackToVariants = () => {
+    setCurrentView("variants");
+    setPlacementFiles({});
+    setSelectedPlacements([]);
+  };
+
+  const handleBackToPlacements = () => {
+    setCurrentView("placements");
+    setUploadedImages({ left: null, right: null });
+  };
+
+  const handleBackToDesign = () => {
+    setCurrentView("design");
+    setGeneratedImage(null); // Clear generated image when returning to design step
+  };
+
+  const handleColorSelect = (colorVariant: Variant) => {
+    setSelectedColor(colorVariant);
+    setSelectedSize(null);
+    setSelectedVariant(null);
+  };
+
+  const handleSizeSelect = (size: string) => {
+    setSelectedSize(size);
+    if (productDetails && selectedColor) {
+      const finalVariant = productDetails.variants.find((v) => v.color === selectedColor.color && v.size === size);
+      if (finalVariant) {
+        setSelectedVariant(finalVariant);
+      }
+    }
+  };
+
+  const ProgressBar = () => {
+    // Define the 3 steps
+    const steps = ["Product", "Design", "Final"];
+
+    // The progress is animated from 0 to 2 (0=Step 1, 1=Step 2, 2=Step 3)
+    const progressBarWidth = progress.interpolate({
+      inputRange: [0, 2],
+      outputRange: ["0%", "100%"], // The width of the colored bar segment
+    });
+
+    const CIRCLE_SIZE = 32;
+
+const circlePosition = progress.interpolate({
+  inputRange: [0, 1, 2],
+  outputRange: [0, (width - 40 - CIRCLE_SIZE)/2, width - 60 - CIRCLE_SIZE], 
+  // width - 40 because of horizontal margin on progressBarContainer
+});
+
+
+    return (
+      <View style={styles.progressBarContainer}>
+        {/* The main track line */}
+        <View style={styles.progressBarTrack} />
+        
+        {/* The animated filled progress line */}
+        <Animated.View style={[styles.progressBar, { width: progressBarWidth }]} />
+
+        {/* Moving Step Indicator Circle */}
+        <Animated.View style={[styles.progressCircle, { left: circlePosition, transform: [{ translateX: 9 }] }]}>
+
+  <Text style={styles.progressCircleText}>{currentStep}</Text>
+</Animated.View>
+
+
+        {/* Step Markers and Labels */}
+        <View style={styles.stepMarkersContainer}>
+          {steps.map((label, index) => (
+            <View key={index} style={styles.stepLabelWrapper}>
+              {/* Static Step Dots (optional, for visual guide) */}
+              <View 
+                style={[
+                  styles.stepDot, 
+                  currentStep === index + 1 && styles.stepDotActive
+                ]} 
+              />
+              <Text style={[styles.stepLabel, currentStep === index + 1 && styles.stepLabelActive]}>
+                {label}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  };
+  const renderCategoryCard = (category: Category) => (
+    <TouchableOpacity key={category.id} style={styles.categoryCard} onPress={() => handleCategorySelect(category)}>
+      <Image source={{ uri: category.image_url }} style={styles.categoryImage} resizeMode="cover" />
+      <Text style={styles.categoryTitle} numberOfLines={2}>
+        {category.title}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  const renderProductCard = (product: Product) => (
+    <TouchableOpacity key={product.id} style={styles.productCard} onPress={() => handleProductSelect(product)}>
+      <Image source={{ uri: product.image }} style={styles.productImage} resizeMode="cover" />
+      <Text style={styles.productTitle} numberOfLines={2}>
+        {product.title}
+      </Text>
+      <Text style={styles.productBrand}>{product.brand}</Text>
+      <Text style={styles.productVariants}>{product.variant_count} variants</Text>
+    </TouchableOpacity>
+  );
+
+  const renderPlacementCard = (placementKey: string, placementValue: string) => (
+    <TouchableOpacity key={placementKey} style={[styles.placementCard, selectedPlacements.includes(placementKey) && styles.placementCardSelected]} onPress={() => handlePlacementToggle(placementKey)}>
+      <View style={styles.placementHeader}>
+        <Text style={styles.placementTitle}>{placementValue}</Text>
+        <View style={[styles.checkbox, selectedPlacements.includes(placementKey) && styles.checkboxSelected]}>
+          {selectedPlacements.includes(placementKey) && <Text style={styles.checkmark}>✓</Text>}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchCategories}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (currentView === "viewFinalDesign") {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ProgressBar />
+        <View style={styles.container}>
+          <View style={styles.headerContainer}>
+            <TouchableOpacity onPress={handleBackToDesign} style={styles.backButton}>
+              <Text style={styles.backButtonText}>← Back</Text>
+            </TouchableOpacity>
+            <Text style={styles.headerText}>DESIGN RESULTS</Text>
+          </View>
+
+          {/* Step 3: Final Design */}
+          <ScrollView style={styles.scrollView} contentContainerStyle={styles.finalDesignContent}>
+              {generatedImage ? (
+                  <Image source={{ uri: generatedImage }} style={styles.finalDesignImage} />
+              ) : (
+                  <Text style={styles.noImageText}>No image generated yet. Go back to Design step to generate.</Text>
+              )}
+              
+              <Text style={styles.finalDesignProductText}>
+                Selected Product: {selectedProduct?.title} ({selectedColor?.color}, {selectedSize})
+              </Text>
+
+              {/* Input for remix prompt */}
+              <TextInput
+                style={styles.input}
+                placeholder="Type your smart adjustments for a remix..."
+                placeholderTextColor={theme.secondaryText}
+                value={prompt}
+                onChangeText={setPrompt}
+              />
+              
+              {/* Button Rows */}
+              <View style={styles.finalDesignButtonRow}>
+                  {/* ADD TO STORE - Secondary button, neutral appearance */}
+                  <TouchableOpacity style={styles.designControlButton} onPress={() => {Alert.alert("Action", "Adding to store...")}}>
+                      <Text style={styles.designControlButtonText}>ADD TO STORE</Text>
+                  </TouchableOpacity>
+                  {/* REMIX - Secondary button, neutral appearance */}
+                  <TouchableOpacity 
+                      style={styles.designControlButton} 
+                      onPress={handleRemix}
+                  >
+                      <Text style={styles.designControlButtonText}>REMIX</Text>
+                  </TouchableOpacity>
+              </View>
+              <View style={styles.finalDesignButtonRow}>
+                  {/* SAVE DESIGN - Secondary button, neutral appearance */}
+                  <TouchableOpacity style={styles.designControlButton} onPress={() => {Alert.alert("Action", "Saving design...")}}>
+                      <Text style={styles.designControlButtonText}>SAVE DESIGN</Text>
+                  </TouchableOpacity>
+                  {/* PHOTOSHOOT - Secondary button, neutral appearance */}
+                  <TouchableOpacity style={styles.designControlButton} onPress={() => {Alert.alert("Action", "Starting Photoshoot...")}}>
+                      <Text style={styles.designControlButtonText}>PHOTOSHOOT</Text>
+                  </TouchableOpacity>
+              </View>
+          </ScrollView>
+          {loading && (
+             <View style={styles.loadingOverlay}>
+                <ActivityIndicator size="large" color={theme.tint} />
+                <Text style={styles.loadingText}>Processing...</Text>
+             </View>
           )}
         </View>
-      </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
 
-      <TextInput
-        style={styles.input}
-        placeholder="Type your smart adjustments..."
-        value={prompt}
-        onChangeText={setPrompt}
-      />
-      <View style={styles.buttonRow}>
-        <TouchableOpacity style={styles.button} onPress={() => {}}>
-          <Text style={styles.buttonText}>GET ARTWORK</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={handleRemix}>
-          <Text style={styles.buttonText}>REMIX</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={styles.buttonRow}>
-        <TouchableOpacity style={styles.button} onPress={() => {}}>
-          <Text style={styles.buttonText}>SAVE DESIGN</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={() => {}}>
-          <Text style={styles.buttonText}>PHOTOSHOOT</Text>
-        </TouchableOpacity>
-      </View>
+  if (currentView === "design") {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ProgressBar />
+        <View style={styles.container}>
+          <View style={styles.headerContainer}>
+            <TouchableOpacity onPress={handleBackToPlacements} style={styles.backButton}>
+              <Text style={styles.backButtonText}>← Back</Text>
+            </TouchableOpacity>
+            <Text style={styles.headerText}>Add Your Inspo</Text>
+          </View>
+          <ScrollView style={styles.scrollView} contentContainerStyle={styles.designContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.uploadButtonsContainer}>
+              <TouchableOpacity
+                style={styles.uploadButton}
+                onPress={() => {
+                  takePhoto();
+                }}
+              >
+                <Text style={styles.uploadButtonText}>📷 Take Photo</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.uploadButton}
+                onPress={() => {
+                  pickImage();
+                }}
+              >
+                <Text style={styles.uploadButtonText}>📁 Choose Photo</Text>
+              </TouchableOpacity>
+            </View>
 
-      {loading && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#ffffff" />
+            <View style={styles.imagePreviewContainer}>
+              <View style={styles.imagePreviewBox}>
+                {uploadedImages.left ? (
+                  <View style={styles.imageWithDelete}>
+                    <Image source={{ uri: uploadedImages.left }} style={styles.previewImage} />
+                    <TouchableOpacity style={styles.deleteButton} onPress={() => deleteImage("left")}>
+                      <Text style={styles.deleteButtonText}>×</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={styles.emptyImageBox}>
+                    <Text style={styles.emptyImageText}>Image 1</Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.imagePreviewBox}>
+                {uploadedImages.right ? (
+                  <View style={styles.imageWithDelete}>
+                    <Image source={{ uri: uploadedImages.right }} style={styles.previewImage} />
+                    <TouchableOpacity style={styles.deleteButton} onPress={() => deleteImage("right")}>
+                      <Text style={styles.deleteButtonText}>×</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={styles.emptyImageBox}>
+                    <Text style={styles.emptyImageText}>Image 2</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            {/* Hidden view for capturing two images as one (for the real API call) */}
+            <View
+              ref={mergeRef}
+              collapsable={false}
+              style={{
+                flexDirection: "row",
+                width: 1024,
+                height: 512,
+                position: "absolute",
+                top: -9999,
+              }}
+            >
+              {uploadedImages.left && <Image source={{ uri: uploadedImages.left }} style={{ width: 512, height: 512 }} />}
+              {uploadedImages.right && <Image source={{ uri: uploadedImages.right }} style={{ width: 512, height: 512 }} />}
+            </View>
+
+            {/* This button now calls the MOCK function to move to Step 3 */}
+            <TouchableOpacity onPress={GenerateFinalDesign} style={styles.finalGenerateButton}>
+              <Text style={styles.finalGenerateButtonText}>Generate Design</Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
-      )}
-    </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (currentView === "placements") {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ProgressBar />
+        <View style={styles.container}>
+          <View style={styles.headerContainer}>
+            <TouchableOpacity onPress={handleBackToVariants} style={styles.backButton}>
+              <Text style={styles.backButtonText}>← Back</Text>
+            </TouchableOpacity>
+            <Text style={styles.headerText}>Select Placements</Text>
+          </View>
+          <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.placementsContainer}>
+              {placementFiles && Object.keys(placementFiles).length > 0 ? (
+                Object.entries(placementFiles).map(([key, value]) => renderPlacementCard(key, value))
+              ) : (
+                <Text style={styles.noPlacementsText}>No placement options available</Text>
+              )}
+            </View>
+            {selectedPlacements.length > 0 && (
+              <View style={styles.selectionSummary}>
+                <Text style={styles.selectionSummaryText}>
+                  {selectedPlacements.length} placement{selectedPlacements.length !== 1 ? "s" : ""} selected
+                </Text>
+                {/* This button moves to the design step (Step 2) */}
+                <TouchableOpacity style={styles.generateButton} onPress={handleGenerateDesign}>
+                  <Text style={styles.generateButtonText}>Go to Design</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (currentView === "variants") {
+    const { product, variants } = productDetails!;
+    const uniqueColors = [...new Map(variants.map((v) => [v.color, v])).values()];
+
+    // MODIFICATION START: Get unique sizes first, then sort them
+    const uniqueSizes = selectedColor ? [...new Set(variants.filter((v) => v.color === selectedColor.color).map((v) => v.size))] : [];
+    const availableSizes = sortSizes(uniqueSizes);
+    // MODIFICATION END
+
+    return (
+      <SafeAreaView style={styles.container}>
+        <ProgressBar />
+        <View style={styles.container}>
+          <View style={styles.headerContainer}>
+            <TouchableOpacity onPress={handleBackToProducts} style={styles.backButton}>
+              <Text style={styles.backButtonText}>← Back</Text>
+            </TouchableOpacity>
+            <Text style={styles.headerText}>{product.title}</Text>
+          </View>
+          <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <Image source={{ uri: selectedColor ? selectedColor.image : product.image }} style={styles.mainProductImage} />
+
+            <View style={styles.selectionContainer}>
+              <Text style={styles.selectionTitle}>
+                Color: <Text style={styles.selectionValue}>{selectedColor?.color || "Select a color"}</Text>
+              </Text>
+              <View style={styles.colorSwatchContainer}>
+                {uniqueColors.map((variant) => (
+                  <TouchableOpacity key={variant.id} onPress={() => handleColorSelect(variant)} style={[styles.colorSwatch, selectedColor?.color === variant.color && styles.colorSwatchSelected]}>
+                    <View style={[styles.colorInner, { backgroundColor: variant.color_code }]} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {selectedColor && (
+              <View style={styles.selectionContainer}>
+                <Text style={styles.selectionTitle}>
+                  Size: <Text style={styles.selectionValue}>{selectedSize || "Select a size"}</Text>
+                </Text>
+                <View style={styles.sizeButtonContainer}>
+                  {availableSizes.map((size) => ( // This will now map over the sorted sizes
+                    <TouchableOpacity key={size} onPress={() => handleSizeSelect(size)} style={[styles.sizeButton, selectedSize === size && styles.sizeButtonSelected]}>
+                      <Text style={[styles.sizeButtonText, selectedSize === size && styles.sizeButtonTextSelected]}>{size}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {selectedVariant && (
+              <View style={styles.selectionSummary}>
+                <TouchableOpacity style={styles.generateButton} onPress={() => handleVariantSelect(selectedVariant)}>
+                  <Text style={styles.generateButtonText}>Confirm Selection</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (currentView === "products") {
+    const filteredProducts = products.filter((product) => product.title.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    return (
+      <SafeAreaView style={styles.container}>
+        <ProgressBar />
+        <View style={styles.container}>
+          <View style={styles.headerContainer}>
+            <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
+              <Text style={styles.backButtonText}>← Back</Text>
+            </TouchableOpacity>
+            <Text style={styles.headerText}>{selectedCategory?.title}</Text>
+          </View>
+          <View style={styles.searchContainer}>
+            <TextInput style={styles.searchInput} placeholder="Search for products..." placeholderTextColor={theme.secondaryText} value={searchQuery} onChangeText={setSearchQuery} />
+          </View>
+          <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.gridContainer}>{filteredProducts.map(renderProductCard)}</View>
+          </ScrollView>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const parentCategories = categories.filter((c) => c.parent_id === 0);
+  const subcategories = selectedCategory ? categories.filter((c) => c.parent_id === selectedCategory.id) : [];
+  const displayedCategories = (subcategories.length > 0 ? subcategories : parentCategories).filter((c) => c.title.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ProgressBar />
+      <View style={styles.container}>
+        <View style={styles.headerContainer}>
+          {selectedCategory && (
+            <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
+              <Text style={styles.backButtonText}>← Back</Text>
+            </TouchableOpacity>
+          )}
+          <Text style={styles.headerText}>{selectedCategory ? selectedCategory.title : "Choose a Category"}</Text>
+        </View>
+        <View style={styles.searchContainer}>
+          <TextInput style={styles.searchInput} placeholder="Search for categories..." placeholderTextColor={theme.secondaryText} value={searchQuery} onChangeText={setSearchQuery} />
+        </View>
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.gridContainer}>{displayedCategories.map(renderCategoryCard)}</View>
+        </ScrollView>
+      </View>
+    </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1E1E1E',
-    alignItems: 'center',
-    paddingTop: 50,
-  },
-  title: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  imageContainer: {
-    width: 300,
-    height: 300,
-    backgroundColor: 'grey',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-    borderRadius: 15,
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 15,
-  },
-  input: {
-    backgroundColor: 'white',
-    width: '80%',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 20,
-    color: 'black',
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '80%',
-    marginBottom: 15,
-  },
-  button: {
-    backgroundColor: '#333',
-    padding: 15,
-    borderRadius: 10,
-    width: '48%',
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});
+const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      padding: 20,
+      paddingTop: 0,
+      paddingBottom: 40,
+    },
+    headerContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 10,
+      backgroundColor: theme.background,
+    },
+    backButton: {
+      marginRight: 15,
+      padding: 5,
+    },
+    backButtonText: {
+      fontSize: 18,
+      color: theme.tint,
+      fontWeight: "600",
+    },
+    headerText: {
+      fontSize: 22,
+      fontWeight: "bold",
+      color: theme.text,
+      flex: 1,
+      textAlign: "center",
+      marginRight: 40,
+    },
+    searchContainer: {
+      paddingHorizontal: 20,
+      paddingBottom: 20,
+    },
+    searchInput: {
+      height: 44,
+      backgroundColor: theme.card,
+      borderRadius: 8,
+      paddingHorizontal: 15,
+      fontSize: 16,
+      borderWidth: 1,
+      borderColor: theme.tabIconDefault,
+      color: theme.text,
+    },
+    gridContainer: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "space-between",
+    },
+    variantsContainer: {
+      paddingBottom: 20,
+    },
+    placementsContainer: {
+      paddingBottom: 20,
+    },
+    categoryCard: {
+      width: CARD_WIDTH,
+      backgroundColor: theme.card,
+      borderRadius: 16,
+      marginBottom: 20,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.05,
+      shadowRadius: 10,
+      elevation: 3,
+      borderWidth: 1,
+      borderColor: theme.tabIconDefault,
+    },
+    categoryImage: {
+      width: "100%",
+      height: CARD_WIDTH * 0.8,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      backgroundColor: theme.tabIconDefault,
+    },
+    categoryTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.text,
+      textAlign: "center",
+      padding: 12,
+    },
+    productCard: {
+      width: CARD_WIDTH,
+      backgroundColor: theme.card,
+      borderRadius: 16,
+      marginBottom: 20,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.05,
+      shadowRadius: 10,
+      elevation: 3,
+      borderWidth: 1,
+      borderColor: theme.tabIconDefault,
+      paddingBottom: 12,
+    },
+    productImage: {
+      width: "100%",
+      height: CARD_WIDTH * 0.8,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      backgroundColor: theme.tabIconDefault,
+    },
+    productTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.text,
+      paddingHorizontal: 12,
+      paddingTop: 12,
+    },
+    productBrand: {
+      fontSize: 12,
+      color: theme.secondaryText,
+      paddingHorizontal: 12,
+      paddingTop: 4,
+    },
+    productVariants: {
+      fontSize: 11,
+      color: theme.secondaryText,
+      paddingHorizontal: 12,
+      paddingTop: 2,
+    },
+    placementCard: {
+      backgroundColor: theme.card,
+      borderRadius: 12,
+      marginBottom: 15,
+      padding: 16,
+      borderWidth: 2,
+      borderColor: theme.tabIconDefault,
+    },
+    placementCardSelected: {
+      borderColor: theme.tint,
+      backgroundColor: theme.headerChip,
+    },
+    placementHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    placementTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: theme.text,
+    },
+    checkbox: {
+      width: 24,
+      height: 24,
+      borderRadius: 6,
+      borderWidth: 2,
+      borderColor: theme.tabIconDefault,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    checkboxSelected: {
+      backgroundColor: theme.tint,
+      borderColor: theme.tint,
+    },
+    checkmark: {
+      color: theme.background,
+      fontSize: 14,
+      fontWeight: "bold",
+    },
+    noPlacementsText: {
+      fontSize: 16,
+      color: theme.secondaryText,
+      textAlign: "center",
+      marginTop: 40,
+    },
+    selectionSummary: {
+      padding: 16,
+      marginTop: 10,
+    },
+    selectionSummaryText: {
+      color: theme.text,
+      fontSize: 16,
+      fontWeight: "600",
+      textAlign: "center",
+      marginBottom: 16,
+    },
+    generateButton: {
+      backgroundColor: theme.tint,
+      paddingVertical: 16,
+      borderRadius: 12,
+      alignItems: "center",
+      shadowColor: theme.tint,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 5,
+    },
+    generateButtonText: {
+      color: theme.background,
+      fontSize: 16,
+      fontWeight: "bold",
+    },
+    designContent: {
+      paddingHorizontal: 20,
+      paddingBottom: 20,
+    },
+    uploadButtonsContainer: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: 30,
+      gap: 15,
+    },
+    uploadButton: {
+      flex: 1,
+      backgroundColor: theme.card,
+      paddingVertical: 20,
+      paddingHorizontal: 15,
+      borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+      minHeight: 80,
+      borderWidth: 1,
+      borderColor: theme.tabIconDefault,
+    },
+    uploadButtonText: {
+      color: theme.tint,
+      fontSize: 16,
+      fontWeight: "600",
+      textAlign: "center",
+    },
+    imagePreviewContainer: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: 30,
+      gap: 15,
+    },
+    imagePreviewBox: {
+      flex: 1,
+      aspectRatio: 1,
+      backgroundColor: theme.card,
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: theme.tabIconDefault,
+      borderStyle: "dashed",
+      position: "relative",
+    },
+    imageWithDelete: {
+      width: "100%",
+      height: "100%",
+    },
+    previewImage: {
+      width: "100%",
+      height: "100%",
+      borderRadius: 10,
+    },
+    deleteButton: {
+      position: "absolute",
+      top: 8,
+      right: 8,
+      backgroundColor: "rgba(45, 55, 72, 0.7)",
+      borderRadius: 15,
+      width: 30,
+      height: 30,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    deleteButtonText: {
+      color: "#FFFFFF",
+      fontSize: 18,
+      fontWeight: "bold",
+      lineHeight: 20,
+    },
+    emptyImageBox: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    emptyImageText: {
+      color: theme.secondaryText,
+      fontSize: 14,
+    },
+    finalGenerateButton: {
+      backgroundColor: theme.tint,
+      paddingVertical: 16,
+      borderRadius: 12,
+      alignItems: "center",
+      shadowColor: theme.tint,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 5,
+    },
+    finalGenerateButtonText: {
+      color: theme.background,
+      fontSize: 18,
+      fontWeight: "bold",
+    },
+    progressBarContainer: {
+      height: 55, // Increased height to accommodate labels and circle
+      marginHorizontal: 20,
+      marginTop: 15,
+      marginBottom: 5,
+      justifyContent: 'flex-start',
+    },
+    progressBarTrack: { // The full grey line
+        position: 'absolute',
+        top: 15,
+        height: 4,
+        width: '100%',
+        backgroundColor: theme.tabIconDefault,
+        borderRadius: 2,
+    },
+    progressBar: { // The animated colored line
+      position: 'absolute',
+      top: 15,
+      height: 4,
+      backgroundColor: theme.tint,
+      borderRadius: 2,
+    },
+    progressCircle: { // The moving circle
+      position: 'absolute',
+      top: 1, // 15 - (28/2) = 1 (Center the circle vertically on the line)
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: theme.tint,
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      elevation: 5,
+    },
+    progressCircleText: {
+      color: theme.background,
+      fontWeight: 'bold',
+      fontSize: 16,
+    },
+    stepMarkersContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        width: '100%',
+        position: 'absolute',
+        bottom: 0,
+    },
+    stepLabelWrapper: {
+        alignItems: 'center',
+        paddingHorizontal: 10,
+    },
+    stepDot: {
+        width: 5,
+        height: 5,
+        borderRadius: 4,
+        backgroundColor: theme.tabIconDefault,
+        position: 'absolute',
+        top: 20,
+        zIndex: 1, // Ensure dots are above the track
+    },
+    stepDotActive: {
+        backgroundColor: theme.tint,
+    },
+    stepLabel: {
+        marginTop: 40, // Position labels below the bar
+        fontSize: 12,
+        fontWeight: '500',
+        color: theme.tabIconDefault,
+        textAlign: 'center',
+    },
+    stepLabelActive: {
+        color: theme.text,
+        fontWeight: 'bold',
+    },
+
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: theme.background,
+    },
+    loadingText: {
+      marginTop: 10,
+      fontSize: 16,
+      color: theme.secondaryText,
+    },
+    errorContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: theme.background,
+      paddingHorizontal: 20,
+    },
+    errorText: {
+      fontSize: 16,
+      color: "#F44336",
+      textAlign: "center",
+      marginBottom: 20,
+    },
+    retryButton: {
+      backgroundColor: theme.tint,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: 8,
+    },
+    retryButtonText: {
+      color: theme.background,
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    mainProductImage: {
+      width: "100%",
+      aspectRatio: 1,
+      backgroundColor: theme.card,
+      borderRadius: 16,
+      marginBottom: 20,
+      borderWidth: 1,
+      borderColor: theme.tabIconDefault,
+    },
+    selectionContainer: {
+      marginBottom: 25,
+    },
+    selectionTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: theme.text,
+      marginBottom: 12,
+    },
+    selectionValue: {
+      fontWeight: "normal",
+      color: theme.secondaryText,
+    },
+    colorSwatchContainer: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 15,
+    },
+    colorSwatch: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: theme.card,
+      borderWidth: 2,
+      borderColor: "transparent",
+    },
+    colorSwatchSelected: {
+      borderColor: theme.tint,
+    },
+    colorInner: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.tabIconDefault,
+    },
+    sizeButtonContainer: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 12,
+    },
+    sizeButton: {
+      paddingVertical: 10,
+      paddingHorizontal: 20,
+      backgroundColor: theme.card,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: theme.tabIconDefault,
+    },
+    sizeButtonSelected: {
+      backgroundColor: theme.tint,
+      borderColor: theme.tint,
+    },
+    sizeButtonText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.text,
+    },
+    sizeButtonTextSelected: {
+      color: theme.background,
+    },
+    // New Styles for Final Design View
+    finalDesignContent: {
+        flex: 1,
+        alignItems: 'center',
+        padding: 20,
+    },
+    finalDesignImage: {
+        width: 300,
+        height: 300,
+        borderRadius: 15,
+        resizeMode: "contain",
+        backgroundColor: theme.card,
+        marginBottom: 20,
+    },
+    finalDesignProductText: {
+        fontSize: 16,
+        color: theme.secondaryText,
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    input: {
+        backgroundColor: theme.card,
+        width: '100%',
+        padding: 15,
+        borderRadius: 12,
+        marginBottom: 20,
+        color: theme.text,
+        borderWidth: 1,
+        borderColor: theme.tabIconDefault,
+    },
+    finalDesignButtonRow: {
+        flexDirection: 'row',
+        width: '100%',
+        justifyContent: 'space-between',
+        marginBottom: 15,
+    },
+    designControlButton: {
+        flex: 1,
+        paddingVertical: 16,
+        borderRadius: 12,
+        alignItems: 'center',
+        backgroundColor: theme.card, 
+        borderWidth: 1,
+        borderColor: theme.tabIconDefault,
+        marginHorizontal: 5,
+        shadowColor: theme.text,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+    },
+    designControlButtonText: {
+        color: theme.text, 
+        fontSize: 14,
+        fontWeight: 'bold',
+    },
+    noImageText: {
+      color: theme.secondaryText,
+      marginTop: 20,
+    },
+    loadingOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: theme.background,
+        justifyContent: 'center',
+        alignItems: 'center',
+        opacity: 0.9,
+    }
+  });
