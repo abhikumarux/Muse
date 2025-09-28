@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Button, SafeAreaView, TextInput, useColorScheme as useDeviceColorScheme, Animated } from "react-native";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { captureRef } from "react-native-view-shot";
 import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
@@ -317,48 +317,171 @@ export default function CreateNewDesignTab() {
    * In a real application, this is where the AI image generation API call would go.
    */
   const GenerateFinalDesign = async () => {
-    // 1. Show Loading state (optional for mock, but good practice)
-    setLoading(true);
-    Alert.alert("Generating Design", "Skipping API call for testing. Navigating to final view in 1 second...");
-
-    // 2. Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
+    const usingSecond = !!uploadedImages.right;
+    const tempMuseString = usingSecond
+      ? "Take the first image and the second image, merge them into one cohesive image that makes sense."
+      : "Use the first image to generate an appealing, well-composed design based on the image provided.";
+  
+    if (!uploadedImages.left) {
+      Alert.alert("Missing Images", "Please upload at least one image first.");
+      return;
+    }
+  
     try {
-        // 3. Set a mock generated image
-        setGeneratedImage(MOCK_GENERATED_OUTFIT_URL);
+      console.log("UPLOADED IMAGES", uploadedImages.left, uploadedImages.right);
+  
+      const API_KEY = "AIzaSyBNbBd8yqnOTSM5C3bt56hgN_5X8OmMorY"; 
+      const endpoint =
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent";
+  
+      // Convert images to base64
+      const img1Base64 = await FileSystem.readAsStringAsync(uploadedImages.left, {
+        encoding: "base64",
+      });
+  
+      let img2Base64: string | null = null;
+      if (usingSecond && uploadedImages.right) {
+        img2Base64 = await FileSystem.readAsStringAsync(uploadedImages.right, {
+          encoding: "base64",
+        });
+      }
+  
+      // Build request body like curl
+      const parts: any[] = [
+        {
+          inline_data: {
+            mime_type: "image/png",
+            data: img1Base64,
+          },
+        },
+      ];
+  
+      if (img2Base64) {
+        parts.push({
+          inline_data: {
+            mime_type: "image/png",
+            data: img2Base64,
+          },
+        });
+      }
+  
+      parts.push({ text: tempMuseString });
+  
+      const body = JSON.stringify({
+        contents: [{ parts }],
+      });
+  
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "x-goog-api-key": API_KEY,
+          "Content-Type": "application/json",
+        },
+        body,
+      });
+  
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Gemini API HTTP error:", response.status, errorText);
+        Alert.alert("Error", `Gemini API request failed: ${response.status}`);
+        return;
+      }
 
-        // 4. Move to the final design view
-        setCurrentView("viewFinalDesign");
-    } catch (err) {
-        console.error("Mock generation failed:", err);
-        Alert.alert("Error", "Failed to mock the final design.");
-    } finally {
-        // 5. Hide Loading state
-        setLoading(false);
+      const data = await response.json();
+      //cconsole.log("Gemini response:", JSON.stringify(data, null, 2));
+  
+      const base64Image =
+      data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      console.log("Base 64: ", base64Image);
+  
+ 
+  
+      // Save image locally
+      const fileUri = FileSystem.documentDirectory + "finalDesign.png";
+      await FileSystem.writeAsStringAsync(fileUri, base64Image, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+  
+      // Display image
+      const combinedImageUri = `data:image/png;base64,${base64Image}`;
+      setGeneratedImage(combinedImageUri);
+      //setCurrentView("viewFinalDesign");
+    } catch (err: any) {
+      console.error("Error generating combined image:", err);
+      Alert.alert(
+        "Error",
+        "Failed to generate combined image. " + (err?.message || "")
+      );
     }
   };
   
   const handleRemix = async () => {
     if (!generatedImage) {
-        Alert.alert('No Design', 'Please generate an initial design first.');
-        return;
+      Alert.alert('No Design', 'Please generate an initial design first.');
+      return;
     }
     if (!prompt) {
-        Alert.alert('No Prompt', 'Please enter a prompt to remix the image.');
-        return;
+      Alert.alert('No Prompt', 'Please enter a prompt to remix the image.');
+      return;
     }
-    // MOCK REMIX LOGIC: In a real app, this would call the API with the current image and prompt
     setLoading(true);
-    Alert.alert("Remixing Design", `Remixing with prompt: "${prompt}". Simulating delay...`);
-    
-    await new Promise(resolve => setTimeout(resolve, 1500));
 
-    // For the mock, we just use a slightly different placeholder URL
-    const REMIXED_URL = `https://placehold.co/400x400/2B8A2B/ffffff?text=Remixed+by+AI`;
-    setGeneratedImage(REMIXED_URL);
-    setPrompt(""); // Clear prompt after "remixing"
-    setLoading(false);
+    try {
+      // Extract base64 from data URI
+      const base64Image = generatedImage.replace(/^data:image\/\w+;base64,/, "");
+
+      const API_KEY = "AIzaSyBNbBd8yqnOTSM5C3bt56hgN_5X8OmMorY";
+      const endpoint =
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent";
+
+      // Build Gemini API request
+      const parts: any[] = [
+        {
+          inline_data: {
+            mime_type: "image/png",
+            data: base64Image,
+          },
+        },
+        { text: prompt },
+      ];
+
+      const body = JSON.stringify({
+        contents: [{ parts }],
+      });
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "x-goog-api-key": API_KEY,
+          "Content-Type": "application/json",
+        },
+        body,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Gemini API HTTP error:", response.status, errorText);
+        Alert.alert("Error", `Gemini API request failed: ${response.status}`);
+        setLoading(false);
+        return;
+      }
+
+      const data = await response.json();
+      // Find the first part with inline_data
+      const remixedBase64 = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      console.log("Base 64: ", base64Image);
+
+     
+
+      const remixedImageUri = `data:image/png;base64,${remixedBase64}`;
+      setGeneratedImage(remixedImageUri);
+      setPrompt(""); // Clear prompt after remixing
+    } catch (err: any) {
+      console.error("Error remixing image:", err);
+      Alert.alert("Error", "Failed to remix image. " + (err?.message || ""));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGenerateDesign = () => {
@@ -600,6 +723,24 @@ const circlePosition = progress.interpolate({
     </TouchableOpacity>
   );
 
+  // Handler to clear generated image
+  const deleteGeneratedImage = () => {
+    setGeneratedImage(null);
+  };
+
+  // Handler to apply generated image to selected item
+  const putImageOnItem = () => {
+
+    //first we are going to take the image, and the user id, then upload to s3 bucket into userId/tempGeneratedDesignFolder/(nameofnewimageincrement)
+    
+
+
+
+
+    // TODO: implement logic to apply image to item
+    setCurrentView('viewFinalDesign');
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -636,11 +777,7 @@ const circlePosition = progress.interpolate({
 
           {/* Step 3: Final Design */}
           <ScrollView style={styles.scrollView} contentContainerStyle={styles.finalDesignContent}>
-              {generatedImage ? (
-                  <Image source={{ uri: generatedImage }} style={styles.finalDesignImage} />
-              ) : (
-                  <Text style={styles.noImageText}>No image generated yet. Go back to Design step to generate.</Text>
-              )}
+             
               
               <Text style={styles.finalDesignProductText}>
                 Selected Product: {selectedProduct?.title} ({selectedColor?.color}, {selectedSize})
@@ -752,7 +889,87 @@ const circlePosition = progress.interpolate({
                   </View>
                 )}
               </View>
+
+              
             </View>
+            {/* Show generated image and remix controls below the upload area */}
+            {generatedImage && (
+              <View style={{
+                marginTop: 30,
+                marginBottom: 30,
+                alignItems: 'center',
+                backgroundColor: theme.card,
+                borderRadius: 16,
+                padding: 24,
+                shadowColor: theme.text,
+                shadowOpacity: 0.08,
+                shadowRadius: 8,
+                elevation: 2,
+                width: '100%',
+                maxWidth: 400,
+                alignSelf: 'center',
+                position: 'relative',
+              }}>
+                {/* X button in top right */}
+                <TouchableOpacity
+                  style={{
+                    position: 'absolute',
+                    top: 10,
+                    right: 10,
+                    backgroundColor: 'rgba(45, 55, 72, 0.7)',
+                    borderRadius: 15,
+                    width: 30,
+                    height: 30,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 2,
+                  }}
+                  onPress={deleteGeneratedImage}
+                >
+                  <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold', lineHeight: 20 }}>×</Text>
+                </TouchableOpacity>
+                <Text style={{
+                  fontSize: 18,
+                  fontWeight: '600',
+                  color: theme.text,
+                  marginBottom: 16,
+                  textAlign: 'center',
+                }}>Generated Design</Text>
+                <Image
+                  source={{ uri: generatedImage }}
+                  style={{
+                    width: 260,
+                    height: 260,
+                    borderRadius: 14,
+                    marginBottom: 18,
+                    backgroundColor: theme.background,
+                    resizeMode: 'contain',
+                    alignSelf: 'center',
+                  }}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Type your smart adjustments for a remix..."
+                  placeholderTextColor={theme.secondaryText}
+                  value={prompt}
+                  onChangeText={setPrompt}
+                />
+                <TouchableOpacity style={[styles.finalGenerateButton, { marginTop: 0 }]} onPress={handleRemix}>
+                  <Text style={styles.finalGenerateButtonText}>Remix</Text>
+                </TouchableOpacity>
+                {/* New Apply button */}
+                <TouchableOpacity style={[styles.finalGenerateButton, { marginTop: 16, backgroundColor: theme.tint }]} onPress={putImageOnItem}>
+                  <Text style={[styles.finalGenerateButtonText, { color: theme.background }]}>Apply to selected item</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Generate Design Button only if no generated image */}
+            {!generatedImage && (
+              <TouchableOpacity onPress={GenerateFinalDesign} style={styles.finalGenerateButton}>
+                <Text style={styles.finalGenerateButtonText}>Generate Design</Text>
+              </TouchableOpacity>
+            )}
 
             {/* Hidden view for capturing two images as one (for the real API call) */}
             <View
@@ -769,11 +986,6 @@ const circlePosition = progress.interpolate({
               {uploadedImages.left && <Image source={{ uri: uploadedImages.left }} style={{ width: 512, height: 512 }} />}
               {uploadedImages.right && <Image source={{ uri: uploadedImages.right }} style={{ width: 512, height: 512 }} />}
             </View>
-
-            {/* This button now calls the MOCK function to move to Step 3 */}
-            <TouchableOpacity onPress={GenerateFinalDesign} style={styles.finalGenerateButton}>
-              <Text style={styles.finalGenerateButtonText}>Generate Design</Text>
-            </TouchableOpacity>
           </ScrollView>
         </View>
       </SafeAreaView>

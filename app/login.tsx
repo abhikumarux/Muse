@@ -2,7 +2,14 @@ import React, { useState } from "react";
 import { View, Text, TextInput, Button, ActivityIndicator, Alert, TouchableOpacity, StyleSheet, Dimensions, Image } from "react-native";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { app } from "../constants/firebaseConfig";
+import { fromCognitoIdentityPool } from "@aws-sdk/credential-provider-cognito-identity"
+
 import { useRouter } from "expo-router";
+import { DynamoDBClient, GetItemCommand, QueryCommand, ScanCommand } from "@aws-sdk/client-dynamodb";
+import bcrypt from "bcryptjs";
+
+const REGION = "us-east-2"; 
+const IDENTITY_POOL_ID = "us-east-2:3680323d-0bc6-499f-acc5-f98acb534e36"; // from Cognito
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -13,31 +20,58 @@ export default function LoginScreen() {
   const router = useRouter();
 
   const handleLogin = async () => {
-    // DEV MODE: bypass login and go straight to home tabs
-    router.replace("/(tabs)");
-
-    // Uncomment this later for actual login:
-    /*
-  if (!username || !password) {
-    Alert.alert("Error", "Please enter both username and password");
-    return;
-  }
-  setLoading(true);
-  const auth = getAuth(app);
-  try {
-    await signInWithEmailAndPassword(auth, username, password);
-    Alert.alert("Success", `Logged in as ${username}`);
-    setUsername("");
-    setPassword("");
-    router.replace("/(tabs)");
-  } catch (err: any) {
-    Alert.alert("Error", err.message || "Login failed");
-  } finally {
-    setLoading(false);
-  }
-  */
+    setLoading(true);
+  
+    try {
+      const client = new DynamoDBClient({
+        region: REGION,
+        credentials: fromCognitoIdentityPool({
+          clientConfig: { region: REGION },
+          identityPoolId: IDENTITY_POOL_ID,
+        }),
+      });
+  
+      // Step 1: Scan the table with alias for reserved keyword
+      const scanResult = await client.send(new ScanCommand({
+        TableName: "MuseUsers",
+        ProjectionExpression: "#n, userId, passwordHash",
+        ExpressionAttributeNames: {
+          "#n": "name", // alias for reserved keyword
+        },
+      }));
+  
+      // Step 2: Make sure there are items
+      if (!scanResult.Items || scanResult.Items.length === 0) {
+        throw new Error("User not found");
+      }
+  
+      // Step 3: Find the exact username match
+      const user = scanResult.Items.find(item => item.name.S === username);
+      if (!user) {
+        throw new Error("User not found");
+      }
+  
+      // Step 4: Compare password
+      if (!user.passwordHash || !user.passwordHash.S) {
+        throw new Error("Password not set for this user");
+      }
+  
+      const passwordMatch = await bcrypt.compare(password, user.passwordHash.S);
+      if (!passwordMatch) {
+        throw new Error("Incorrect password");
+      }
+  
+      // Step 5: Success! Reset input fields and navigate
+      setUsername("");
+      setPassword("");
+      router.replace("/(tabs)");
+  
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Login failed");
+    } finally {
+      setLoading(false);
+    }
   };
-
   const gridSize = 40;
   const horizontalLines = Math.ceil(SCREEN_HEIGHT / gridSize);
   const verticalLines = Math.ceil(SCREEN_WIDTH / gridSize);
