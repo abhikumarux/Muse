@@ -43,12 +43,11 @@ export default function RegisterScreen() {
           TableName: "MuseUsers",
           ProjectionExpression: "#n",
           ExpressionAttributeNames: {
-            "#n": "name", // alias for reserved keyword
+            "#n": "name", 
           },
         })
       );
       
-      // Check if any existing name matches the new username
       if (scanResult && scanResult.Items) {
         const existingUsernames = scanResult.Items.map(item => item.name.S);
       
@@ -58,11 +57,10 @@ export default function RegisterScreen() {
       }
      
     
-      // 2. Check if the username already exists
+    
      
-
+      //create a password hash and send it along with the user. 
       const userId = uuidv4();
-
       const saltRounds = 10;
       const hashedPassword = await bcrypt.hash(password, saltRounds);
       await client.send(new PutItemCommand({
@@ -73,36 +71,7 @@ export default function RegisterScreen() {
           passwordHash: { S: hashedPassword },
         },
       }));
-      //
-
-
-
-
-
-
-     //await createUserWithEmailAndPassword(auth, username, password);
-
-      // const res = await fetch(`${API_URL}/users`);
-      // const users = await res.json();
-      // const maxId = users.length ? Math.max(...users.map((u: any) => u.UserId), 10) : 0;
-      // const newId = maxId + 1;
-      // const postRes = await fetch(`${API_URL}/user`, {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({
-      //     UserId: newId,
-      //     Email: username,
-      //   }),
-      // });
-
-      // if (postRes.ok) {
-      //   Alert.alert("Success", `Registered as ${username} (ID: ${newId})`);
-      //   setUsername("");
-      //   setPassword("");
-      //   setTimeout(() => router.replace('/login'), 500);
-      // } else {
-      //   Alert.alert("Error", "Failed to register user in backend");
-      // }
+    
     } catch (err: any) {
       Alert.alert("Error", err.message || "Registration failed");
       console.log(err);

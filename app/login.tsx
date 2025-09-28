@@ -9,7 +9,7 @@ import { DynamoDBClient, GetItemCommand, QueryCommand, ScanCommand } from "@aws-
 import bcrypt from "bcryptjs";
 
 const REGION = "us-east-2"; 
-const IDENTITY_POOL_ID = "us-east-2:3680323d-0bc6-499f-acc5-f98acb534e36"; // from Cognito
+const IDENTITY_POOL_ID = "us-east-2:3680323d-0bc6-499f-acc5-f98acb534e36"; 
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -31,27 +31,23 @@ export default function LoginScreen() {
         }),
       });
   
-      // Step 1: Scan the table with alias for reserved keyword
       const scanResult = await client.send(new ScanCommand({
         TableName: "MuseUsers",
         ProjectionExpression: "#n, userId, passwordHash",
         ExpressionAttributeNames: {
-          "#n": "name", // alias for reserved keyword
+          "#n": "name", 
         },
       }));
   
-      // Step 2: Make sure there are items
       if (!scanResult.Items || scanResult.Items.length === 0) {
         throw new Error("User not found");
       }
   
-      // Step 3: Find the exact username match
       const user = scanResult.Items.find(item => item.name.S === username);
       if (!user) {
         throw new Error("User not found");
       }
   
-      // Step 4: Compare password
       if (!user.passwordHash || !user.passwordHash.S) {
         throw new Error("Password not set for this user");
       }
@@ -61,7 +57,6 @@ export default function LoginScreen() {
         throw new Error("Incorrect password");
       }
   
-      // Step 5: Success! Reset input fields and navigate
       setUsername("");
       setPassword("");
       router.replace("/(tabs)");
