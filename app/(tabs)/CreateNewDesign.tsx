@@ -529,7 +529,7 @@ const sortSizes = (sizes: string[]): string[] => {
 
 const circlePosition = progress.interpolate({
   inputRange: [0, 1, 2],
-  outputRange: [0, (width - 40 - CIRCLE_SIZE)/2, width - 60 - CIRCLE_SIZE], 
+  outputRange: [8, (width - 50 - CIRCLE_SIZE)/2, width - 68 - CIRCLE_SIZE], 
   // width - 40 because of horizontal margin on progressBarContainer
 });
 
@@ -1231,9 +1231,9 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     },
     progressBarContainer: {
       height: 55, // Increased height to accommodate labels and circle
-      marginHorizontal: 20,
-      marginTop: 15,
-      marginBottom: 5,
+      marginHorizontal: 25,
+      marginTop: 10,
+      marginBottom: 2,
       justifyContent: 'flex-start',
     },
     progressBarTrack: { // The full grey line
@@ -1254,9 +1254,9 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     progressCircle: { // The moving circle
       position: 'absolute',
       top: 1, // 15 - (28/2) = 1 (Center the circle vertically on the line)
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: 35,
+      height: 35,
+      borderRadius: 25,
       backgroundColor: theme.tint,
       justifyContent: 'center',
       alignItems: 'center',
@@ -1288,7 +1288,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
         borderRadius: 4,
         backgroundColor: theme.tabIconDefault,
         position: 'absolute',
-        top: 20,
+        top: 25,
         zIndex: 1, // Ensure dots are above the track
     },
     stepDotActive: {
