@@ -5,6 +5,13 @@ import { captureRef } from "react-native-view-shot";
 import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Colors } from "@/constants/Colors"; // Import the Colors constant
+import { useUser } from "../UserContext";
+import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { fromCognitoIdentityPool } from "@aws-sdk/credential-provider-cognito-identity";
+import { CognitoIdentityClient } from "@aws-sdk/client-cognito-identity";
+import { Buffer } from "buffer";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { FILE } from "dns";
 
 interface Category {
   id: number;
@@ -92,7 +99,7 @@ interface ProductDetailsResponse {
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 60) / 2;
-const API_KEY = "bN327lVKvW0qlqbQqCD7FH2n7erra872HXUKvAVk";
+const API_KEY = "BBfvA4cXk0ZhawhrvLE9JoDc5KUyqIOsiXjA0w5K";
 
 // Mock image URL for testing the final design step
 const MOCK_GENERATED_OUTFIT_URL = "https://placehold.co/400x400/8A2BE2/ffffff?text=Generated+Outfit";
@@ -101,6 +108,10 @@ export default function CreateNewDesignTab() {
   const colorScheme = useDeviceColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const styles = getStyles(theme);
+
+  const REGION = "us-east-2"; 
+  const IDENTITY_POOL_ID = "us-east-2:3680323d-0bc6-499f-acc5-f98acb534e36"; 
+  const BUCKET = "muse-app-uploads";
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -117,8 +128,24 @@ export default function CreateNewDesignTab() {
     left: null,
     right: null,
   });
+  interface PrintfulFile {
+    type: string;
+    url: string;
+    placement: string;
+    filename: string;
+    visible: boolean;
+  }
+  
+  // In your component
+  const filesRef = useRef<PrintfulFile[]>([]);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [mockupImages, setMockupImages] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const { userId } = useUser();
+  const [mockupUrls, setMockupUrls] = useState<string[]>([]);
+
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+
 
   const [selectedColor, setSelectedColor] = useState<Variant | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
@@ -181,6 +208,26 @@ export default function CreateNewDesignTab() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getImageUrl = async (userId: string) => {
+    const s3Client = new S3Client({
+      region: REGION,
+      credentials: fromCognitoIdentityPool({
+        clientConfig: { region: REGION },
+        identityPoolId: IDENTITY_POOL_ID,
+      }),
+    });
+  
+    const key = `${userId}/tempUpload/tempImage.png`;
+  
+    const command = new GetObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+    });
+  
+    // URL expires in 5 minutes
+    return await getSignedUrl(s3Client, command, { expiresIn: 300 });
   };
 
   const fetchProducts = async (categoryId: number) => {
@@ -727,19 +774,305 @@ const circlePosition = progress.interpolate({
   const deleteGeneratedImage = () => {
     setGeneratedImage(null);
   };
+  
+  const putImageOnItem = async () => {
+    if (!userId || !generatedImage) {
+      console.error("Missing userId or generatedImage");
+      return;
+    }
+  
+    if (!selectedProduct?.id || !selectedVariant?.id || !selectedPlacements.length) {
+      Alert.alert("Missing Data", "Please make sure you have selected a product, variant, and placement.");
+      return;
+    }
+  
+    setLoading(true);
+  
+    try {
+      // 1. Upload to S3
+      const s3Client = new S3Client({
+        region: REGION,
+        credentials: fromCognitoIdentityPool({
+          client: new CognitoIdentityClient({ region: REGION }),
+          identityPoolId: IDENTITY_POOL_ID,
+        }),
+      });
 
-  // Handler to apply generated image to selected item
-  const putImageOnItem = () => {
+      
+  
+      // Generate unique key with timestamp to avoid caching issues
+      const timestamp = Date.now();
+      const key = `${userId}/tempUpload/tempImage_${timestamp}.png`;
+      const base64Data = generatedImage.replace(/^data:image\/\w+;base64,/, "");
+      const buffer = Buffer.from(base64Data, "base64");
+  
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: BUCKET,
+          Key: key,
+          Body: buffer,
+          ContentType: "image/png",
+        })
+      );
 
-    //first we are going to take the image, and the user id, then upload to s3 bucket into userId/tempGeneratedDesignFolder/(nameofnewimageincrement)
-    
+      // 2. Construct public S3 URL with cache-busting parameter
+      const imageUrl = `https://${BUCKET}.s3.${REGION}.amazonaws.com/${key}?t=${timestamp}`;
+      setImageUrl(imageUrl);
+      console.log("New S3 URL with timestamp:", imageUrl);
+  
+      // 3. Get store ID
+      const storeId = await getStoreId();
+  
+      // 4. Prepare Printful mockup payload
+      const mockupPayload = {
+        variant_ids: [selectedVariant.id],
+        format: "jpg",
+        files: selectedPlacements.map(placement => ({
+          placement,
+          image_url: imageUrl,
+          position: {
+            area_width: 1800,
+            area_height: 2400,
+            width: 1800,
+            height: 1800,
+            top: 300,
+            left: 0
+          }
+        }))
+      };
+  
+      console.log("Mockup payload:", JSON.stringify(mockupPayload, null, 2));
+  
+      // 5. Call Printful mockup generator
+      const mockupResponse = await fetch(
+        `https://api.printful.com/mockup-generator/create-task/${selectedProduct.id}?store_id=${storeId}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(mockupPayload),
+        }
+      );
+  
+      if (!mockupResponse.ok) {
+        const errorData = await mockupResponse.json();
+        console.error("Mockup creation failed:", errorData);
+        Alert.alert("Error", "Failed to create mockup. Please try again.");
+        setLoading(false);
+        return;
+      }
+  
+      const mockupData = await mockupResponse.json();
+      const taskKey = mockupData.result.task_key;
+  
+      // 6. Poll for mockup completion
+      let attempts = 0;
+      const maxAttempts = 30; // 30 seconds max
 
+      console.log(`Starting to poll for mockup completion. Task key: ${taskKey}`);
 
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+        attempts++;
+        
+        console.log(`Polling attempt ${attempts}/${maxAttempts}`);
 
+        const statusResponse = await fetch(
+          `https://api.printful.com/mockup-generator/task?task_key=${taskKey}&store_id=${storeId}`,
+          {
+            headers: { Authorization: `Bearer ${API_KEY}` },
+          }
+        );
 
-    // TODO: implement logic to apply image to item
-    setCurrentView('viewFinalDesign');
+        console.log(`Status response: ${statusResponse.status} ${statusResponse.statusText}`);
+
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json();
+          console.log(`Status data:`, JSON.stringify(statusData, null, 2));
+         
+
+        
+
+          if (statusData.result.status === "completed") {
+            console.log("ABOUT TO MAP MOCKUPS");
+            interface ExtraMockup {
+              generator_mockup_id: number;
+              title: string;
+              option: string;
+              option_group: string;
+              url: string;
+            }
+            
+            interface Mockup {
+              placement: string;
+              variant_ids: number[];
+              mockup_url: string;
+              generator_mockup_id: number;
+              extra?: ExtraMockup[];
+            }
+            
+            const filesRef = { current: [] as {
+              type: string;
+              url: string;
+              placement: string;
+              filename: string;
+              visible: boolean;
+            }[] };
+            
+            const seenUrls = new Set<string>();
+            
+            const mockups: Mockup[] = statusData.result.mockups; // your JSON
+            
+            mockups.forEach((mockup: Mockup, index: number) => {
+              // main mockup
+              if (!seenUrls.has(mockup.mockup_url)) {
+                filesRef.current.push({
+                  type: "default",
+                  url: mockup.mockup_url,
+                  placement: mockup.placement,
+                  filename: `design-${index + 1}.png`,
+                  visible: true,
+                });
+                seenUrls.add(mockup.mockup_url);
+              }
+            
+              // extra mockups
+              mockup.extra?.forEach((extra: ExtraMockup, extraIndex: number) => {
+                if (!seenUrls.has(extra.url)) {
+                  filesRef.current.push({
+                    type: "default",
+                    url: extra.url,
+                    placement: mockup.placement,
+                    filename: `design-${index + 1}-extra-${extraIndex + 1}.png`,
+                    visible: true,
+                  });
+                  seenUrls.add(extra.url);
+                }
+              });
+            });
+            
+            console.log(filesRef.current);
+            console.log("Mockup completed successfully!");
+            const mockups2 = statusData.result.mockups || [];
+            const mockupUrls= mockups2.map((mockup: any) => mockup.mockup_url);
+            setMockupUrls(mockupUrls);
+            setMockupImages(mockupUrls);
+            setLoading(false);
+            setCurrentView("viewFinalDesign");
+            return;
+          } else if (statusData.result.status === "failed") {
+            console.log("Mockup generation failed:", statusData.result);
+            Alert.alert("Error", "Mockup generation failed. Please try again.");
+            setLoading(false);
+            return;
+          } else {
+            console.log(`Mockup status: ${statusData.result.status} (still processing...)`);
+          }
+        } else {
+          const errorText = await statusResponse.text();
+          console.log(`Status check failed: ${statusResponse.status} - ${errorText}`);
+        }
+      }
+  
+      Alert.alert("Timeout", "Mockup generation is taking longer than expected. Please try again.");
+      setLoading(false);
+  
+    } catch (err) {
+      console.error("Error in putImageOnItem:", err);
+      Alert.alert("Error", "Something went wrong. Please try again.");
+      setLoading(false);
+    }
   };
+
+  const addToStore = async (mockupUrls: string[]) => {
+    if (!mockupUrls.length) {
+      Alert.alert("Error", "No mockup URLs provided.");
+      return;
+    }
+
+    console.log("jakeeee NEEEEEDSSS: ", filesRef);
+    
+  
+    if (!selectedVariant?.id) {
+      Alert.alert("Error", "No variant selected for the product.");
+      return;
+    }
+  
+    if (!selectedProduct) {
+      Alert.alert("Error", "No product selected.");
+      return;
+    }
+  
+   
+  
+    try {
+      let endpoint: string;
+      let payload: any;
+  
+      if (selectedProduct.id) {
+        endpoint = `https://api.printful.com/store/products/${selectedProduct.id}/variants`;
+        payload = {
+          variant_id: selectedVariant.id,
+          filesRef,
+          retail_price: "25.00",
+        };
+      } else {
+        if (!selectedProduct.title) {
+          Alert.alert("Error", "Product title is required to create a new product.");
+          return;
+        }
+        endpoint = `https://api.printful.com/store/products`;
+        payload = {
+          sync_product: {
+            external_id: `local-${Date.now()}`,
+            name: selectedProduct.title,
+            is_ignored: true,
+            thumbnail: filesRef.current[0].url,
+          },
+          sync_variants: [
+            {
+              external_id: `local-variant-${Date.now()}`,
+              variant_id: selectedVariant.id,
+              retail_price: "25.00",
+              filesRef,
+              options: [],
+              availability_status: "active",
+            },
+          ],
+        };
+      }
+  
+      console.log("Adding to store with payload:", JSON.stringify(payload, null, 2));
+  
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Failed to add product to store:", errorData);
+        Alert.alert("Error", "Failed to add product to store.");
+        return;
+      }
+  
+      const result = await response.json();
+      console.log("Product successfully added to store:", result);
+      Alert.alert("Success", "Mockup added to your store!");
+    } catch (err) {
+      console.error("Error in addToStore:", err);
+      Alert.alert("Error", "Something went wrong while adding the product to store.");
+    }
+  };
+
+
+
 
   if (loading) {
     return (
@@ -778,10 +1111,37 @@ const circlePosition = progress.interpolate({
           {/* Step 3: Final Design */}
           <ScrollView style={styles.scrollView} contentContainerStyle={styles.finalDesignContent}>
              
-              
               <Text style={styles.finalDesignProductText}>
                 Selected Product: {selectedProduct?.title} ({selectedColor?.color}, {selectedSize})
               </Text>
+
+              {/* Mockup Images Horizontal Scroll */}
+              {mockupImages.length > 0 ? (
+                <View style={styles.mockupContainer}>
+                  <Text style={styles.mockupTitle}>Your Design on Product</Text>
+                  <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.mockupScrollView}
+                    contentContainerStyle={styles.mockupScrollContent}
+                  >
+                    {mockupImages.map((mockupUrl, index) => (
+                      <View key={index} style={styles.mockupImageContainer}>
+                        <Image 
+                          source={{ uri: mockupUrl }} 
+                          style={styles.mockupImage}
+                          resizeMode="contain"
+                        />
+                        <Text style={styles.mockupImageLabel}>View {index + 1}</Text>
+                      </View>
+                    ))}
+                  </ScrollView>
+                </View>
+              ) : (
+                <View style={styles.noMockupContainer}>
+                  <Text style={styles.noMockupText}>No mockup images available</Text>
+                </View>
+              )}
 
               {/* Input for remix prompt */}
               <TextInput
@@ -795,9 +1155,24 @@ const circlePosition = progress.interpolate({
               {/* Button Rows */}
               <View style={styles.finalDesignButtonRow}>
                   {/* ADD TO STORE - Secondary button, neutral appearance */}
-                  <TouchableOpacity style={styles.designControlButton} onPress={() => {Alert.alert("Action", "Adding to store...")}}>
-                      <Text style={styles.designControlButtonText}>ADD TO STORE</Text>
-                  </TouchableOpacity>
+                              <TouchableOpacity
+              style={styles.designControlButton}
+              onPress={async () => {
+                Alert.alert("Action", "Adding to store...");
+                try {
+                  if (!mockupUrls || mockupUrls.length === 0) {
+                    Alert.alert("Error", "No mockups available to add.");
+                    return;
+                  }
+                  await addToStore(mockupUrls); // call your function here
+                } catch (err) {
+                  console.error(err);
+                  Alert.alert("Error", "Failed to add product to store.");
+                }
+              }}
+            >
+              <Text style={styles.designControlButtonText}>ADD TO STORE</Text>
+            </TouchableOpacity>
                   {/* REMIX - Secondary button, neutral appearance */}
                   <TouchableOpacity 
                       style={styles.designControlButton} 
@@ -1694,5 +2069,59 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
         justifyContent: 'center',
         alignItems: 'center',
         opacity: 0.9,
+    },
+    // Mockup display styles
+    mockupContainer: {
+        marginBottom: 30,
+        width: '100%',
+    },
+    mockupTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: theme.text,
+        textAlign: 'center',
+        marginBottom: 15,
+    },
+    mockupScrollView: {
+        maxHeight: 300,
+    },
+    mockupScrollContent: {
+        paddingHorizontal: 10,
+    },
+    mockupImageContainer: {
+        marginRight: 15,
+        alignItems: 'center',
+        backgroundColor: theme.card,
+        borderRadius: 12,
+        padding: 10,
+        shadowColor: theme.text,
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        elevation: 2,
+        minWidth: 200,
+    },
+    mockupImage: {
+        width: 180,
+        height: 200,
+        borderRadius: 8,
+        backgroundColor: theme.background,
+    },
+    mockupImageLabel: {
+        fontSize: 12,
+        color: theme.secondaryText,
+        marginTop: 8,
+        textAlign: 'center',
+    },
+    noMockupContainer: {
+        alignItems: 'center',
+        padding: 20,
+        backgroundColor: theme.card,
+        borderRadius: 12,
+        marginBottom: 20,
+    },
+    noMockupText: {
+        fontSize: 16,
+        color: theme.secondaryText,
+        textAlign: 'center',
     }
   });

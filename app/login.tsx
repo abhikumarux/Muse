@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, TextInput, Button, ActivityIndicator, Alert, TouchableOpacity, StyleSheet, Dimensions, Image } from "react-native";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { app } from "../constants/firebaseConfig";
 import { fromCognitoIdentityPool } from "@aws-sdk/credential-provider-cognito-identity"
-
+import { useUser } from "./UserContext";
 import { useRouter } from "expo-router";
 import { DynamoDBClient, GetItemCommand, QueryCommand, ScanCommand } from "@aws-sdk/client-dynamodb";
 import bcrypt from "bcryptjs";
@@ -17,6 +17,8 @@ export default function LoginScreen() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const { setUserId } = useUser();
+  const { userId } = useUser();
   const router = useRouter();
 
   const handleLogin = async () => {
@@ -56,6 +58,13 @@ export default function LoginScreen() {
       if (!passwordMatch) {
         throw new Error("Incorrect password");
       }
+      if(user.userId.S != undefined) {
+        console.log("SETTING USER ID: ", user.userId.S);
+        setUserId(user.userId.S);
+        
+      
+      }
+    
   
       setUsername("");
       setPassword("");
