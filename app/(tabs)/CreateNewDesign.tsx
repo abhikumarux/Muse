@@ -12,6 +12,8 @@ import { CognitoIdentityClient } from "@aws-sdk/client-cognito-identity";
 import { Buffer } from "buffer";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { FILE } from "dns";
+import { LinearGradient } from "expo-linear-gradient";
+import { Platform } from "react-native";
 
 interface Category {
   id: number;
@@ -109,8 +111,8 @@ export default function CreateNewDesignTab() {
   const theme = Colors[colorScheme ?? "light"];
   const styles = getStyles(theme);
 
-  const REGION = "us-east-2"; 
-  const IDENTITY_POOL_ID = "us-east-2:3680323d-0bc6-499f-acc5-f98acb534e36"; 
+  const REGION = "us-east-2";
+  const IDENTITY_POOL_ID = "us-east-2:3680323d-0bc6-499f-acc5-f98acb534e36";
   const BUCKET = "muse-app-uploads";
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -135,7 +137,7 @@ export default function CreateNewDesignTab() {
     filename: string;
     visible: boolean;
   }
-  
+
   // In your component
   const filesRef = useRef<PrintfulFile[]>([]);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
@@ -145,7 +147,6 @@ export default function CreateNewDesignTab() {
   const [mockupUrls, setMockupUrls] = useState<string[]>([]);
 
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-
 
   const [selectedColor, setSelectedColor] = useState<Variant | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
@@ -218,14 +219,14 @@ export default function CreateNewDesignTab() {
         identityPoolId: IDENTITY_POOL_ID,
       }),
     });
-  
+
     const key = `${userId}/tempUpload/tempImage.png`;
-  
+
     const command = new GetObjectCommand({
       Bucket: BUCKET,
       Key: key,
     });
-  
+
     // URL expires in 5 minutes
     return await getSignedUrl(s3Client, command, { expiresIn: 300 });
   };
@@ -368,31 +369,30 @@ export default function CreateNewDesignTab() {
     const tempMuseString = usingSecond
       ? "Take the first image and the second image, merge them into one cohesive image that makes sense."
       : "Use the first image to generate an appealing, well-composed design based on the image provided.";
-  
+
     if (!uploadedImages.left) {
       Alert.alert("Missing Images", "Please upload at least one image first.");
       return;
     }
-  
+
     try {
       console.log("UPLOADED IMAGES", uploadedImages.left, uploadedImages.right);
-  
-      const API_KEY = "AIzaSyBNbBd8yqnOTSM5C3bt56hgN_5X8OmMorY"; 
-      const endpoint =
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent";
-  
+
+      const API_KEY = "AIzaSyBNbBd8yqnOTSM5C3bt56hgN_5X8OmMorY";
+      const endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent";
+
       // Convert images to base64
       const img1Base64 = await FileSystem.readAsStringAsync(uploadedImages.left, {
         encoding: "base64",
       });
-  
+
       let img2Base64: string | null = null;
       if (usingSecond && uploadedImages.right) {
         img2Base64 = await FileSystem.readAsStringAsync(uploadedImages.right, {
           encoding: "base64",
         });
       }
-  
+
       // Build request body like curl
       const parts: any[] = [
         {
@@ -402,7 +402,7 @@ export default function CreateNewDesignTab() {
           },
         },
       ];
-  
+
       if (img2Base64) {
         parts.push({
           inline_data: {
@@ -411,13 +411,13 @@ export default function CreateNewDesignTab() {
           },
         });
       }
-  
+
       parts.push({ text: tempMuseString });
-  
+
       const body = JSON.stringify({
         contents: [{ parts }],
       });
-  
+
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
@@ -426,7 +426,7 @@ export default function CreateNewDesignTab() {
         },
         body,
       });
-  
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error("Gemini API HTTP error:", response.status, errorText);
@@ -436,39 +436,33 @@ export default function CreateNewDesignTab() {
 
       const data = await response.json();
       //cconsole.log("Gemini response:", JSON.stringify(data, null, 2));
-  
-      const base64Image =
-      data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+
+      const base64Image = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
       console.log("Base 64: ", base64Image);
-  
- 
-  
+
       // Save image locally
       const fileUri = FileSystem.documentDirectory + "finalDesign.png";
       await FileSystem.writeAsStringAsync(fileUri, base64Image, {
         encoding: FileSystem.EncodingType.Base64,
       });
-  
+
       // Display image
       const combinedImageUri = `data:image/png;base64,${base64Image}`;
       setGeneratedImage(combinedImageUri);
       //setCurrentView("viewFinalDesign");
     } catch (err: any) {
       console.error("Error generating combined image:", err);
-      Alert.alert(
-        "Error",
-        "Failed to generate combined image. " + (err?.message || "")
-      );
+      Alert.alert("Error", "Failed to generate combined image. " + (err?.message || ""));
     }
   };
-  
+
   const handleRemix = async () => {
     if (!generatedImage) {
-      Alert.alert('No Design', 'Please generate an initial design first.');
+      Alert.alert("No Design", "Please generate an initial design first.");
       return;
     }
     if (!prompt) {
-      Alert.alert('No Prompt', 'Please enter a prompt to remix the image.');
+      Alert.alert("No Prompt", "Please enter a prompt to remix the image.");
       return;
     }
     setLoading(true);
@@ -478,8 +472,7 @@ export default function CreateNewDesignTab() {
       const base64Image = generatedImage.replace(/^data:image\/\w+;base64,/, "");
 
       const API_KEY = "AIzaSyBNbBd8yqnOTSM5C3bt56hgN_5X8OmMorY";
-      const endpoint =
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent";
+      const endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent";
 
       // Build Gemini API request
       const parts: any[] = [
@@ -517,8 +510,6 @@ export default function CreateNewDesignTab() {
       // Find the first part with inline_data
       const remixedBase64 = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
       console.log("Base 64: ", base64Image);
-
-     
 
       const remixedImageUri = `data:image/png;base64,${remixedBase64}`;
       setGeneratedImage(remixedImageUri);
@@ -600,18 +591,18 @@ export default function CreateNewDesignTab() {
       [position]: null,
     }));
   };
-const sortSizes = (sizes: string[]): string[] => {
+  const sortSizes = (sizes: string[]): string[] => {
     const sizeOrderMap: { [key: string]: number } = {
       // Define a logical order for standard sizes
-      "XS": 1,
-      "S": 2,
-      "M": 3,
-      "L": 4,
-      "XL": 5,
+      XS: 1,
+      S: 2,
+      M: 3,
+      L: 4,
+      XL: 5,
       "2XL": 6,
-      "XXL": 6, // Treat 2XL and XXL the same
+      XXL: 6, // Treat 2XL and XXL the same
       "3XL": 7,
-      "XXXL": 7, // Treat 3XL and XXXL the same
+      XXXL: 7, // Treat 3XL and XXXL the same
       "4XL": 8,
       "5XL": 9,
     };
@@ -632,7 +623,7 @@ const sortSizes = (sizes: string[]): string[] => {
       if (aOrder && bOrder) {
         return aOrder - bOrder;
       }
-      
+
       // If only one is in our map, it should come first
       if (aOrder) return -1;
       if (bOrder) return 1;
@@ -686,55 +677,46 @@ const sortSizes = (sizes: string[]): string[] => {
   };
 
   const ProgressBar = () => {
-    // Define the 3 steps
     const steps = ["Product", "Design", "Final"];
 
-    // The progress is animated from 0 to 2 (0=Step 1, 1=Step 2, 2=Step 3)
-    const progressBarWidth = progress.interpolate({
-      inputRange: [0, 2],
-      outputRange: ["0%", "100%"], // The width of the colored bar segment
-    });
-
-    const CIRCLE_SIZE = 32;
-
-const circlePosition = progress.interpolate({
-  inputRange: [0, 1, 2],
-  outputRange: [8, (width - 50 - CIRCLE_SIZE)/2, width - 68 - CIRCLE_SIZE], 
-  // width - 40 because of horizontal margin on progressBarContainer
-});
-
+    const circleSize = 32;
 
     return (
-      <View style={styles.progressBarContainer}>
-        {/* The main track line */}
-        <View style={styles.progressBarTrack} />
-        
-        {/* The animated filled progress line */}
-        <Animated.View style={[styles.progressBar, { width: progressBarWidth }]} />
+      <View style={styles.progressWrapper}>
+        {/* Track line */}
+        <View style={styles.progressTrack} />
 
-        {/* Moving Step Indicator Circle */}
-        <Animated.View style={[styles.progressCircle, { left: circlePosition, transform: [{ translateX: 9 }] }]}>
+        {/* Animated gradient progress */}
+        <Animated.View
+          style={[
+            styles.progressFill,
+            {
+              width: progress.interpolate({
+                inputRange: [0, 2],
+                outputRange: ["0%", "100%"],
+              }),
+            },
+          ]}
+        >
+          <LinearGradient colors={[theme.progressLine, "#29e668ff"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flex: 1, borderRadius: 4 }} />
+        </Animated.View>
 
-  <Text style={styles.progressCircleText}>{currentStep}</Text>
-</Animated.View>
+        {/* Step markers */}
+        <View style={styles.stepsRow}>
+          {steps.map((label, index) => {
+            const stepNumber = index + 1;
+            const isActive = currentStep === stepNumber;
+            const isCompleted = currentStep > stepNumber;
 
-
-        {/* Step Markers and Labels */}
-        <View style={styles.stepMarkersContainer}>
-          {steps.map((label, index) => (
-            <View key={index} style={styles.stepLabelWrapper}>
-              {/* Static Step Dots (optional, for visual guide) */}
-              <View 
-                style={[
-                  styles.stepDot, 
-                  currentStep === index + 1 && styles.stepDotActive
-                ]} 
-              />
-              <Text style={[styles.stepLabel, currentStep === index + 1 && styles.stepLabelActive]}>
-                {label}
-              </Text>
-            </View>
-          ))}
+            return (
+              <View key={index} style={styles.stepContainer}>
+                <View style={[styles.stepCircle, isActive && styles.stepCircleActive, isCompleted && styles.stepCircleCompleted]}>
+                  <Text style={styles.stepText}>{isCompleted ? "✓" : stepNumber}</Text>
+                </View>
+                <Text style={[styles.stepLabel, isActive && styles.stepLabelActive]}>{label}</Text>
+              </View>
+            );
+          })}
         </View>
       </View>
     );
@@ -774,20 +756,20 @@ const circlePosition = progress.interpolate({
   const deleteGeneratedImage = () => {
     setGeneratedImage(null);
   };
-  
+
   const putImageOnItem = async () => {
     if (!userId || !generatedImage) {
       console.error("Missing userId or generatedImage");
       return;
     }
-  
+
     if (!selectedProduct?.id || !selectedVariant?.id || !selectedPlacements.length) {
       Alert.alert("Missing Data", "Please make sure you have selected a product, variant, and placement.");
       return;
     }
-  
+
     setLoading(true);
-  
+
     try {
       // 1. Upload to S3
       const s3Client = new S3Client({
@@ -798,14 +780,12 @@ const circlePosition = progress.interpolate({
         }),
       });
 
-      
-  
       // Generate unique key with timestamp to avoid caching issues
       const timestamp = Date.now();
       const key = `${userId}/tempUpload/tempImage_${timestamp}.png`;
       const base64Data = generatedImage.replace(/^data:image\/\w+;base64,/, "");
       const buffer = Buffer.from(base64Data, "base64");
-  
+
       await s3Client.send(
         new PutObjectCommand({
           Bucket: BUCKET,
@@ -819,15 +799,15 @@ const circlePosition = progress.interpolate({
       const imageUrl = `https://${BUCKET}.s3.${REGION}.amazonaws.com/${key}?t=${timestamp}`;
       setImageUrl(imageUrl);
       console.log("New S3 URL with timestamp:", imageUrl);
-  
+
       // 3. Get store ID
       const storeId = await getStoreId();
-  
+
       // 4. Prepare Printful mockup payload
       const mockupPayload = {
         variant_ids: [selectedVariant.id],
         format: "jpg",
-        files: selectedPlacements.map(placement => ({
+        files: selectedPlacements.map((placement) => ({
           placement,
           image_url: imageUrl,
           position: {
@@ -836,26 +816,23 @@ const circlePosition = progress.interpolate({
             width: 1800,
             height: 1800,
             top: 300,
-            left: 0
-          }
-        }))
-      };
-  
-      console.log("Mockup payload:", JSON.stringify(mockupPayload, null, 2));
-  
-      // 5. Call Printful mockup generator
-      const mockupResponse = await fetch(
-        `https://api.printful.com/mockup-generator/create-task/${selectedProduct.id}?store_id=${storeId}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${API_KEY}`,
-            "Content-Type": "application/json",
+            left: 0,
           },
-          body: JSON.stringify(mockupPayload),
-        }
-      );
-  
+        })),
+      };
+
+      console.log("Mockup payload:", JSON.stringify(mockupPayload, null, 2));
+
+      // 5. Call Printful mockup generator
+      const mockupResponse = await fetch(`https://api.printful.com/mockup-generator/create-task/${selectedProduct.id}?store_id=${storeId}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(mockupPayload),
+      });
+
       if (!mockupResponse.ok) {
         const errorData = await mockupResponse.json();
         console.error("Mockup creation failed:", errorData);
@@ -863,10 +840,10 @@ const circlePosition = progress.interpolate({
         setLoading(false);
         return;
       }
-  
+
       const mockupData = await mockupResponse.json();
       const taskKey = mockupData.result.task_key;
-  
+
       // 6. Poll for mockup completion
       let attempts = 0;
       const maxAttempts = 30; // 30 seconds max
@@ -874,26 +851,20 @@ const circlePosition = progress.interpolate({
       console.log(`Starting to poll for mockup completion. Task key: ${taskKey}`);
 
       while (attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1 second
         attempts++;
-        
+
         console.log(`Polling attempt ${attempts}/${maxAttempts}`);
 
-        const statusResponse = await fetch(
-          `https://api.printful.com/mockup-generator/task?task_key=${taskKey}&store_id=${storeId}`,
-          {
-            headers: { Authorization: `Bearer ${API_KEY}` },
-          }
-        );
+        const statusResponse = await fetch(`https://api.printful.com/mockup-generator/task?task_key=${taskKey}&store_id=${storeId}`, {
+          headers: { Authorization: `Bearer ${API_KEY}` },
+        });
 
         console.log(`Status response: ${statusResponse.status} ${statusResponse.statusText}`);
 
         if (statusResponse.ok) {
           const statusData = await statusResponse.json();
           console.log(`Status data:`, JSON.stringify(statusData, null, 2));
-         
-
-        
 
           if (statusData.result.status === "completed") {
             console.log("ABOUT TO MAP MOCKUPS");
@@ -904,7 +875,7 @@ const circlePosition = progress.interpolate({
               option_group: string;
               url: string;
             }
-            
+
             interface Mockup {
               placement: string;
               variant_ids: number[];
@@ -912,19 +883,21 @@ const circlePosition = progress.interpolate({
               generator_mockup_id: number;
               extra?: ExtraMockup[];
             }
-            
-            const filesRef = { current: [] as {
-              type: string;
-              url: string;
-              placement: string;
-              filename: string;
-              visible: boolean;
-            }[] };
-            
+
+            const filesRef = {
+              current: [] as {
+                type: string;
+                url: string;
+                placement: string;
+                filename: string;
+                visible: boolean;
+              }[],
+            };
+
             const seenUrls = new Set<string>();
-            
+
             const mockups: Mockup[] = statusData.result.mockups; // your JSON
-            
+
             mockups.forEach((mockup: Mockup, index: number) => {
               // main mockup
               if (!seenUrls.has(mockup.mockup_url)) {
@@ -937,7 +910,7 @@ const circlePosition = progress.interpolate({
                 });
                 seenUrls.add(mockup.mockup_url);
               }
-            
+
               // extra mockups
               mockup.extra?.forEach((extra: ExtraMockup, extraIndex: number) => {
                 if (!seenUrls.has(extra.url)) {
@@ -952,11 +925,11 @@ const circlePosition = progress.interpolate({
                 }
               });
             });
-            
+
             console.log(filesRef.current);
             console.log("Mockup completed successfully!");
             const mockups2 = statusData.result.mockups || [];
-            const mockupUrls= mockups2.map((mockup: any) => mockup.mockup_url);
+            const mockupUrls = mockups2.map((mockup: any) => mockup.mockup_url);
             setMockupUrls(mockupUrls);
             setMockupImages(mockupUrls);
             setLoading(false);
@@ -975,10 +948,9 @@ const circlePosition = progress.interpolate({
           console.log(`Status check failed: ${statusResponse.status} - ${errorText}`);
         }
       }
-  
+
       Alert.alert("Timeout", "Mockup generation is taking longer than expected. Please try again.");
       setLoading(false);
-  
     } catch (err) {
       console.error("Error in putImageOnItem:", err);
       Alert.alert("Error", "Something went wrong. Please try again.");
@@ -993,24 +965,21 @@ const circlePosition = progress.interpolate({
     }
 
     console.log("jakeeee NEEEEEDSSS: ", filesRef);
-    
-  
+
     if (!selectedVariant?.id) {
       Alert.alert("Error", "No variant selected for the product.");
       return;
     }
-  
+
     if (!selectedProduct) {
       Alert.alert("Error", "No product selected.");
       return;
     }
-  
-   
-  
+
     try {
       let endpoint: string;
       let payload: any;
-  
+
       if (selectedProduct.id) {
         endpoint = `https://api.printful.com/store/products/${selectedProduct.id}/variants`;
         payload = {
@@ -1043,9 +1012,9 @@ const circlePosition = progress.interpolate({
           ],
         };
       }
-  
+
       console.log("Adding to store with payload:", JSON.stringify(payload, null, 2));
-  
+
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
@@ -1054,14 +1023,14 @@ const circlePosition = progress.interpolate({
         },
         body: JSON.stringify(payload),
       });
-  
+
       if (!response.ok) {
         const errorData = await response.json();
         console.error("Failed to add product to store:", errorData);
         Alert.alert("Error", "Failed to add product to store.");
         return;
       }
-  
+
       const result = await response.json();
       console.log("Product successfully added to store:", result);
       Alert.alert("Success", "Mockup added to your store!");
@@ -1070,9 +1039,6 @@ const circlePosition = progress.interpolate({
       Alert.alert("Error", "Something went wrong while adding the product to store.");
     }
   };
-
-
-
 
   if (loading) {
     return (
@@ -1110,93 +1076,84 @@ const circlePosition = progress.interpolate({
 
           {/* Step 3: Final Design */}
           <ScrollView style={styles.scrollView} contentContainerStyle={styles.finalDesignContent}>
-             
-              <Text style={styles.finalDesignProductText}>
-                Selected Product: {selectedProduct?.title} ({selectedColor?.color}, {selectedSize})
-              </Text>
+            <Text style={styles.finalDesignProductText}>
+              Selected Product: {selectedProduct?.title} ({selectedColor?.color}, {selectedSize})
+            </Text>
 
-              {/* Mockup Images Horizontal Scroll */}
-              {mockupImages.length > 0 ? (
-                <View style={styles.mockupContainer}>
-                  <Text style={styles.mockupTitle}>Your Design on Product</Text>
-                  <ScrollView 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false}
-                    style={styles.mockupScrollView}
-                    contentContainerStyle={styles.mockupScrollContent}
-                  >
-                    {mockupImages.map((mockupUrl, index) => (
-                      <View key={index} style={styles.mockupImageContainer}>
-                        <Image 
-                          source={{ uri: mockupUrl }} 
-                          style={styles.mockupImage}
-                          resizeMode="contain"
-                        />
-                        <Text style={styles.mockupImageLabel}>View {index + 1}</Text>
-                      </View>
-                    ))}
-                  </ScrollView>
-                </View>
-              ) : (
-                <View style={styles.noMockupContainer}>
-                  <Text style={styles.noMockupText}>No mockup images available</Text>
-                </View>
-              )}
+            {/* Mockup Images Horizontal Scroll */}
+            {mockupImages.length > 0 ? (
+              <View style={styles.mockupContainer}>
+                <Text style={styles.mockupTitle}>Your Design on Product</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mockupScrollView} contentContainerStyle={styles.mockupScrollContent}>
+                  {mockupImages.map((mockupUrl, index) => (
+                    <View key={index} style={styles.mockupImageContainer}>
+                      <Image source={{ uri: mockupUrl }} style={styles.mockupImage} resizeMode="contain" />
+                      <Text style={styles.mockupImageLabel}>View {index + 1}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            ) : (
+              <View style={styles.noMockupContainer}>
+                <Text style={styles.noMockupText}>No mockup images available</Text>
+              </View>
+            )}
 
-              {/* Input for remix prompt */}
-              <TextInput
-                style={styles.input}
-                placeholder="Type your smart adjustments for a remix..."
-                placeholderTextColor={theme.secondaryText}
-                value={prompt}
-                onChangeText={setPrompt}
-              />
-              
-              {/* Button Rows */}
-              <View style={styles.finalDesignButtonRow}>
-                  {/* ADD TO STORE - Secondary button, neutral appearance */}
-                              <TouchableOpacity
-              style={styles.designControlButton}
-              onPress={async () => {
-                Alert.alert("Action", "Adding to store...");
-                try {
-                  if (!mockupUrls || mockupUrls.length === 0) {
-                    Alert.alert("Error", "No mockups available to add.");
-                    return;
+            {/* Input for remix prompt */}
+            <TextInput style={styles.input} placeholder="Type your smart adjustments for a remix..." placeholderTextColor={theme.secondaryText} value={prompt} onChangeText={setPrompt} />
+
+            {/* Button Rows */}
+            <View style={styles.finalDesignButtonRow}>
+              {/* ADD TO STORE - Secondary button, neutral appearance */}
+              <TouchableOpacity
+                style={styles.designControlButton}
+                onPress={async () => {
+                  Alert.alert("Action", "Adding to store...");
+                  try {
+                    if (!mockupUrls || mockupUrls.length === 0) {
+                      Alert.alert("Error", "No mockups available to add.");
+                      return;
+                    }
+                    await addToStore(mockupUrls); // call your function here
+                  } catch (err) {
+                    console.error(err);
+                    Alert.alert("Error", "Failed to add product to store.");
                   }
-                  await addToStore(mockupUrls); // call your function here
-                } catch (err) {
-                  console.error(err);
-                  Alert.alert("Error", "Failed to add product to store.");
-                }
-              }}
-            >
-              <Text style={styles.designControlButtonText}>ADD TO STORE</Text>
-            </TouchableOpacity>
-                  {/* REMIX - Secondary button, neutral appearance */}
-                  <TouchableOpacity 
-                      style={styles.designControlButton} 
-                      onPress={handleRemix}
-                  >
-                      <Text style={styles.designControlButtonText}>REMIX</Text>
-                  </TouchableOpacity>
-              </View>
-              <View style={styles.finalDesignButtonRow}>
-                  {/* SAVE DESIGN - Secondary button, neutral appearance */}
-                  <TouchableOpacity style={styles.designControlButton} onPress={() => {Alert.alert("Action", "Saving design...")}}>
-                      <Text style={styles.designControlButtonText}>SAVE DESIGN</Text>
-                  </TouchableOpacity>
-                  {/* PHOTOSHOOT - Secondary button, neutral appearance */}
-                  <TouchableOpacity style={styles.designControlButton} onPress={() => {Alert.alert("Action", "Starting Photoshoot...")}}>
-                      <Text style={styles.designControlButtonText}>PHOTOSHOOT</Text>
-                  </TouchableOpacity>
-              </View>
+                }}
+              >
+                <Text style={styles.designControlButtonText}>ADD TO STORE</Text>
+              </TouchableOpacity>
+              {/* REMIX - Secondary button, neutral appearance */}
+              <TouchableOpacity style={styles.designControlButton} onPress={handleRemix}>
+                <Text style={styles.designControlButtonText}>REMIX</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.finalDesignButtonRow}>
+              {/* SAVE DESIGN - Secondary button, neutral appearance */}
+              <TouchableOpacity
+                style={styles.designControlButton}
+                onPress={() => {
+                  Alert.alert("Action", "Saving design...");
+                }}
+              >
+                <Text style={styles.designControlButtonText}>SAVE DESIGN</Text>
+              </TouchableOpacity>
+              {/* PHOTOSHOOT - Secondary button, neutral appearance */}
+              <TouchableOpacity
+                style={styles.designControlButton}
+                onPress={() => {
+                  Alert.alert("Action", "Starting Photoshoot...");
+                }}
+              >
+                <Text style={styles.designControlButtonText}>PHOTOSHOOT</Text>
+              </TouchableOpacity>
+            </View>
           </ScrollView>
           {loading && (
-             <View style={styles.loadingOverlay}>
-                <ActivityIndicator size="large" color={theme.tint} />
-                <Text style={styles.loadingText}>Processing...</Text>
-             </View>
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size="large" color={theme.tint} />
+              <Text style={styles.loadingText}>Processing...</Text>
+            </View>
           )}
         </View>
       </SafeAreaView>
@@ -1264,52 +1221,56 @@ const circlePosition = progress.interpolate({
                   </View>
                 )}
               </View>
-
-              
             </View>
             {/* Show generated image and remix controls below the upload area */}
             {generatedImage && (
-              <View style={{
-                marginTop: 30,
-                marginBottom: 30,
-                alignItems: 'center',
-                backgroundColor: theme.card,
-                borderRadius: 16,
-                padding: 24,
-                shadowColor: theme.text,
-                shadowOpacity: 0.08,
-                shadowRadius: 8,
-                elevation: 2,
-                width: '100%',
-                maxWidth: 400,
-                alignSelf: 'center',
-                position: 'relative',
-              }}>
+              <View
+                style={{
+                  marginTop: 30,
+                  marginBottom: 30,
+                  alignItems: "center",
+                  backgroundColor: theme.card,
+                  borderRadius: 16,
+                  padding: 24,
+                  shadowColor: theme.text,
+                  shadowOpacity: 0.08,
+                  shadowRadius: 8,
+                  elevation: 2,
+                  width: "100%",
+                  maxWidth: 400,
+                  alignSelf: "center",
+                  position: "relative",
+                }}
+              >
                 {/* X button in top right */}
                 <TouchableOpacity
                   style={{
-                    position: 'absolute',
+                    position: "absolute",
                     top: 10,
                     right: 10,
-                    backgroundColor: 'rgba(45, 55, 72, 0.7)',
+                    backgroundColor: "rgba(45, 55, 72, 0.7)",
                     borderRadius: 15,
                     width: 30,
                     height: 30,
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    alignItems: "center",
+                    justifyContent: "center",
                     zIndex: 2,
                   }}
                   onPress={deleteGeneratedImage}
                 >
-                  <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold', lineHeight: 20 }}>×</Text>
+                  <Text style={{ color: "#fff", fontSize: 18, fontWeight: "bold", lineHeight: 20 }}>×</Text>
                 </TouchableOpacity>
-                <Text style={{
-                  fontSize: 18,
-                  fontWeight: '600',
-                  color: theme.text,
-                  marginBottom: 16,
-                  textAlign: 'center',
-                }}>Generated Design</Text>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: "600",
+                    color: theme.text,
+                    marginBottom: 16,
+                    textAlign: "center",
+                  }}
+                >
+                  Generated Design
+                </Text>
                 <Image
                   source={{ uri: generatedImage }}
                   style={{
@@ -1318,17 +1279,11 @@ const circlePosition = progress.interpolate({
                     borderRadius: 14,
                     marginBottom: 18,
                     backgroundColor: theme.background,
-                    resizeMode: 'contain',
-                    alignSelf: 'center',
+                    resizeMode: "contain",
+                    alignSelf: "center",
                   }}
                 />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Type your smart adjustments for a remix..."
-                  placeholderTextColor={theme.secondaryText}
-                  value={prompt}
-                  onChangeText={setPrompt}
-                />
+                <TextInput style={styles.input} placeholder="Type your smart adjustments for a remix..." placeholderTextColor={theme.secondaryText} value={prompt} onChangeText={setPrompt} />
                 <TouchableOpacity style={[styles.finalGenerateButton, { marginTop: 0 }]} onPress={handleRemix}>
                   <Text style={styles.finalGenerateButtonText}>Remix</Text>
                 </TouchableOpacity>
@@ -1444,11 +1399,15 @@ const circlePosition = progress.interpolate({
                   Size: <Text style={styles.selectionValue}>{selectedSize || "Select a size"}</Text>
                 </Text>
                 <View style={styles.sizeButtonContainer}>
-                  {availableSizes.map((size) => ( // This will now map over the sorted sizes
-                    <TouchableOpacity key={size} onPress={() => handleSizeSelect(size)} style={[styles.sizeButton, selectedSize === size && styles.sizeButtonSelected]}>
-                      <Text style={[styles.sizeButtonText, selectedSize === size && styles.sizeButtonTextSelected]}>{size}</Text>
-                    </TouchableOpacity>
-                  ))}
+                  {availableSizes.map(
+                    (
+                      size // This will now map over the sorted sizes
+                    ) => (
+                      <TouchableOpacity key={size} onPress={() => handleSizeSelect(size)} style={[styles.sizeButton, selectedSize === size && styles.sizeButtonSelected]}>
+                        <Text style={[styles.sizeButtonText, selectedSize === size && styles.sizeButtonTextSelected]}>{size}</Text>
+                      </TouchableOpacity>
+                    )
+                  )}
                 </View>
               </View>
             )}
@@ -1816,81 +1775,81 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       fontSize: 18,
       fontWeight: "bold",
     },
-    progressBarContainer: {
-      height: 55, // Increased height to accommodate labels and circle
+    progressWrapper: {
       marginHorizontal: 25,
-      marginTop: 10,
-      marginBottom: 2,
-      justifyContent: 'flex-start',
+      marginVertical: Platform.OS === "android" ? 15 : -15,
+      height: 80,
+      justifyContent: "flex-start",
+      paddingTop: Platform.OS === "android" ? 40 : 10, // pushes it down slightly on Android
     },
-    progressBarTrack: { // The full grey line
-        position: 'absolute',
-        top: 15,
-        height: 4,
-        width: '100%',
-        backgroundColor: theme.tabIconDefault,
-        borderRadius: 2,
+    progressTrack: {
+      position: "absolute",
+      top: Platform.OS === "android" ? 65 : 35, // pushes it down slightly on Android
+      height: 6,
+      width: "100%",
+      backgroundColor: theme.tabIconDefault,
+      borderRadius: 3,
     },
-    progressBar: { // The animated colored line
-      position: 'absolute',
-      top: 15,
-      height: 4,
-      backgroundColor: theme.tint,
-      borderRadius: 2,
+    progressFill: {
+      position: "absolute",
+      top: Platform.OS === "android" ? 65 : 35, // pushes it down slightly on Android
+      height: 6,
+      borderRadius: 3,
+      overflow: "hidden",
     },
-    progressCircle: { // The moving circle
-      position: 'absolute',
-      top: 1, // 15 - (28/2) = 1 (Center the circle vertically on the line)
-      width: 35,
-      height: 35,
-      borderRadius: 25,
-      backgroundColor: theme.tint,
-      justifyContent: 'center',
-      alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
-      shadowRadius: 3.84,
-      elevation: 5,
+    stepsRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
     },
-    progressCircleText: {
-      color: theme.background,
-      fontWeight: 'bold',
-      fontSize: 16,
+
+    stepContainer: {
+      alignItems: "center",
+      width: 70, // ensures spacing for label
+    },
+
+    stepCircle: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: theme.card,
+      borderWidth: 2,
+      borderColor: theme.tabIconDefault,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+
+    stepCircleActive: {
+      borderColor: theme.activebar,
+      backgroundColor: theme.activebar,
+    },
+
+    stepCircleCompleted: {
+      backgroundColor: "#4CAF50",
+      borderColor: "#4CAF50",
+    },
+
+    stepText: {
+      color: theme.text,
+      fontWeight: "600",
     },
     stepMarkersContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        width: '100%',
-        position: 'absolute',
-        bottom: 0,
-    },
-    stepLabelWrapper: {
-        alignItems: 'center',
-        paddingHorizontal: 10,
-    },
-    stepDot: {
-        width: 5,
-        height: 5,
-        borderRadius: 4,
-        backgroundColor: theme.tabIconDefault,
-        position: 'absolute',
-        top: 25,
-        zIndex: 1, // Ensure dots are above the track
-    },
-    stepDotActive: {
-        backgroundColor: theme.tint,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      width: "100%",
+      position: "absolute",
+      bottom: 0,
     },
     stepLabel: {
-        marginTop: 40, // Position labels below the bar
-        fontSize: 12,
-        fontWeight: '500',
-        color: theme.tabIconDefault,
-        textAlign: 'center',
+      marginTop: 2, // Position labels below the bar
+      fontSize: 12,
+      fontWeight: "500",
+      color: theme.tabIconDefault,
+      textAlign: "center",
     },
     stepLabelActive: {
-        color: theme.text,
-        fontWeight: 'bold',
+      color: theme.text,
+      fontWeight: "bold",
     },
 
     loadingContainer: {
@@ -2002,126 +1961,126 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     },
     // New Styles for Final Design View
     finalDesignContent: {
-        flex: 1,
-        alignItems: 'center',
-        padding: 20,
+      flex: 1,
+      alignItems: "center",
+      padding: 20,
     },
     finalDesignImage: {
-        width: 300,
-        height: 300,
-        borderRadius: 15,
-        resizeMode: "contain",
-        backgroundColor: theme.card,
-        marginBottom: 20,
+      width: 300,
+      height: 300,
+      borderRadius: 15,
+      resizeMode: "contain",
+      backgroundColor: theme.card,
+      marginBottom: 20,
     },
     finalDesignProductText: {
-        fontSize: 16,
-        color: theme.secondaryText,
-        marginBottom: 20,
-        textAlign: 'center',
+      fontSize: 16,
+      color: theme.secondaryText,
+      marginBottom: 20,
+      textAlign: "center",
     },
     input: {
-        backgroundColor: theme.card,
-        width: '100%',
-        padding: 15,
-        borderRadius: 12,
-        marginBottom: 20,
-        color: theme.text,
-        borderWidth: 1,
-        borderColor: theme.tabIconDefault,
+      backgroundColor: theme.card,
+      width: "100%",
+      padding: 15,
+      borderRadius: 12,
+      marginBottom: 20,
+      color: theme.text,
+      borderWidth: 1,
+      borderColor: theme.tabIconDefault,
     },
     finalDesignButtonRow: {
-        flexDirection: 'row',
-        width: '100%',
-        justifyContent: 'space-between',
-        marginBottom: 15,
+      flexDirection: "row",
+      width: "100%",
+      justifyContent: "space-between",
+      marginBottom: 15,
     },
     designControlButton: {
-        flex: 1,
-        paddingVertical: 16,
-        borderRadius: 12,
-        alignItems: 'center',
-        backgroundColor: theme.card, 
-        borderWidth: 1,
-        borderColor: theme.tabIconDefault,
-        marginHorizontal: 5,
-        shadowColor: theme.text,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+      flex: 1,
+      paddingVertical: 16,
+      borderRadius: 12,
+      alignItems: "center",
+      backgroundColor: theme.card,
+      borderWidth: 1,
+      borderColor: theme.tabIconDefault,
+      marginHorizontal: 5,
+      shadowColor: theme.text,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
     },
     designControlButtonText: {
-        color: theme.text, 
-        fontSize: 14,
-        fontWeight: 'bold',
+      color: theme.text,
+      fontSize: 14,
+      fontWeight: "bold",
     },
     noImageText: {
       color: theme.secondaryText,
       marginTop: 20,
     },
     loadingOverlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: theme.background,
-        justifyContent: 'center',
-        alignItems: 'center',
-        opacity: 0.9,
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: theme.background,
+      justifyContent: "center",
+      alignItems: "center",
+      opacity: 0.9,
     },
     // Mockup display styles
     mockupContainer: {
-        marginBottom: 30,
-        width: '100%',
+      marginBottom: 30,
+      width: "100%",
     },
     mockupTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: theme.text,
-        textAlign: 'center',
-        marginBottom: 15,
+      fontSize: 18,
+      fontWeight: "600",
+      color: theme.text,
+      textAlign: "center",
+      marginBottom: 15,
     },
     mockupScrollView: {
-        maxHeight: 300,
+      maxHeight: 300,
     },
     mockupScrollContent: {
-        paddingHorizontal: 10,
+      paddingHorizontal: 10,
     },
     mockupImageContainer: {
-        marginRight: 15,
-        alignItems: 'center',
-        backgroundColor: theme.card,
-        borderRadius: 12,
-        padding: 10,
-        shadowColor: theme.text,
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        elevation: 2,
-        minWidth: 200,
+      marginRight: 15,
+      alignItems: "center",
+      backgroundColor: theme.card,
+      borderRadius: 12,
+      padding: 10,
+      shadowColor: theme.text,
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 2,
+      minWidth: 200,
     },
     mockupImage: {
-        width: 180,
-        height: 200,
-        borderRadius: 8,
-        backgroundColor: theme.background,
+      width: 180,
+      height: 200,
+      borderRadius: 8,
+      backgroundColor: theme.background,
     },
     mockupImageLabel: {
-        fontSize: 12,
-        color: theme.secondaryText,
-        marginTop: 8,
-        textAlign: 'center',
+      fontSize: 12,
+      color: theme.secondaryText,
+      marginTop: 8,
+      textAlign: "center",
     },
     noMockupContainer: {
-        alignItems: 'center',
-        padding: 20,
-        backgroundColor: theme.card,
-        borderRadius: 12,
-        marginBottom: 20,
+      alignItems: "center",
+      padding: 20,
+      backgroundColor: theme.card,
+      borderRadius: 12,
+      marginBottom: 20,
     },
     noMockupText: {
-        fontSize: 16,
-        color: theme.secondaryText,
-        textAlign: 'center',
-    }
+      fontSize: 16,
+      color: theme.secondaryText,
+      textAlign: "center",
+    },
   });
