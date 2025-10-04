@@ -14,6 +14,8 @@ export const Colors = {
     accent: "#35e00aff",
     subHeader: "#D5FF60",
     buttonBackground: "#D5FF60",
+    activebar: "#ccf0cbff",
+    progressLine: "#29e668ff",
     // New properties for cards and chips
     card: "#f0e6d485",
     headerChip: "rgba(0, 0, 0, 0.05)",
@@ -42,6 +44,8 @@ export const Colors = {
     accent: "#0BE880",
     subHeader: "#0BE880",
     buttonBackground: "#23B659",
+    activebar: "#183b25ff",
+    progressLine: "#29e668ff",
     // New properties for cards and chips
     card: "#1C1C1E",
     headerChip: "rgba(255, 255, 255, 0.1)",
