@@ -160,7 +160,7 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: themeColors.background,
+      backgroundColor: themeColors.loginBackground,
     },
     gridImageStyle: {
       opacity: 0.5,
@@ -173,7 +173,6 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
     logoContainer: {
       alignItems: "center",
       marginBottom: 20,
-      marginTop: 20,
     },
     logo: {
       width: SCREEN_WIDTH * 0.5,
@@ -210,7 +209,6 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
     label: {
       color: themeColors.text,
       fontSize: 16,
-      fontWeight: "bold",
       marginTop: 20,
       marginBottom: 8,
     },

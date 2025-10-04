@@ -5,7 +5,7 @@ import { useUser } from "./UserContext";
 import { useRouter } from "expo-router";
 import { DynamoDBClient, ScanCommand } from "@aws-sdk/client-dynamodb";
 import bcrypt from "bcryptjs";
-import { LinearGradient } from "expo-linear-gradient";
+// import { LinearGradient } from "expo-linear-gradient"; // No longer needed
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { FontAwesome } from "@expo/vector-icons";
@@ -107,6 +107,7 @@ export default function LoginScreen() {
           <Text style={styles.header}>Hello there,</Text>
           <Text style={styles.subheader}>Welcome Back!</Text>
 
+          <Text style={styles.label}>Enter Email Address</Text>
           <TextInput
             value={username}
             onChangeText={setUsername}
@@ -116,6 +117,7 @@ export default function LoginScreen() {
             style={styles.input}
             placeholderTextColor={themeColors.inputPlaceholder}
           />
+          <Text style={styles.label}>Enter Password</Text>
           <TextInput value={password} onChangeText={setPassword} secureTextEntry placeholder="Password" style={styles.input} placeholderTextColor={themeColors.inputPlaceholder} />
 
           <View style={styles.optionsRow}>
@@ -132,9 +134,7 @@ export default function LoginScreen() {
             <ActivityIndicator size="large" color={themeColors.text} style={styles.loginButtonContainer} />
           ) : (
             <TouchableOpacity style={styles.loginButtonContainer} onPress={handleLogin}>
-              <LinearGradient colors={themeColors.loginGradient} style={styles.loginGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                <Text style={styles.loginButtonText}>Login</Text>
-              </LinearGradient>
+              <Text style={styles.loginButtonText}>Login</Text>
             </TouchableOpacity>
           )}
 
@@ -165,7 +165,7 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: themeColors.background,
+      backgroundColor: themeColors.loginBackground,
     },
     gridImageStyle: {
       opacity: 0.5,
@@ -178,7 +178,6 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
     logoContainer: {
       alignItems: "center",
       marginBottom: 20,
-      marginTop: 20,
     },
     logo: {
       width: SCREEN_WIDTH * 0.5,
@@ -210,16 +209,21 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
     subheader: {
       fontSize: 30,
       fontWeight: "bold",
-      color: themeColors.buttonBackground,
+      color: themeColors.subHeader,
       marginBottom: 5,
       textAlign: "left",
+    },
+    label: {
+      color: themeColors.text,
+      fontSize: 16,
+      marginTop: 20,
+      marginBottom: 8,
     },
     input: {
       backgroundColor: themeColors.inputBackground,
       color: themeColors.text,
       padding: 15,
       borderRadius: 12,
-      marginTop: 20,
       fontSize: 18,
       borderWidth: 1,
       borderColor: themeColors.inputBorder,
@@ -249,13 +253,10 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
     loginButtonContainer: {
       marginTop: 10,
       borderRadius: 12,
-      overflow: "hidden",
       height: 50,
-    },
-    loginGradient: {
-      flex: 1,
       justifyContent: "center",
       alignItems: "center",
+      backgroundColor: themeColors.buttonBackground,
     },
     loginButtonText: {
       color: themeColors.text,
@@ -292,7 +293,7 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       fontSize: 18,
     },
     registerLink: {
-      color: themeColors.buttonBackground,
+      color: themeColors.subHeader,
       fontSize: 18,
       fontWeight: "bold",
     },

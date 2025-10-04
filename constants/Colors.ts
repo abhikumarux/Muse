@@ -4,13 +4,15 @@ const tintColorDark = "#fff";
 export const Colors = {
   light: {
     text: "#11181C",
-    background: "#337357", // Dark Green Grid Base
+    background: "#ffffffff",
+    loginBackground: "#33733eff",
     tint: tintColorLight,
     icon: "#687076",
     tabIconDefault: "#687076",
     tabIconSelected: tintColorLight,
     secondaryText: "#888",
     accent: "#35e00aff",
+    subHeader: "#D5FF60",
     buttonBackground: "#D5FF60",
     // New properties for cards and chips
     card: "#f0e6d485",
@@ -27,18 +29,19 @@ export const Colors = {
     inputPlaceholder: "#AAAAAA",
     loginGradient: ["#EEFFBE", "#D5FF60", "#C8FF2F"], // Green gradient
     cardBackground: "rgba(255, 255, 255, 0.9)", // Semi-transparent white for frosted card
-    // =======================================================
   },
   dark: {
     text: "#ECEDEE",
-    background: "#00331D", // Darker Green Grid Base
+    background: "#000000ff",
+    loginBackground: "#00331D",
     tint: tintColorDark,
     icon: "#9BA1A6",
     tabIconDefault: "#9BA1A6",
     tabIconSelected: tintColorDark,
     secondaryText: "#aaa",
     accent: "#0BE880",
-    buttonBackground: "#0BE880",
+    subHeader: "#0BE880",
+    buttonBackground: "#23B659",
     // New properties for cards and chips
     card: "#1C1C1E",
     headerChip: "rgba(255, 255, 255, 0.1)",
@@ -53,8 +56,7 @@ export const Colors = {
     inputBackground: "#333344", // Darker background for inputs
     inputBorder: "#555566",
     inputPlaceholder: "#888888",
-    loginGradient: ["#012514", "#006837", "#23B659"], // Green gradient
+    loginGradient: ["#012514", "#006837", "#23B659"],
     cardBackground: "rgba(0, 0, 0, 0.7)", // Semi-transparent dark for frosted card
-    // =======================================================
   },
 } as const;
