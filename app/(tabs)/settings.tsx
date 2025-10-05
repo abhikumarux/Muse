@@ -1,203 +1,270 @@
-import React, { useRef } from "react";
-import { View, Text, StyleSheet, ScrollView, Image } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFocusEffect } from "@react-navigation/native";
-import { ThemedText } from "@/components/ThemedText";
-import { useColorScheme } from "@/hooks/useColorScheme";
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  FlatList,
+  TextInput,
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
+  Alert,
+} from "react-native";
+import { useUser } from "../UserContext";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "@/constants/Colors";
+import { DynamoDBClient, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
+import { fromCognitoIdentityPool } from "@aws-sdk/credential-provider-cognito-identity";
 
-// --- Mock Data (remains the same) ---
-const salesData = [
-  { day: "S", profit: 60, cost: 40 },
-  { day: "M", profit: 75, cost: 25 },
-  { day: "T", profit: 65, cost: 35 },
-  { day: "W", profit: 50, cost: 50 },
-  { day: "T", profit: 85, cost: 15 },
-  { day: "F", profit: 40, cost: 60 },
-  { day: "S", profit: 70, cost: 30 },
-];
+const REGION = "us-east-2";
+const IDENTITY_POOL_ID = "us-east-2:3680323d-0bc6-499f-acc5-f98acb534e36";
 
-const bestSellers = [
-  { id: 1, image: require("../../assets/images/hoodie-placeholder.png") },
-  { id: 2, image: require("../../assets/images/tshirt-placeholder.png") },
-  { id: 3, image: require("../../assets/images/pants-placeholder.png") },
-  { id: 4, image: require("../../assets/images/tshirt-placeholder.png") },
-];
-
-const vipOrders = [
-  { name: "Rick Ross", role: "Rapper, Entrepreneur", followers: "18.2M Instagram", order: "#47433" },
-  { name: "Zach Zeiner", role: "Super smart and cool Entrepreneur", followers: "Has @zach Instagram", order: "#47323" },
-];
-
-const transactions = [
-  { type: "Etsy sale", status: "incoming", amount: "+ $80", time: "Today at 1:55 PM", icon: require("../../assets/images/etsy-logo.png") },
-  { type: "Etsy Sale", status: "Deposited", amount: "+ $50", time: "Wednesday at 2:215 pm", icon: require("../../assets/images/etsy-logo.png") },
-  { type: "Shopify Sale", status: "Deposited", amount: "+ $40", time: "yesterday at 5:25 pm", icon: require("../../assets/images/shopify-logo.png") },
-];
-// --- End of Mock Data ---
 
 export default function SettingsTab() {
-  const colorScheme = useColorScheme() ?? "light";
-  const theme = Colors[colorScheme];
+  const [modalVisible, setModalVisible] = useState(false);
+  const [apiKey, setApiKey] = useState("");
+  const [stores, setStores] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedStore, setSelectedStore] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const scrollRef = useRef<ScrollView>(null);
+  const client = new DynamoDBClient({
+    region: REGION,
+    credentials: fromCognitoIdentityPool({
+      clientConfig: { region: REGION },
+      identityPoolId: IDENTITY_POOL_ID,
+    }),
+  });
 
-  // Reset scroll position when tab is focused
-  useFocusEffect(
-    React.useCallback(() => {
-      scrollRef.current?.scrollTo({ y: 0, animated: false });
-    }, [])
-  );
+  async function fetchStores() {
+    try {
+      if (!apiKey) {
+        Alert.alert("Error", "Please enter your API key first");
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      const resp = await fetch(`https://api.printful.com/stores`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+
+      const data = await resp.json();
+
+      if (!data.result || !Array.isArray(data.result)) {
+        throw new Error("Invalid response or no stores found.");
+      }
+
+      setStores(data.result);
+    } catch (err: any) {
+      setError(err.message || "Failed to load stores");
+      setStores([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const { userId, setPrintfulApiKey, setCurrentStoreId } = useUser();
+
+const selectStore = async (store: any) => {
+  setSelectedStore(store);
+  setModalVisible(false);
+
+  try {
+    // Save store ID and API key to DynamoDB
+    await client.send(
+      new UpdateItemCommand({
+        TableName: "MuseUsers",
+        Key: { userId: { S: userId ?? "" } },
+        UpdateExpression: "SET currentStoreId = :storeId, printfulApiKey = :apiKey",
+        ExpressionAttributeValues: {
+          ":storeId": { S: store.id.toString() },
+          ":apiKey": { S: apiKey },
+        },
+      })
+    );
+
+    // **Update global state so user doesn't need to re-login**
+    setPrintfulApiKey(apiKey);
+    setCurrentStoreId(store.id.toString());
+
+    Alert.alert("Store Saved", `You selected "${store.name}" and API key saved.`);
+  } catch (err) {
+    console.error("Failed to save store and API key to DB:", err);
+    Alert.alert("Error", "Failed to save the selected store. Try again.");
+  }
+};
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]} edges={["top", "left", "right"]}>
-      {/* --- Header (Moved Outside ScrollView) --- */}
-      <View style={styles.header}>
-        <Image source={colorScheme === "dark" ? require("../../assets/images/logo.png") : require("../../assets/images/logo.png")} style={styles.logo} />
-        <View style={[styles.coinsContainer, { backgroundColor: theme.headerChip }]}>
-          <Image source={require("../../assets/images/coin-icon.png")} style={styles.coinIcon} />
-          <Text style={styles.coinText}>325</Text>
-        </View>
-      </View>
+    <SafeAreaView style={styles.container}>
+      {/* Main settings button */}
+      <TouchableOpacity
+        style={styles.menuButton}
+        onPress={() => setModalVisible(true)}
+      >
+        <Text style={styles.menuText}>Configure Printful Store</Text>
+      </TouchableOpacity>
 
-      <ScrollView ref={scrollRef} style={styles.container} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-        {/* --- Total Sales Card --- */}
-        <View style={[styles.salesCard, { backgroundColor: theme.card }]}>
-          <View style={styles.salesHeader}>
-            <ThemedText type="subtitle">Total Sales</ThemedText>
-            <ThemedText style={{ color: theme.secondaryText }}>Calculated in last 30 days</ThemedText>
+      {selectedStore && (
+        <Text style={styles.selectedText}>
+          Selected Store: {selectedStore.name}
+        </Text>
+      )}
+
+      {/* Modal */}
+      <Modal
+        visible={modalVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.overlay}>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : undefined}
+              style={styles.keyboardWrapper}
+            >
+              <View style={styles.popup}>
+                <Text style={styles.popupTitle}>Printful Setup</Text>
+
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter Printful API Key"
+                  placeholderTextColor="#aaa"
+                  value={apiKey}
+                  onChangeText={setApiKey}
+                  autoCapitalize="none"
+                  secureTextEntry
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
+                />
+
+                <TouchableOpacity
+                  style={[
+                    styles.fetchButton,
+                    !apiKey && { backgroundColor: "#ccc" },
+                  ]}
+                  onPress={fetchStores}
+                  disabled={!apiKey || loading}
+                >
+                  <Text style={styles.fetchText}>
+                    {loading ? "Loading..." : "Fetch Stores"}
+                  </Text>
+                </TouchableOpacity>
+
+                {error && <Text style={styles.errorText}>{error}</Text>}
+
+                {!loading && stores.length > 0 && (
+                  <FlatList
+                    data={stores}
+                    keyExtractor={(item, index) =>
+                      item.id?.toString() || index.toString()
+                    }
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={styles.storeItem}
+                        onPress={() => selectStore(item)}
+                      >
+                        <Text style={styles.storeName}>{item.name}</Text>
+                        <Text style={styles.storeUrl}>{item.website}</Text>
+                      </TouchableOpacity>
+                    )}
+                    style={{ marginTop: 10, maxHeight: 200 }}
+                  />
+                )}
+
+                <Pressable
+                  onPress={() => setModalVisible(false)}
+                  style={styles.closeButton}
+                >
+                  <Text style={styles.closeText}>Close</Text>
+                </Pressable>
+              </View>
+            </KeyboardAvoidingView>
           </View>
-          <View style={styles.salesBody}>
-            <View style={styles.chartContainer}>
-              {salesData.map((data, index) => (
-                <View key={index} style={styles.barWrapper}>
-                  <View style={styles.bar}>
-                    <View style={{ height: `${data.profit}%`, backgroundColor: "#F44336" }} />
-                    <View style={{ height: `${data.cost}%`, backgroundColor: "#4CAF50" }} />
-                  </View>
-                  <Text style={[styles.barLabel, { color: theme.secondaryText }]}>{data.day}</Text>
-                </View>
-              ))}
-            </View>
-            <View style={styles.salesSummary}>
-              <View style={styles.summaryItem}>
-                <View style={[styles.summaryIndicator, { backgroundColor: "#F44336" }]} />
-                <View>
-                  <Text style={[styles.summaryValue, { color: theme.text }]}>$21,345</Text>
-                  <Text style={[styles.summaryLabel, { color: theme.secondaryText }]}>TOTAL COST</Text>
-                </View>
-              </View>
-              <View style={styles.summaryItem}>
-                <View style={[styles.summaryIndicator, { backgroundColor: "#4CAF50" }]} />
-                <View>
-                  <Text style={[styles.summaryValue, { color: theme.text }]}>$34,280</Text>
-                  <Text style={[styles.summaryLabel, { color: theme.secondaryText }]}>TOTAL PROFIT</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* --- Best Sellers --- */}
-        <View style={styles.section}>
-          <ThemedText type="subtitle" style={styles.sectionTitle}>
-            Best Sellers
-          </ThemedText>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {bestSellers.map((item) => (
-              <View key={item.id} style={[styles.bestSellerItem, { backgroundColor: theme.card }]}>
-                <Image source={item.image} style={styles.bestSellerImage} />
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* --- VIP Orders --- */}
-        <View style={styles.section}>
-          <ThemedText type="subtitle" style={styles.sectionTitle}>
-            VIP Orders
-          </ThemedText>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {vipOrders.map((order, index) => (
-              <View key={index} style={[styles.vipCard, { backgroundColor: theme.card, borderColor: theme.headerChip }]}>
-                <Text style={[styles.vipName, { color: theme.text }]}>{order.name}</Text>
-                <Text style={[styles.vipRole, { color: theme.secondaryText }]}>{order.role}</Text>
-                <Text style={[styles.vipFollowers, { color: theme.tint }]}>{order.followers}</Text>
-                <Text style={[styles.vipOrder, { color: theme.secondaryText }]}>{order.order}</Text>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* --- Transactions --- */}
-        <View style={styles.section}>
-          {transactions.map((tx, index) => (
-            <View key={index} style={[styles.txRow, { backgroundColor: theme.card }]}>
-              <View style={styles.txLeft}>
-                <View style={[styles.txIconContainer, { backgroundColor: theme.background }]}>
-                  <Image source={tx.icon} style={styles.txIcon} />
-                </View>
-                <View>
-                  <Text style={[styles.txType, { color: theme.text }]}>{tx.type}</Text>
-                  <Text style={[styles.txStatus, { color: theme.secondaryText }]}>{tx.status}</Text>
-                </View>
-              </View>
-              <View style={styles.txRight}>
-                <Text style={styles.txAmount}>{tx.amount}</Text>
-                <Text style={[styles.txTime, { color: theme.secondaryText }]}>{tx.time}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      </ScrollView>
+        </TouchableWithoutFeedback>
+      </Modal>
     </SafeAreaView>
   );
 }
 
-// --- styles ---
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
-  container: { paddingHorizontal: 16 },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 2,
-    paddingHorizontal: 16,
-    
+  container: { flex: 1, backgroundColor: "#f2f2f7", padding: 16 },
+  menuButton: {
+    backgroundColor: "#fff",
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
   },
-  logo: { width: 200, height: 80, resizeMode: "contain", marginTop: -20, marginLeft: -20 },
-  coinsContainer: { flexDirection: "row", alignItems: "center", borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
-  coinIcon: { width: 24, height: 24, marginRight: 8 },
-  coinText: { fontSize: 16, fontWeight: "bold", color: "#F57F17" },
-  salesCard: { borderRadius: 20, padding: 16, marginBottom: 24 },
-  salesHeader: { marginBottom: 16 },
-  salesBody: { flexDirection: "row", alignItems: "flex-end" },
-  chartContainer: { flex: 1, flexDirection: "row", justifyContent: "space-around", height: 100 },
-  barWrapper: { alignItems: "center", justifyContent: "flex-end" },
-  bar: { width: 12, height: "100%", borderRadius: 6, overflow: "hidden", flexDirection: "column-reverse" },
-  barLabel: { fontSize: 12, marginTop: 4 },
-  salesSummary: { marginLeft: 16 },
-  summaryItem: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
-  summaryIndicator: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
-  summaryValue: { fontSize: 18, fontWeight: "bold" },
-  summaryLabel: { fontSize: 12 },
-  section: { marginBottom: 24 },
-  sectionTitle: { marginBottom: 12 },
-  bestSellerItem: { width: 100, height: 100, borderRadius: 16, marginRight: 12, justifyContent: "center", alignItems: "center" },
-  bestSellerImage: { width: "80%", height: "80%", resizeMode: "contain" },
-  vipCard: { borderRadius: 16, padding: 16, marginRight: 12, width: 250, borderWidth: 1 },
-  vipName: { fontWeight: "bold", fontSize: 16, marginBottom: 4 },
-  vipRole: { fontSize: 12, marginBottom: 8 },
-  vipFollowers: { fontSize: 12, marginBottom: 8 },
-  vipOrder: { fontSize: 12, alignSelf: "flex-end" },
-  txRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderRadius: 16, padding: 12, marginBottom: 12 },
-  txLeft: { flexDirection: "row", alignItems: "center" },
-  txIconContainer: { width: 40, height: 40, borderRadius: 12, justifyContent: "center", alignItems: "center", marginRight: 12 },
-  txIcon: { width: 24, height: 24, resizeMode: "contain" },
-  txType: { fontWeight: "bold" },
-  txStatus: { fontSize: 12 },
-  txRight: { alignItems: "flex-end" },
-  txAmount: { fontWeight: "bold", color: "#4CAF50" },
-  txTime: { fontSize: 12 },
+  menuText: { fontSize: 16, color: "#007AFF", fontWeight: "600" },
+  selectedText: { marginTop: 10, fontSize: 15, color: "#333" },
+
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  keyboardWrapper: { width: "100%", alignItems: "center" },
+  popup: {
+    backgroundColor: "#fff",
+    width: "90%",
+    borderRadius: 18,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+  },
+  popupTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#111",
+    textAlign: "center",
+    marginBottom: 15,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+    fontSize: 16,
+    color: "#000",
+    backgroundColor: "#fafafa",
+  },
+  fetchButton: {
+    backgroundColor: "#007AFF",
+    borderRadius: 10,
+    paddingVertical: 12,
+    marginBottom: 10,
+  },
+  fetchText: { textAlign: "center", color: "#fff", fontWeight: "600" },
+  errorText: { color: "red", textAlign: "center", marginBottom: 10 },
+  storeItem: {
+    backgroundColor: "#f9f9f9",
+    padding: 14,
+    borderRadius: 10,
+    marginVertical: 5,
+  },
+  storeName: { fontSize: 16, fontWeight: "600", color: "#111" },
+  storeUrl: { fontSize: 13, color: "#666", marginTop: 3 },
+  closeButton: {
+    marginTop: 10,
+    alignSelf: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+  },
+  closeText: { fontSize: 16, color: "#007AFF" },
 });

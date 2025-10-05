@@ -21,65 +21,61 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { setUserId } = useUser();
   const router = useRouter();
 
   const colorScheme = useColorScheme() ?? "light";
   const themeColors = Colors[colorScheme];
 
-  const handleLogin = async () => {
-    setLoading(true);
+  const { setUserId, setPrintfulApiKey, setCurrentStoreId } = useUser();
 
-    try {
-      const client = new DynamoDBClient({
-        region: REGION,
-        credentials: fromCognitoIdentityPool({
-          clientConfig: { region: REGION },
-          identityPoolId: IDENTITY_POOL_ID,
-        }),
-      });
+const handleLogin = async () => {
+  setLoading(true);
 
-      const scanResult = await client.send(
-        new ScanCommand({
-          TableName: "MuseUsers",
-          ProjectionExpression: "#n, userId, passwordHash",
-          ExpressionAttributeNames: {
-            "#n": "name",
-          },
-        })
-      );
+  try {
+    const client = new DynamoDBClient({
+      region: REGION,
+      credentials: fromCognitoIdentityPool({
+        clientConfig: { region: REGION },
+        identityPoolId: IDENTITY_POOL_ID,
+      }),
+    });
 
-      if (!scanResult.Items || scanResult.Items.length === 0) {
-        throw new Error("User not found");
-      }
+    const scanResult = await client.send(
+      new ScanCommand({
+        TableName: "MuseUsers",
+        ProjectionExpression: "#n, userId, passwordHash, printfulApiKey, currentStoreId",
+        ExpressionAttributeNames: {
+          "#n": "name",
+        },
+      })
+    );
 
-      const user = scanResult.Items.find((item) => item.name.S === username);
-      if (!user) {
-        throw new Error("User not found");
-      }
-
-      if (!user.passwordHash || !user.passwordHash.S) {
-        throw new Error("Password not set for this user");
-      }
-
-      const passwordMatch = await bcrypt.compare(password, user.passwordHash.S);
-      if (!passwordMatch) {
-        throw new Error("Incorrect password");
-      }
-      if (user.userId.S !== undefined) {
-        console.log("SETTING USER ID: ", user.userId.S);
-        setUserId(user.userId.S);
-      }
-
-      setUsername("");
-      setPassword("");
-      router.replace("/(tabs)");
-    } catch (err: any) {
-      Alert.alert("Error", err.message || "Login failed");
-    } finally {
-      setLoading(false);
+    if (!scanResult.Items || scanResult.Items.length === 0) {
+      throw new Error("User not found");
     }
-  };
+
+    const user = scanResult.Items.find((item) => item.name.S === username);
+    if (!user) throw new Error("User not found");
+
+    if (!user.passwordHash?.S) throw new Error("Password not set for this user");
+
+    const passwordMatch = await bcrypt.compare(password, user.passwordHash.S);
+    if (!passwordMatch) throw new Error("Incorrect password");
+
+    // Set global context values
+    if (user.userId?.S) setUserId(user.userId.S);
+    if (user.printfulApiKey?.S) setPrintfulApiKey(user.printfulApiKey.S);
+    if (user.currentStoreId?.S) setCurrentStoreId(user.currentStoreId.S);
+
+    setUsername("");
+    setPassword("");
+    router.replace("/(tabs)");
+  } catch (err: any) {
+    Alert.alert("Error", err.message || "Login failed");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const styles = createStyles(themeColors);
 
