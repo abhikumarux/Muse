@@ -91,7 +91,6 @@ const selectStore = async (store: any) => {
       })
     );
 
-    // **Update global state so user doesn't need to re-login**
     setPrintfulApiKey(apiKey);
     setCurrentStoreId(store.id.toString());
 
@@ -118,7 +117,6 @@ const selectStore = async (store: any) => {
         </Text>
       )}
 
-      {/* Modal */}
       <Modal
         visible={modalVisible}
         animationType="fade"
@@ -194,6 +192,7 @@ const selectStore = async (store: any) => {
     </SafeAreaView>
   );
 }
+//test
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f2f2f7", padding: 16 },

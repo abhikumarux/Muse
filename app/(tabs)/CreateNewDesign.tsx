@@ -4,7 +4,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { captureRef } from "react-native-view-shot";
 import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { Colors } from "@/constants/Colors"; // Import the Colors constant
+import { Colors } from "@/constants/Colors"; 
 import { useUser } from "../UserContext";
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { fromCognitoIdentityPool } from "@aws-sdk/credential-provider-cognito-identity";
