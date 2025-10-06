@@ -6,7 +6,7 @@ import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions
 import * as ImagePicker from "expo-image-picker";
 import { Colors } from "@/constants/Colors"; 
 import { useUser } from "../UserContext";
-import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand} from "@aws-sdk/client-s3";
 import { fromCognitoIdentityPool } from "@aws-sdk/credential-provider-cognito-identity";
 import { CognitoIdentityClient } from "@aws-sdk/client-cognito-identity";
 import { Buffer } from "buffer";
@@ -14,6 +14,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { FILE } from "dns";
 import { LinearGradient } from "expo-linear-gradient";
 import { Platform } from "react-native";
+import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
 
 interface Category {
   id: number;
@@ -347,9 +348,43 @@ export default function CreateNewDesignTab() {
   const GenerateFinalDesign = async () => {
     setLoading(true);
     const usingSecond = !!uploadedImages.right;
+
+    const REGION = "us-east-2";
+    const IDENTITY_POOL_ID = "us-east-2:3680323d-0bc6-499f-acc5-f98acb534e36";
+
+    const client = new DynamoDBClient({
+      region: REGION,
+      credentials: fromCognitoIdentityPool({
+        clientConfig: { region: REGION },
+        identityPoolId: IDENTITY_POOL_ID,
+      }),
+    });
+
+    const userResult = await client.send(
+      new GetItemCommand({
+        TableName: "MuseUsers",
+        Key: { userId: { S: userId ?? "" } },
+      })
+    );
+    
+    const selectedMuseId = userResult.Item?.selectedMuseId?.S;
+    
+    let museString = "";
+    
+    if (selectedMuseId) {
+      const museResult = await client.send(
+        new GetItemCommand({
+          TableName: "Muse",
+          Key: { museID: { S: selectedMuseId } },
+        })
+      );
+      
+      museString = museResult.Item?.Description?.S || "";
+      console.log("Muse String: ", museString);
+    }
     const tempMuseString = usingSecond
-      ? "Take the first image and the second image, merge them into one cohesive image that makes sense."
-      : "Use the first image to generate an appealing, well-composed design based on the image provided.";
+      ? "Take the first image and the second image, merge them into one cohesive image that makes sense. I want you to make the whole image theme based off of this description: " + museString
+      : "Use the first image to generate an appealing, well-composed design based on the image provided. I want you to make the whole image theme based off of this description: " + museString;
 
     if (!uploadedImages.left) {
       Alert.alert("Missing Images", "Please upload at least one image first.");
@@ -487,7 +522,6 @@ export default function CreateNewDesignTab() {
       const data = await response.json();
       // Find the first part with inline_data
       const remixedBase64 = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-      console.log("Base 64: ", base64Image);
 
       const remixedImageUri = `data:image/png;base64,${remixedBase64}`;
       setGeneratedImage(remixedImageUri);
@@ -750,7 +784,6 @@ export default function CreateNewDesignTab() {
     setLoading(true);
   
     try {
-      // 1️⃣ Upload image to S3
       const s3Client = new S3Client({
         region: REGION,
         credentials: fromCognitoIdentityPool({
@@ -774,9 +807,7 @@ export default function CreateNewDesignTab() {
       );
   
       const imageUrl = `https://${BUCKET}.s3.${REGION}.amazonaws.com/${encodeURIComponent(key)}?t=${timestamp}`;
-      console.log("✅ Uploaded to S3:", imageUrl);
   
-      // 2️⃣ Validate uploaded image
       const headCheck = await fetch(imageUrl, { method: "HEAD" });
       if (!headCheck.ok) {
         console.error("❌ Uploaded image not accessible to Printful:", imageUrl);
@@ -803,8 +834,6 @@ export default function CreateNewDesignTab() {
           },
         })),
       };
-  
-      console.log("📦 Sending payload to Printful:", JSON.stringify(mockupPayload, null, 2));
   
       const mockupResponse = await fetch(
         `https://api.printful.com/mockup-generator/create-task/${selectedProduct.id}?store_id=${storeId}`,
@@ -836,8 +865,7 @@ export default function CreateNewDesignTab() {
         return;
       }
   
-      // 4️⃣ Poll for completion
-      console.log(`⏳ Polling for mockup completion (task: ${taskKey})`);
+
       let attempts = 0;
       const maxAttempts = 30;
   
@@ -851,7 +879,6 @@ export default function CreateNewDesignTab() {
         );
   
         if (!statusResponse.ok) {
-          console.log(`⚠️ Status check failed: ${statusResponse.status}`);
           continue;
         }
   
@@ -885,7 +912,6 @@ export default function CreateNewDesignTab() {
             return;
           }
   
-          console.log("✅ Final unique mockup URLs:", urls);
   
           setMockupUrls(urls);
           setMockupImages(urls);
@@ -901,7 +927,6 @@ export default function CreateNewDesignTab() {
           return;
         }
   
-        console.log(`Still processing... (${attempts}/${maxAttempts})`);
       }
   
       Alert.alert("Timeout", "Mockup generation is taking longer than expected.");
@@ -971,10 +996,9 @@ export default function CreateNewDesignTab() {
           ]
         };
         
-        console.log("🆕 Creating new product");
+        
       
   
-      console.log("📦 Adding to store with payload:", JSON.stringify(payload, null, 2));
   
       const response = await fetch(endpoint, {
         method: "POST",
@@ -993,7 +1017,6 @@ export default function CreateNewDesignTab() {
       }
   
       const result = await response.json();
-      console.log("✅ Product successfully added to store:", result);
       Alert.alert("Success", "Product added to your store!");
     } catch (err) {
       console.error("Error in addToStore:", err);
