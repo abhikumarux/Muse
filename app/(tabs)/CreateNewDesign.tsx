@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Button, SafeAreaView, TextInput, useColorScheme as useDeviceColorScheme, Animated } from "react-native";
+import { Button, SafeAreaView, TextInput, useColorScheme as useDeviceColorScheme, Animated, Alert, Modal } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
 import { captureRef } from "react-native-view-shot";
-import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Alert } from "react-native";
+import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { Colors } from "@/constants/Colors"; 
+import { Colors } from "@/constants/Colors";
 import { useUser } from "../UserContext";
-import { S3Client, PutObjectCommand, GetObjectCommand} from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { fromCognitoIdentityPool } from "@aws-sdk/credential-provider-cognito-identity";
 import { CognitoIdentityClient } from "@aws-sdk/client-cognito-identity";
 import { Buffer } from "buffer";
@@ -103,8 +103,6 @@ interface ProductDetailsResponse {
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 60) / 2;
 
-
-
 export default function CreateNewDesignTab() {
   const colorScheme = useDeviceColorScheme();
   const theme = Colors[colorScheme ?? "light"];
@@ -152,6 +150,7 @@ export default function CreateNewDesignTab() {
   const [currentStep, setCurrentStep] = useState(1);
   // State for the prompt used in the final design/remix step
   const [prompt, setPrompt] = useState("");
+  const [selectedImageUrlForZoom, setSelectedImageUrlForZoom] = useState<string | null>(null);
 
   const progress = useRef(new Animated.Value(0)).current;
 
@@ -366,11 +365,11 @@ export default function CreateNewDesignTab() {
         Key: { userId: { S: userId ?? "" } },
       })
     );
-    
+
     const selectedMuseId = userResult.Item?.selectedMuseId?.S;
-    
+
     let museString = "";
-    
+
     if (selectedMuseId) {
       const museResult = await client.send(
         new GetItemCommand({
@@ -378,7 +377,7 @@ export default function CreateNewDesignTab() {
           Key: { museID: { S: selectedMuseId } },
         })
       );
-      
+
       museString = museResult.Item?.Description?.S || "";
       console.log("Muse String: ", museString);
     }
@@ -392,7 +391,6 @@ export default function CreateNewDesignTab() {
     }
 
     try {
-
       const Gemini_API_KEY = "AIzaSyBNbBd8yqnOTSM5C3bt56hgN_5X8OmMorY";
       const endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent";
 
@@ -775,14 +773,14 @@ export default function CreateNewDesignTab() {
       console.error("❌ Missing userId or generatedImage");
       return;
     }
-  
+
     if (!selectedProduct?.id || !selectedVariant?.id || !selectedPlacements.length) {
       Alert.alert("Missing Data", "Please make sure you have selected a product, variant, and placement.");
       return;
     }
-  
+
     setLoading(true);
-  
+
     try {
       const s3Client = new S3Client({
         region: REGION,
@@ -791,12 +789,12 @@ export default function CreateNewDesignTab() {
           identityPoolId: IDENTITY_POOL_ID,
         }),
       });
-  
+
       const timestamp = Date.now();
       const key = `${userId}/tempUpload/tempImage_${timestamp}.png`;
       const base64Data = generatedImage.replace(/^data:image\/\w+;base64,/, "");
       const buffer = Buffer.from(base64Data, "base64");
-  
+
       await s3Client.send(
         new PutObjectCommand({
           Bucket: BUCKET,
@@ -805,9 +803,9 @@ export default function CreateNewDesignTab() {
           ContentType: "image/png",
         })
       );
-  
+
       const imageUrl = `https://${BUCKET}.s3.${REGION}.amazonaws.com/${encodeURIComponent(key)}?t=${timestamp}`;
-  
+
       const headCheck = await fetch(imageUrl, { method: "HEAD" });
       if (!headCheck.ok) {
         console.error("❌ Uploaded image not accessible to Printful:", imageUrl);
@@ -815,7 +813,7 @@ export default function CreateNewDesignTab() {
         setLoading(false);
         return;
       }
-  
+
       // 3️⃣ Prepare mockup generation payload
       const storeId = await getStoreId();
       const mockupPayload = {
@@ -834,19 +832,16 @@ export default function CreateNewDesignTab() {
           },
         })),
       };
-  
-      const mockupResponse = await fetch(
-        `https://api.printful.com/mockup-generator/create-task/${selectedProduct.id}?store_id=${storeId}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(mockupPayload),
-        }
-      );
-  
+
+      const mockupResponse = await fetch(`https://api.printful.com/mockup-generator/create-task/${selectedProduct.id}?store_id=${storeId}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(mockupPayload),
+      });
+
       if (!mockupResponse.ok) {
         const errorData = await mockupResponse.json();
         console.error("❌ Mockup creation failed:", errorData);
@@ -854,49 +849,45 @@ export default function CreateNewDesignTab() {
         setLoading(false);
         return;
       }
-  
+
       const mockupData = await mockupResponse.json();
       const taskKey = mockupData?.result?.task_key;
-  
+
       if (!taskKey) {
         console.error("❌ No task_key returned from Printful:", mockupData);
         Alert.alert("Error", "Failed to start mockup task.");
         setLoading(false);
         return;
       }
-  
 
       let attempts = 0;
       const maxAttempts = 30;
-  
+
       while (attempts < maxAttempts) {
         await new Promise((res) => setTimeout(res, 1000));
         attempts++;
-  
-        const statusResponse = await fetch(
-          `https://api.printful.com/mockup-generator/task?task_key=${taskKey}&store_id=${storeId}`,
-          { headers: { Authorization: `Bearer ${API_KEY}` } }
-        );
-  
+
+        const statusResponse = await fetch(`https://api.printful.com/mockup-generator/task?task_key=${taskKey}&store_id=${storeId}`, { headers: { Authorization: `Bearer ${API_KEY}` } });
+
         if (!statusResponse.ok) {
           continue;
         }
-  
+
         const statusData = await statusResponse.json();
         const status = statusData?.result?.status;
-  
+
         if (status === "completed") {
           const mockups = statusData?.result?.mockups || [];
           const seenUrls = new Set<string>();
           const urls: string[] = [];
-  
+
           mockups.forEach((mockup: any, index: number) => {
             // main mockup
             if (mockup.mockup_url && !seenUrls.has(mockup.mockup_url)) {
               urls.push(mockup.mockup_url);
               seenUrls.add(mockup.mockup_url);
             }
-  
+
             // extra mockups
             mockup.extra?.forEach((extra: any) => {
               if (extra.url && !seenUrls.has(extra.url)) {
@@ -905,30 +896,28 @@ export default function CreateNewDesignTab() {
               }
             });
           });
-  
+
           if (!urls.length) {
             Alert.alert("Error", "No mockup URLs found in Printful response.");
             setLoading(false);
             return;
           }
-  
-  
+
           setMockupUrls(urls);
           setMockupImages(urls);
           setCurrentView("viewFinalDesign");
           setLoading(false);
           return;
         }
-  
+
         if (status === "failed") {
           console.error("❌ Mockup generation failed:", statusData);
           Alert.alert("Error", "Mockup generation failed. Please try again.");
           setLoading(false);
           return;
         }
-  
       }
-  
+
       Alert.alert("Timeout", "Mockup generation is taking longer than expected.");
       setLoading(false);
     } catch (err) {
@@ -937,69 +926,65 @@ export default function CreateNewDesignTab() {
       setLoading(false);
     }
   };
-  
+
   const addToStore = async (mockupUrls: string[]) => {
     if (!mockupUrls.length) {
       Alert.alert("Error", "No mockup URLs provided.");
       return;
     }
-  
+
     if (!selectedVariant?.id) {
       Alert.alert("Error", "No variant selected for the product.");
       return;
     }
-  
+
     if (!selectedProduct) {
       Alert.alert("Error", "No product selected.");
       return;
     }
-  
+
     try {
       const storeId = await getStoreId();
-  
+
       // 🔧 FIXED: Create files array with correct structure (url + type, NOT image_url + placement)
       const files = selectedPlacements.map((placement, i) => {
         const fileObj: any = {
           url: mockupUrls[i] || mockupUrls[0], // Use corresponding URL or fallback to first
         };
-        
+
         // Add type if it's not the default front placement
         if (placement !== "front" && placement !== "default") {
           fileObj.type = placement;
         }
-        
+
         return fileObj;
       });
-  
+
       let endpoint: string;
       let payload: any;
 
-        // 🆕 Create new product
-        if (!selectedProduct.title) {
-          Alert.alert("Error", "Product title is required to create a new product.");
-          return;
-        }
-  
-        endpoint = `https://api.printful.com/store/products?store_id=${storeId}`;
-        
-        payload = {
-          sync_product: {
-            name: selectedProduct.title,
-            thumbnail: mockupUrls[0],
+      // 🆕 Create new product
+      if (!selectedProduct.title) {
+        Alert.alert("Error", "Product title is required to create a new product.");
+        return;
+      }
+
+      endpoint = `https://api.printful.com/store/products?store_id=${storeId}`;
+
+      payload = {
+        sync_product: {
+          name: selectedProduct.title,
+          thumbnail: mockupUrls[0],
+        },
+        sync_variants: [
+          {
+            retail_price: "25.00",
+            variant_id: selectedVariant.id,
+            files,
           },
-          sync_variants: [
-            {
-              retail_price: "25.00",
-              variant_id: selectedVariant.id,
-              files,
-            }
-          ]
-        };
-        
-        
-      
-  
-  
+        ],
+      };
+
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
@@ -1008,14 +993,14 @@ export default function CreateNewDesignTab() {
         },
         body: JSON.stringify(payload),
       });
-  
+
       if (!response.ok) {
         const errorData = await response.json();
         console.error("❌ Failed to add product to store:", errorData);
         Alert.alert("Error", errorData.error?.message || "Failed to add product to store.");
         return;
       }
-  
+
       const result = await response.json();
       Alert.alert("Success", "Product added to your store!");
     } catch (err) {
@@ -1046,10 +1031,9 @@ export default function CreateNewDesignTab() {
     );
   }
 
-  if (currentView === "viewFinalDesign") {
-    return (
-      <SafeAreaView style={styles.container}>
-        <ProgressBar />
+  const renderCurrentView = () => {
+    if (currentView === "viewFinalDesign") {
+      return (
         <View style={styles.container}>
           <View style={styles.headerContainer}>
             <TouchableOpacity onPress={handleBackToDesign} style={styles.backButton}>
@@ -1070,10 +1054,12 @@ export default function CreateNewDesignTab() {
                 <Text style={styles.mockupTitle}>Your Design on Product</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mockupScrollView} contentContainerStyle={styles.mockupScrollContent}>
                   {mockupImages.map((mockupUrl, index) => (
-                    <View key={index} style={styles.mockupImageContainer}>
-                      <Image source={{ uri: mockupUrl }} style={styles.mockupImage} resizeMode="contain" />
-                      <Text style={styles.mockupImageLabel}>View {index + 1}</Text>
-                    </View>
+                    <TouchableOpacity key={index} onPress={() => setSelectedImageUrlForZoom(mockupUrl)}>
+                      <View style={styles.mockupImageContainer}>
+                        <Image source={{ uri: mockupUrl }} style={styles.mockupImage} resizeMode="contain" />
+                        <Text style={styles.mockupImageLabel}>View {index + 1}</Text>
+                      </View>
+                    </TouchableOpacity>
                   ))}
                 </ScrollView>
               </View>
@@ -1140,14 +1126,11 @@ export default function CreateNewDesignTab() {
             </View>
           )}
         </View>
-      </SafeAreaView>
-    );
-  }
+      );
+    }
 
-  if (currentView === "design") {
-    return (
-      <SafeAreaView style={styles.container}>
-        <ProgressBar />
+    if (currentView === "design") {
+      return (
         <View style={styles.container}>
           <View style={styles.headerContainer}>
             <TouchableOpacity onPress={handleBackToPlacements} style={styles.backButton}>
@@ -1210,8 +1193,8 @@ export default function CreateNewDesignTab() {
             {generatedImage && (
               <View
                 style={{
-                  marginTop: 30,
-                  marginBottom: 30,
+                  marginTop: -10,
+                  marginBottom: 35,
                   alignItems: "center",
                   backgroundColor: theme.card,
                   borderRadius: 16,
@@ -1255,26 +1238,32 @@ export default function CreateNewDesignTab() {
                 >
                   Generated Design
                 </Text>
-                <Image
-                  source={{ uri: generatedImage }}
-                  style={{
-                    width: 260,
-                    height: 260,
-                    borderRadius: 14,
-                    marginBottom: 18,
-                    backgroundColor: theme.background,
-                    resizeMode: "contain",
-                    alignSelf: "center",
-                  }}
-                />
+                <TouchableOpacity onPress={() => setSelectedImageUrlForZoom(generatedImage)}>
+                  <Image
+                    source={{ uri: generatedImage }}
+                    style={{
+                      width: 260,
+                      height: 260,
+                      borderRadius: 14,
+                      marginBottom: 18,
+                      backgroundColor: theme.background,
+                      resizeMode: "contain",
+                      alignSelf: "center",
+                    }}
+                  />
+                </TouchableOpacity>
                 <TextInput style={styles.input} placeholder="Type your smart adjustments for a remix..." placeholderTextColor={theme.secondaryText} value={prompt} onChangeText={setPrompt} />
-                <TouchableOpacity style={[styles.finalGenerateButton, { marginTop: 0 }]} onPress={handleRemix}>
-                  <Text style={styles.finalGenerateButtonText}>Remix</Text>
-                </TouchableOpacity>
-                {/* New Apply button */}
-                <TouchableOpacity style={[styles.finalGenerateButton, { marginTop: 16, backgroundColor: theme.tint }]} onPress={putImageOnItem}>
-                  <Text style={[styles.finalGenerateButtonText, { color: theme.background }]}>Apply to selected item</Text>
-                </TouchableOpacity>
+                {/* Redesigned Button Row */}
+                <View style={styles.designActionRow}>
+                  {/* REMIX - Secondary */}
+                  <TouchableOpacity style={styles.designControlButton} onPress={handleRemix}>
+                    <Text style={styles.designControlButtonText}>Remix</Text>
+                  </TouchableOpacity>
+                  {/* APPLY - Primary */}
+                  <TouchableOpacity style={styles.designControlButtonPrimary} onPress={putImageOnItem}>
+                    <Text style={styles.designControlButtonPrimaryText}>Apply to Item</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
 
@@ -1302,14 +1291,11 @@ export default function CreateNewDesignTab() {
             </View>
           </ScrollView>
         </View>
-      </SafeAreaView>
-    );
-  }
+      );
+    }
 
-  if (currentView === "placements") {
-    return (
-      <SafeAreaView style={styles.container}>
-        <ProgressBar />
+    if (currentView === "placements") {
+      return (
         <View style={styles.container}>
           <View style={styles.headerContainer}>
             <TouchableOpacity onPress={handleBackToVariants} style={styles.backButton}>
@@ -1338,83 +1324,78 @@ export default function CreateNewDesignTab() {
             )}
           </ScrollView>
         </View>
-      </SafeAreaView>
-    );
-  }
+      );
+    }
 
-  if (currentView === "variants") {
-    const { product, variants } = productDetails!;
-    const uniqueColors = [...new Map(variants.map((v) => [v.color, v])).values()];
+    if (currentView === "variants") {
+      const { product, variants } = productDetails!;
+      const uniqueColors = [...new Map(variants.map((v) => [v.color, v])).values()];
 
-    // MODIFICATION START: Get unique sizes first, then sort them
-    const uniqueSizes = selectedColor ? [...new Set(variants.filter((v) => v.color === selectedColor.color).map((v) => v.size))] : [];
-    const availableSizes = sortSizes(uniqueSizes);
-    // MODIFICATION END
+      const uniqueSizes = selectedColor ? [...new Set(variants.filter((v) => v.color === selectedColor.color).map((v) => v.size))] : [];
+      const availableSizes = sortSizes(uniqueSizes);
 
-    return (
-      <SafeAreaView style={styles.container}>
-        <ProgressBar />
+      return (
         <View style={styles.container}>
-          <View style={styles.headerContainer}>
+          <View style={styles.variantHeader}>
             <TouchableOpacity onPress={handleBackToProducts} style={styles.backButton}>
-              <Text style={styles.backButtonText}>← Back</Text>
+              <Text style={styles.backButtonText}>←</Text>
             </TouchableOpacity>
-            <Text style={styles.headerText}>{product.title}</Text>
+            <Text style={styles.headerText} numberOfLines={1}>
+              {product.title}
+            </Text>
+            <View style={{ width: 40 }} />
           </View>
-          <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            <Image source={{ uri: selectedColor ? selectedColor.image : product.image }} style={styles.mainProductImage} />
+          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+            <Image source={{ uri: selectedColor ? selectedColor.image : product.image }} style={styles.mainProductImageNew} />
 
-            <View style={styles.selectionContainer}>
-              <Text style={styles.selectionTitle}>
-                Color: <Text style={styles.selectionValue}>{selectedColor?.color || "Select a color"}</Text>
-              </Text>
-              <View style={styles.colorSwatchContainer}>
+            <View style={styles.detailsContainer}>
+              <Text style={styles.productTitleNew}>{product.title}</Text>
+              <Text style={styles.productPriceNew}>${selectedColor?.price || variants[0].price}</Text>
+
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.colorScrollView}>
                 {uniqueColors.map((variant) => (
-                  <TouchableOpacity key={variant.id} onPress={() => handleColorSelect(variant)} style={[styles.colorSwatch, selectedColor?.color === variant.color && styles.colorSwatchSelected]}>
-                    <View style={[styles.colorInner, { backgroundColor: variant.color_code }]} />
+                  <TouchableOpacity
+                    key={variant.id}
+                    onPress={() => handleColorSelect(variant)}
+                    style={[styles.colorThumbnail, selectedColor?.color === variant.color && styles.colorThumbnailSelected]}
+                  >
+                    <Image source={{ uri: variant.image }} style={styles.colorThumbnailImage} />
                   </TouchableOpacity>
                 ))}
-              </View>
-            </View>
+              </ScrollView>
 
-            {selectedColor && (
-              <View style={styles.selectionContainer}>
-                <Text style={styles.selectionTitle}>
-                  Size: <Text style={styles.selectionValue}>{selectedSize || "Select a size"}</Text>
-                </Text>
-                <View style={styles.sizeButtonContainer}>
-                  {availableSizes.map(
-                    (
-                      size // This will now map over the sorted sizes
-                    ) => (
-                      <TouchableOpacity key={size} onPress={() => handleSizeSelect(size)} style={[styles.sizeButton, selectedSize === size && styles.sizeButtonSelected]}>
-                        <Text style={[styles.sizeButtonText, selectedSize === size && styles.sizeButtonTextSelected]}>{size}</Text>
-                      </TouchableOpacity>
-                    )
-                  )}
-                </View>
-              </View>
-            )}
-
-            {selectedVariant && (
-              <View style={styles.selectionSummary}>
-                <TouchableOpacity style={styles.generateButton} onPress={() => handleVariantSelect(selectedVariant)}>
-                  <Text style={styles.generateButtonText}>Confirm Selection</Text>
+              <View style={styles.sizeHeader}>
+                <Text style={styles.selectionTitle}>Select Size</Text>
+                <TouchableOpacity onPress={() => Alert.alert("Size Guide", "Size guide functionality coming soon!")}>
+                  <Text style={styles.sizeGuideLink}>Size Guide</Text>
                 </TouchableOpacity>
               </View>
-            )}
+
+              {selectedColor && (
+                <View style={styles.sizeButtonContainer}>
+                  {availableSizes.map((size) => (
+                    <TouchableOpacity key={size} onPress={() => handleSizeSelect(size)} style={[styles.sizeButtonNew, selectedSize === size && styles.sizeButtonNewSelected]}>
+                      <Text style={[styles.sizeButtonTextNew, selectedSize === size && styles.sizeButtonTextNewSelected]}>{size}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
           </ScrollView>
+
+          <View style={styles.bottomBar}>
+            <TouchableOpacity style={[styles.confirmButton, !selectedVariant && styles.disabledButton]} onPress={() => handleVariantSelect(selectedVariant!)} disabled={!selectedVariant}>
+              <Text style={styles.confirmButtonText}>Confirm Selection</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </SafeAreaView>
-    );
-  }
+      );
+    }
 
-  if (currentView === "products") {
-    const filteredProducts = products.filter((product) => product.title.toLowerCase().includes(searchQuery.toLowerCase()));
+    if (currentView === "products") {
+      const filteredProducts = products.filter((product) => product.title.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    return (
-      <SafeAreaView style={styles.container}>
-        <ProgressBar />
+      return (
         <View style={styles.container}>
           <View style={styles.headerContainer}>
             <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
@@ -1429,17 +1410,15 @@ export default function CreateNewDesignTab() {
             <View style={styles.gridContainer}>{filteredProducts.map(renderProductCard)}</View>
           </ScrollView>
         </View>
-      </SafeAreaView>
-    );
-  }
+      );
+    }
 
-  const parentCategories = categories.filter((c) => c.parent_id === 0);
-  const subcategories = selectedCategory ? categories.filter((c) => c.parent_id === selectedCategory.id) : [];
-  const displayedCategories = (subcategories.length > 0 ? subcategories : parentCategories).filter((c) => c.title.toLowerCase().includes(searchQuery.toLowerCase()));
+    // Default to categories view
+    const parentCategories = categories.filter((c) => c.parent_id === 0);
+    const subcategories = selectedCategory ? categories.filter((c) => c.parent_id === selectedCategory.id) : [];
+    const displayedCategories = (subcategories.length > 0 ? subcategories : parentCategories).filter((c) => c.title.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <ProgressBar />
+    return (
       <View style={styles.container}>
         <View style={styles.headerContainer}>
           {selectedCategory && (
@@ -1456,6 +1435,23 @@ export default function CreateNewDesignTab() {
           <View style={styles.gridContainer}>{displayedCategories.map(renderCategoryCard)}</View>
         </ScrollView>
       </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ProgressBar />
+      {renderCurrentView()}
+      <Modal animationType="fade" transparent={true} visible={!!selectedImageUrlForZoom} onRequestClose={() => setSelectedImageUrlForZoom(null)}>
+        <View style={styles.modalContainer}>
+          <ScrollView style={styles.zoomableScrollView} contentContainerStyle={styles.zoomableScrollViewContent} minimumZoomScale={1} maximumZoomScale={4} centerContent>
+            <Image source={{ uri: selectedImageUrlForZoom || "" }} style={styles.modalImage} resizeMode="contain" />
+          </ScrollView>
+          <TouchableOpacity style={styles.modalCloseButton} onPress={() => setSelectedImageUrlForZoom(null)}>
+            <Text style={styles.modalCloseButtonText}>×</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1482,8 +1478,17 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       paddingBottom: 10,
       backgroundColor: theme.background,
     },
+    variantHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      backgroundColor: theme.background,
+      borderBottomWidth: 1,
+      borderColor: theme.tabIconDefault,
+    },
     backButton: {
-      marginRight: 15,
       padding: 5,
     },
     backButtonText: {
@@ -1871,15 +1876,6 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       fontSize: 16,
       fontWeight: "600",
     },
-    mainProductImage: {
-      width: "100%",
-      aspectRatio: 1,
-      backgroundColor: theme.card,
-      borderRadius: 16,
-      marginBottom: 20,
-      borderWidth: 1,
-      borderColor: theme.tabIconDefault,
-    },
     selectionContainer: {
       marginBottom: 25,
     },
@@ -1893,60 +1889,113 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       fontWeight: "normal",
       color: theme.secondaryText,
     },
-    colorSwatchContainer: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 15,
-    },
-    colorSwatch: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      justifyContent: "center",
-      alignItems: "center",
-      backgroundColor: theme.card,
-      borderWidth: 2,
-      borderColor: "transparent",
-    },
-    colorSwatchSelected: {
-      borderColor: theme.tint,
-    },
-    colorInner: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: theme.tabIconDefault,
-    },
     sizeButtonContainer: {
       flexDirection: "row",
       flexWrap: "wrap",
       gap: 12,
     },
-    sizeButton: {
-      paddingVertical: 10,
-      paddingHorizontal: 20,
+    // New Styles for Variant Selection Screen
+    mainProductImageNew: {
+      width: "100%",
+      height: 450,
+      resizeMode: "contain",
       backgroundColor: theme.card,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: theme.tabIconDefault,
     },
-    sizeButtonSelected: {
-      backgroundColor: theme.tint,
+    detailsContainer: {
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 150, // Increased padding to avoid overlap
+    },
+    productTitleNew: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: theme.text,
+      marginBottom: 4,
+    },
+    productPriceNew: {
+      fontSize: 20,
+      fontWeight: "600",
+      color: theme.text,
+      marginBottom: 20,
+    },
+    colorScrollView: {
+      marginBottom: 25,
+    },
+    colorThumbnail: {
+      width: 64,
+      height: 64,
+      borderRadius: 8,
+      marginRight: 12,
+      borderWidth: 2,
+      borderColor: "transparent",
+      overflow: "hidden",
+    },
+    colorThumbnailSelected: {
       borderColor: theme.tint,
     },
-    sizeButtonText: {
-      fontSize: 14,
+    colorThumbnailImage: {
+      width: "100%",
+      height: "100%",
+    },
+    sizeHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 15,
+    },
+    sizeGuideLink: {
+      fontSize: 16,
+      color: theme.secondaryText,
+    },
+    sizeButtonNew: {
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      backgroundColor: theme.background,
+      borderRadius: 8,
+      borderWidth: 1.5,
+      borderColor: theme.tabIconDefault,
+      minWidth: 60,
+      alignItems: "center",
+      marginBottom: 10,
+    },
+    sizeButtonNewSelected: {
+      backgroundColor: theme.text,
+      borderColor: theme.text,
+    },
+    sizeButtonTextNew: {
+      fontSize: 16,
       fontWeight: "600",
       color: theme.text,
     },
-    sizeButtonTextSelected: {
+    sizeButtonTextNewSelected: {
       color: theme.background,
     },
+    bottomBar: {
+      position: "absolute",
+      bottom: 75, // Positioned right above the tab bar
+      left: 0,
+      right: 0,
+      paddingHorizontal: 20,
+      paddingTop: 10,
+      backgroundColor: "transparent", // Make background transparent
+    },
+    confirmButton: {
+      backgroundColor: theme.tint,
+      paddingVertical: 16,
+      borderRadius: 12,
+      alignItems: "center",
+    },
+    confirmButtonText: {
+      color: theme.background,
+      fontSize: 18,
+      fontWeight: "bold",
+    },
+    disabledButton: {
+      backgroundColor: theme.tabIconDefault,
+    },
+
     // New Styles for Final Design View
     finalDesignContent: {
-      flex: 1,
-      alignItems: "center",
       padding: 20,
     },
     finalDesignImage: {
@@ -1984,7 +2033,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       paddingVertical: 16,
       borderRadius: 12,
       alignItems: "center",
-      backgroundColor: theme.card,
+      backgroundColor: theme.tint,
       borderWidth: 1,
       borderColor: theme.tabIconDefault,
       marginHorizontal: 5,
@@ -1994,7 +2043,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       shadowRadius: 4,
     },
     designControlButtonText: {
-      color: theme.text,
+      color: theme.background,
       fontSize: 14,
       fontWeight: "bold",
     },
@@ -2030,6 +2079,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     },
     mockupScrollContent: {
       paddingHorizontal: 10,
+      alignItems: "center",
     },
     mockupImageContainer: {
       marginRight: 15,
@@ -2066,5 +2116,67 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       fontSize: 16,
       color: theme.secondaryText,
       textAlign: "center",
+    },
+    // Styles for Zoomable Image Modal
+    modalContainer: {
+      flex: 1,
+      backgroundColor: "rgba(0, 0, 0, 0.9)",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    zoomableScrollView: {
+      width: "100%",
+      height: "100%",
+    },
+    zoomableScrollViewContent: {
+      flexGrow: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    modalImage: {
+      width: Dimensions.get("window").width,
+      height: Dimensions.get("window").height,
+    },
+    modalCloseButton: {
+      position: "absolute",
+      top: 50,
+      right: 20,
+      backgroundColor: "rgba(255, 255, 255, 0.2)",
+      borderRadius: 20,
+      width: 40,
+      height: 40,
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 10,
+    },
+    modalCloseButtonText: {
+      color: "white",
+      fontSize: 28,
+      lineHeight: 30,
+    },
+    // --- NEW STYLES ---
+    designActionRow: {
+      flexDirection: "row",
+      width: "100%",
+      justifyContent: "space-between",
+      marginTop: 10,
+    },
+    designControlButtonPrimary: {
+      flex: 1,
+      paddingVertical: 16,
+      borderRadius: 12,
+      alignItems: "center",
+      backgroundColor: theme.tint, // Primary action color
+      marginHorizontal: 5,
+      shadowColor: theme.tint,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 5,
+    },
+    designControlButtonPrimaryText: {
+      color: theme.background, // Text color for primary button
+      fontSize: 14,
+      fontWeight: "bold",
     },
   });
