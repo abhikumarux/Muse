@@ -4,6 +4,8 @@ import * as FileSystem from "expo-file-system/legacy";
 import { captureRef } from "react-native-view-shot";
 import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import ImageZoom from "react-native-image-pan-zoom";
+import { MotiView } from "moti";
 import { Colors } from "@/constants/Colors";
 import { useUser } from "../UserContext";
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
@@ -151,7 +153,7 @@ export default function CreateNewDesignTab() {
   // State for the prompt used in the final design/remix step
   const [prompt, setPrompt] = useState("");
   const [selectedImageUrlForZoom, setSelectedImageUrlForZoom] = useState<string | null>(null);
-
+  const [modalKey, setModalKey] = useState(0);
   const progress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -178,6 +180,11 @@ export default function CreateNewDesignTab() {
     fetchCategories();
     requestPermissions();
   }, []);
+
+  const handleImageZoom = (imageUrl: string) => {
+    setSelectedImageUrlForZoom(imageUrl);
+    setModalKey((prevKey) => prevKey + 1); // Increment the key to reset the ScrollView
+  };
 
   const requestPermissions = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -273,6 +280,13 @@ export default function CreateNewDesignTab() {
       const data: ProductDetailsResponse = await response.json();
       if (data.code === 200) {
         setProductDetails(data.result);
+        // Find and pre-select the variant with the lowest price overall.
+        if (data.result && data.result.variants.length > 0) {
+          const cheapestVariant = data.result.variants.reduce((cheapest, current) => {
+            return parseFloat(current.price) < parseFloat(cheapest.price) ? current : cheapest;
+          });
+          setSelectedColor(cheapestVariant);
+        }
         setCurrentView("variants");
       } else {
         setError("Failed to fetch product details");
@@ -1054,7 +1068,7 @@ export default function CreateNewDesignTab() {
                 <Text style={styles.mockupTitle}>Your Design on Product</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mockupScrollView} contentContainerStyle={styles.mockupScrollContent}>
                   {mockupImages.map((mockupUrl, index) => (
-                    <TouchableOpacity key={index} onPress={() => setSelectedImageUrlForZoom(mockupUrl)}>
+                    <TouchableOpacity key={index} onPress={() => handleImageZoom(mockupUrl)}>
                       <View style={styles.mockupImageContainer}>
                         <Image source={{ uri: mockupUrl }} style={styles.mockupImage} resizeMode="contain" />
                         <Text style={styles.mockupImageLabel}>View {index + 1}</Text>
@@ -1238,7 +1252,7 @@ export default function CreateNewDesignTab() {
                 >
                   Generated Design
                 </Text>
-                <TouchableOpacity onPress={() => setSelectedImageUrlForZoom(generatedImage)}>
+                <TouchableOpacity onPress={() => handleImageZoom(generatedImage)}>
                   <Image
                     source={{ uri: generatedImage }}
                     style={{
@@ -1329,7 +1343,15 @@ export default function CreateNewDesignTab() {
 
     if (currentView === "variants") {
       const { product, variants } = productDetails!;
-      const uniqueColors = [...new Map(variants.map((v) => [v.color, v])).values()];
+
+      const colors: { [key: string]: Variant } = {};
+      for (const variant of variants) {
+        // If we haven't seen this color, or if the current variant is cheaper, store it.
+        if (!colors[variant.color] || parseFloat(variant.price) < parseFloat(colors[variant.color].price)) {
+          colors[variant.color] = variant;
+        }
+      }
+      const uniqueColors = Object.values(colors);
 
       const uniqueSizes = selectedColor ? [...new Set(variants.filter((v) => v.color === selectedColor.color).map((v) => v.size))] : [];
       const availableSizes = sortSizes(uniqueSizes);
@@ -1354,13 +1376,14 @@ export default function CreateNewDesignTab() {
 
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.colorScrollView}>
                 {uniqueColors.map((variant) => (
-                  <TouchableOpacity
-                    key={variant.id}
-                    onPress={() => handleColorSelect(variant)}
-                    style={[styles.colorThumbnail, selectedColor?.color === variant.color && styles.colorThumbnailSelected]}
-                  >
-                    <Image source={{ uri: variant.image }} style={styles.colorThumbnailImage} />
-                  </TouchableOpacity>
+                  <View key={variant.id} style={styles.colorSelectorContainer}>
+                    <TouchableOpacity onPress={() => handleColorSelect(variant)} style={[styles.colorThumbnail, selectedColor?.color === variant.color && styles.colorThumbnailSelected]}>
+                      <Image source={{ uri: variant.image }} style={styles.colorThumbnailImage} />
+                    </TouchableOpacity>
+                    <Text style={styles.colorNameText} numberOfLines={1}>
+                      {variant.color}
+                    </Text>
+                  </View>
                 ))}
               </ScrollView>
 
@@ -1442,11 +1465,41 @@ export default function CreateNewDesignTab() {
     <SafeAreaView style={styles.container}>
       <ProgressBar />
       {renderCurrentView()}
-      <Modal animationType="fade" transparent={true} visible={!!selectedImageUrlForZoom} onRequestClose={() => setSelectedImageUrlForZoom(null)}>
+      <Modal transparent={true} visible={!!selectedImageUrlForZoom} onRequestClose={() => setSelectedImageUrlForZoom(null)}>
         <View style={styles.modalContainer}>
-          <ScrollView style={styles.zoomableScrollView} contentContainerStyle={styles.zoomableScrollViewContent} minimumZoomScale={1} maximumZoomScale={4} centerContent>
-            <Image source={{ uri: selectedImageUrlForZoom || "" }} style={styles.modalImage} resizeMode="contain" />
-          </ScrollView>
+          {selectedImageUrlForZoom && (
+            <MotiView
+              from={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ type: "timing", duration: 250 }}
+              style={{ width: "100%", height: "100%", alignItems: "center", justifyContent: "center" }}
+            >
+              {/* @ts-ignore – library typings are incomplete but runtime works fine */}
+              <ImageZoom
+                cropWidth={Dimensions.get("window").width}
+                cropHeight={Dimensions.get("window").height}
+                imageWidth={Dimensions.get("window").width}
+                imageHeight={Dimensions.get("window").height * 0.9}
+                minScale={1}
+                maxScale={4}
+                enableCenterFocus={true}
+                useNativeDriver={true}
+                doubleClickInterval={250}
+              >
+                <Image
+                  source={{ uri: selectedImageUrlForZoom }}
+                  style={{
+                    width: Dimensions.get("window").width,
+                    height: Dimensions.get("window").height * 0.9,
+                    resizeMode: "contain",
+                  }}
+                />
+              </ImageZoom>
+            </MotiView>
+          )}
+
+          {/* Close button */}
           <TouchableOpacity style={styles.modalCloseButton} onPress={() => setSelectedImageUrlForZoom(null)}>
             <Text style={styles.modalCloseButtonText}>×</Text>
           </TouchableOpacity>
@@ -1897,9 +1950,9 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     // New Styles for Variant Selection Screen
     mainProductImageNew: {
       width: "100%",
-      height: 450,
+      aspectRatio: 1,
       resizeMode: "contain",
-      backgroundColor: theme.card,
+      backgroundColor: "#FFFFFF",
     },
     detailsContainer: {
       paddingHorizontal: 20,
@@ -1925,7 +1978,6 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       width: 64,
       height: 64,
       borderRadius: 8,
-      marginRight: 12,
       borderWidth: 2,
       borderColor: "transparent",
       overflow: "hidden",
@@ -1936,6 +1988,18 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     colorThumbnailImage: {
       width: "100%",
       height: "100%",
+    },
+    colorSelectorContainer: {
+      alignItems: "center",
+      marginRight: 12,
+    },
+    colorNameText: {
+      marginTop: 6,
+      fontSize: 12,
+      fontWeight: "500",
+      color: theme.secondaryText,
+      maxWidth: 64,
+      textAlign: "center",
     },
     sizeHeader: {
       flexDirection: "row",
