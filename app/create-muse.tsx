@@ -111,7 +111,7 @@ export default function CreateMuseScreen() {
       }
 
       const data = await response.json();
-      console.log("✅ Gemini response received");
+      console.log("Gemini response received");
 
       // 5. Extract generated image from response
       let generatedImageData = null;
@@ -133,7 +133,7 @@ export default function CreateMuseScreen() {
       }
       
       if (!generatedImageData) {
-        console.error("❌ Could not find image in response structure.");
+        console.error("Could not find image in response structure.");
         console.error("Full response:", JSON.stringify(data, null, 2));
         Alert.alert(
           "Error", 
@@ -186,7 +186,7 @@ export default function CreateMuseScreen() {
       );
 
       const imageUrl = `https://${BUCKET}.s3.${REGION}.amazonaws.com/${encodeURIComponent(key)}`;
-      console.log("✅ Uploaded muse to S3:", imageUrl);
+      console.log("Uploaded muse to S3:", imageUrl);
 
       // 4. Save to DynamoDB
       const dynamoClient = new DynamoDBClient({
@@ -212,7 +212,7 @@ export default function CreateMuseScreen() {
         })
       );
 
-      console.log("✅ Muse saved to DynamoDB:", museId);
+      console.log("Muse saved to DynamoDB:", museId);
 
       Alert.alert("Success", "Muse saved successfully!", [
         {
