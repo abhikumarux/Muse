@@ -1,33 +1,39 @@
 import { useEffect, useState } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
 import LandingScreen from "./landing";
 import LoginScreen from "./login";
 import Splash from "@/components/Splash";
-import { UserProvider } from "./UserContext";
+import { getRememberedEmail } from "../lib/aws/auth";
+import { getValidIdToken } from "../lib/aws/auth";
 
 export default function Index() {
-  const [initialScreen, setInitialScreen] = useState<"landing" | "login" | null>(null);
-  const [loading, setLoading] = useState(true);
+  // "routing" = deciding where to go; then either "landing" or "login"
+  const [screen, setScreen] = useState<"routing" | "landing" | "login">("routing");
+  const router = useRouter();
 
   useEffect(() => {
-    const prepare = async () => {
-      try {
-        setInitialScreen("landing"); // DEV MODE
-      } catch {
-        setInitialScreen("landing");
+    (async () => {
+      // 1) If we still have a valid session, go straight to the dashboard
+      const token = await getValidIdToken();
+      if (token) {
+        router.replace("/(tabs)");
+        return;
       }
-    };
-    prepare();
-  }, []);
 
-  if (loading || !initialScreen) {
-    return <Splash onFinish={() => setLoading(false)} />;
-  }
+      // 2) If user opted into Remember Me before, skip landing and show Login
+      const remembered = await getRememberedEmail();
+      if (remembered) {
+        setScreen("login");
+        return;
+      }
 
-  return (
-    <UserProvider>
-      {initialScreen === "landing" && <LandingScreen />}
-      {initialScreen === "login" && <LoginScreen />}
-    </UserProvider>
-  );
+      // 3) Otherwise show the marketing/landing screen
+      setScreen("landing");
+    })();
+  }, [router]);
+
+  if (screen === "routing") return <Splash onFinish={() => {}} />;
+
+  if (screen === "login") return <LoginScreen />;
+  return <LandingScreen />;
 }

@@ -13,7 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { useRouter, useFocusEffect } from "expo-router";
-import { useUser } from "../UserContext";
+import { useUser } from "../../lib/UserContext";
 import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
 import { fromCognitoIdentityPool } from "@aws-sdk/credential-provider-cognito-identity";
 

@@ -1,4 +1,3 @@
-// landing.tsx
 import React from "react";
 import { StyleSheet, Image, Dimensions, View } from "react-native";
 import { useRouter } from "expo-router";

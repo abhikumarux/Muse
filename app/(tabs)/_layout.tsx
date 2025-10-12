@@ -1,7 +1,10 @@
+import "react-native-url-polyfill/auto";
+import "react-native-get-random-values";
+
 import { Tabs } from "expo-router";
 import React from "react";
 import { Platform, View, StyleSheet } from "react-native";
-import { BlurView } from "expo-blur"; // 1. Import BlurView
+import { BlurView } from "expo-blur";
 
 import { HapticTab } from "@/components/HapticTab";
 import { IconSymbol } from "@/components/ui/IconSymbol";
@@ -12,7 +15,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 export default function TabLayout() {
   const colorScheme = useColorScheme() ?? "light";
   const themeColors = Colors[colorScheme];
-  // This is the background for the button on Android
+  // BG for the button on Android
   const androidButtonBackground = colorScheme === "dark" ? "rgba(21, 23, 24, 0.95)" : "rgba(250, 250, 250, 0.95)";
   return (
     <Tabs
@@ -24,7 +27,7 @@ export default function TabLayout() {
         tabBarButton: HapticTab,
         tabBarBackground: TabBarBackground,
 
-        // Add this style to push the icons down
+        // Push the icons down styles
         tabBarIconStyle: {
           alignContent: "center",
           marginVertical: 13,
@@ -56,7 +59,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="products"
         options={{
-          title: "Products",
+          // Designs
+          title: "Designs",
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="hanger" color={color} />,
         }}
       />
@@ -65,7 +69,7 @@ export default function TabLayout() {
         options={{
           title: "Create",
           tabBarIcon: (
-            { color } // The color prop is passed here
+            { color } // The color prop is passed
           ) => (
             <View style={styles.createButton}>
               {Platform.OS === "ios" ? (
@@ -73,7 +77,7 @@ export default function TabLayout() {
                   <IconSymbol
                     size={32}
                     name="plus"
-                    color={color} // Use the color prop here
+                    color={color}
                   />
                 </BlurView>
               ) : (
@@ -81,7 +85,7 @@ export default function TabLayout() {
                   <IconSymbol
                     size={32}
                     name="plus"
-                    color={color} // And also use it here
+                    color={color}
                   />
                 </View>
               )}
@@ -118,9 +122,9 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     borderWidth: 0.1,
     elevation: 5,
-    overflow: "hidden", // 3. Add overflow to clip the blur effect
+    overflow: "hidden", // Overflow to clip the blur effect
   },
-  // 4. Add a new style for the BlurView
+  // Style for the BlurView
   blurView: {
     width: "100%",
     height: "100%",

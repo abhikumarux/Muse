@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Button, SafeAreaView, TextInput, useColorScheme as useDeviceColorScheme, Animated } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Button, TextInput, useColorScheme as useDeviceColorScheme, Animated } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
 import { captureRef } from "react-native-view-shot";
 import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Colors } from "@/constants/Colors"; 
-import { useUser } from "../UserContext";
+import { useUser } from "../../lib/UserContext";
 import { S3Client, PutObjectCommand, GetObjectCommand} from "@aws-sdk/client-s3";
 import { fromCognitoIdentityPool } from "@aws-sdk/credential-provider-cognito-identity";
 import { CognitoIdentityClient } from "@aws-sdk/client-cognito-identity";
@@ -15,6 +16,9 @@ import { FILE } from "dns";
 import { LinearGradient } from "expo-linear-gradient";
 import { Platform } from "react-native";
 import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { saveDesign } from "../../lib/aws/saveDesign";
+import { v4 as uuidv4 } from 'uuid'; // Import uuid
 
 interface Category {
   id: number;
@@ -137,7 +141,6 @@ export default function CreateNewDesignTab() {
     visible: boolean;
   }
 
-  // In your component
   const filesRef = useRef<PrintfulFile[]>([]);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [mockupImages, setMockupImages] = useState<string[]>([]);
@@ -150,13 +153,46 @@ export default function CreateNewDesignTab() {
   const [selectedColor, setSelectedColor] = useState<Variant | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
-  // State for the prompt used in the final design/remix step
   const [prompt, setPrompt] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  
+  const router = useRouter();
+  const params = useLocalSearchParams<{ savedDesignUri?: string }>();
+
+  const [preloadedDesignUri, setPreloadedDesignUri] = useState<string | null>(null);
+
+  const resetFlow = () => {
+    setProducts([]);
+    setProductDetails(null);
+    setPlacementFiles({});
+    setSelectedPlacements([]);
+    setCurrentView("categories");
+    setSelectedCategory(null);
+    setSelectedProduct(null);
+    setSelectedVariant(null);
+    setUploadedImages({ left: null, right: null });
+    setGeneratedImage(null);
+    setMockupImages([]);
+    setSearchQuery("");
+    setMockupUrls([]);
+    setSelectedColor(null);
+    setSelectedSize(null);
+    setCurrentStep(1);
+    setPrompt("");
+  };
+
+  useEffect(() => {
+    if (params.savedDesignUri) {
+      resetFlow();
+      setPreloadedDesignUri(params.savedDesignUri);
+      router.setParams({ savedDesignUri: '' });
+    }
+  }, [params.savedDesignUri]);
+
 
   const progress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Animate progress bar
     Animated.timing(progress, {
       toValue: currentStep - 1,
       duration: 500,
@@ -165,7 +201,6 @@ export default function CreateNewDesignTab() {
   }, [currentStep]);
 
   useEffect(() => {
-    // Update current step based on currentView
     if (["categories", "products", "variants"].includes(currentView)) {
       setCurrentStep(1);
     } else if (["placements", "design"].includes(currentView)) {
@@ -226,7 +261,6 @@ export default function CreateNewDesignTab() {
       Key: key,
     });
 
-    // URL expires in 5 minutes
     return await getSignedUrl(s3Client, command, { expiresIn: 300 });
   };
 
@@ -342,134 +376,133 @@ export default function CreateNewDesignTab() {
     setSelectedPlacements((prev) => (prev.includes(placementId) ? prev.filter((id) => id !== placementId) : [...prev, placementId]));
   };
 
-  // The original image merging view is kept here, but the function below mocks the final step.
   const mergeRef = useRef<View>(null);
 
   const GenerateFinalDesign = async () => {
     setLoading(true);
-    const usingSecond = !!uploadedImages.right;
-
-    const REGION = "us-east-2";
-    const IDENTITY_POOL_ID = "us-east-2:3680323d-0bc6-499f-acc5-f98acb534e36";
-
-    const client = new DynamoDBClient({
-      region: REGION,
-      credentials: fromCognitoIdentityPool({
-        clientConfig: { region: REGION },
-        identityPoolId: IDENTITY_POOL_ID,
-      }),
-    });
-
-    const userResult = await client.send(
-      new GetItemCommand({
-        TableName: "MuseUsers",
-        Key: { userId: { S: userId ?? "" } },
-      })
-    );
     
-    const selectedMuseId = userResult.Item?.selectedMuseId?.S;
-    
-    let museString = "";
-    
-    if (selectedMuseId) {
-      const museResult = await client.send(
-        new GetItemCommand({
-          TableName: "Muse",
-          Key: { museID: { S: selectedMuseId } },
-        })
-      );
-      
-      museString = museResult.Item?.Description?.S || "";
-      console.log("Muse String: ", museString);
-    }
-    const tempMuseString = usingSecond
-      ? "Take the first image and the second image, merge them into one cohesive image that makes sense. I want you to make the whole image theme based off of this description: " + museString
-      : "Use the first image to generate an appealing, well-composed design based on the image provided. I want you to make the whole image theme based off of this description: " + museString;
-
     if (!uploadedImages.left) {
       Alert.alert("Missing Images", "Please upload at least one image first.");
+      setLoading(false);
       return;
     }
 
     try {
+      // We get a local URI for the image before reading it
+      const getLocalUri = async (uri: string | null): Promise<string | null> => {
+        if (!uri) return null;
+        if (uri.startsWith('http')) {
+          const tempUri = FileSystem.cacheDirectory + uuidv4() + '.png';
+          await FileSystem.downloadAsync(uri, tempUri);
+          return tempUri;
+        }
+        return uri;
+      };
+
+      const localUri1 = await getLocalUri(uploadedImages.left);
+      const localUri2 = await getLocalUri(uploadedImages.right);
+
+      if (!localUri1) {
+        throw new Error("First image is missing or could not be processed.");
+      }
+      
+      const usingSecond = !!localUri2;
+      const client = new DynamoDBClient({
+        region: REGION,
+        credentials: fromCognitoIdentityPool({ clientConfig: { region: REGION }, identityPoolId: IDENTITY_POOL_ID }),
+      });
+  
+      const userResult = await client.send(
+        new GetItemCommand({ TableName: "MuseUsers", Key: { userId: { S: userId ?? "" } } })
+      );
+      const selectedMuseId = userResult.Item?.selectedMuseId?.S;
+      
+      let museString = "";
+      if (selectedMuseId) {
+        const museResult = await client.send(
+          new GetItemCommand({ TableName: "Muse", Key: { museID: { S: selectedMuseId } } })
+        );
+        museString = museResult.Item?.Description?.S || "";
+        console.log("Muse String: ", museString);
+      }
+  
+      const tempMuseString = usingSecond
+        ? `Take the first image and the second image, merge them into one cohesive image that makes sense. I want you to make the whole image theme based off of this description: ${museString}`
+        : `Use the first image to generate an appealing, well-composed design based on the image provided. I want you to make the whole image theme based off of this description: ${museString}`;
 
       const Gemini_API_KEY = "AIzaSyBNbBd8yqnOTSM5C3bt56hgN_5X8OmMorY";
       const endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent";
 
-      // Convert images to base64
-      const img1Base64 = await FileSystem.readAsStringAsync(uploadedImages.left, {
-        encoding: "base64",
-      });
-
+      const img1Base64 = await FileSystem.readAsStringAsync(localUri1, { encoding: "base64" });
       let img2Base64: string | null = null;
-      if (usingSecond && uploadedImages.right) {
-        img2Base64 = await FileSystem.readAsStringAsync(uploadedImages.right, {
-          encoding: "base64",
-        });
+      if (localUri2) {
+        img2Base64 = await FileSystem.readAsStringAsync(localUri2, { encoding: "base64" });
       }
 
-      // Build request body like curl
-      const parts: any[] = [
-        {
-          inline_data: {
-            mime_type: "image/png",
-            data: img1Base64,
-          },
-        },
-      ];
-
+      const parts: any[] = [{ inline_data: { mime_type: "image/png", data: img1Base64 } }];
       if (img2Base64) {
-        parts.push({
-          inline_data: {
-            mime_type: "image/png",
-            data: img2Base64,
-          },
-        });
+        parts.push({ inline_data: { mime_type: "image/png", data: img2Base64 } });
       }
-
       parts.push({ text: tempMuseString });
 
-      const body = JSON.stringify({
-        contents: [{ parts }],
-      });
-
+      const body = JSON.stringify({ contents: [{ parts }] });
       const response = await fetch(endpoint, {
         method: "POST",
-        headers: {
-          "x-goog-api-key": Gemini_API_KEY,
-          "Content-Type": "application/json",
-        },
+        headers: { "x-goog-api-key": Gemini_API_KEY, "Content-Type": "application/json" },
         body,
       });
 
       if (!response.ok) {
         const errorText = await response.text();
         console.error("Gemini API HTTP error:", response.status, errorText);
-        Alert.alert("Error", `Gemini API request failed: ${response.status}`);
-        setLoading(false);
-        return;
+        throw new Error(`Gemini API request failed: ${response.status}`);
       }
 
       const data = await response.json();
-
       const base64Image = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-
-      const fileUri = FileSystem.documentDirectory + "finalDesign.png";
-      await FileSystem.writeAsStringAsync(fileUri, base64Image, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      if (!base64Image) {
+        throw new Error("No image data returned from Gemini API.");
+      }
 
       const combinedImageUri = `data:image/png;base64,${base64Image}`;
       setGeneratedImage(combinedImageUri);
-      setLoading(false);
-      //setCurrentView("viewFinalDesign");
+
     } catch (err: any) {
       console.error("Error generating combined image:", err);
-      setLoading(false);
       Alert.alert("Error", "Failed to generate combined image. " + (err?.message || ""));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
+  
+  const handleSaveDesign = async () => {
+    if (!generatedImage) {
+      Alert.alert("Error", "No generated image to save.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await saveDesign({
+        imageUri: generatedImage,
+        productName: selectedProduct?.title,
+        productId: selectedProduct?.id?.toString(),
+        variantId: selectedVariant?.id?.toString(),
+        size: selectedSize ?? undefined,
+        color: selectedColor?.color,
+        title: `${selectedProduct?.title || 'Custom Design'}`, 
+        prompt: prompt,
+      });
+
+      Alert.alert("Success", "Design saved successfully!");
+    } catch (err: any) {
+      console.error("Error saving design:", err);
+      Alert.alert("Error", "Failed to save design. " + (err?.message || ""));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
 
   const handleRemix = async () => {
     if (!generatedImage) {
@@ -520,7 +553,6 @@ export default function CreateNewDesignTab() {
       }
 
       const data = await response.json();
-      // Find the first part with inline_data
       const remixedBase64 = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
 
       const remixedImageUri = `data:image/png;base64,${remixedBase64}`;
@@ -540,8 +572,13 @@ export default function CreateNewDesignTab() {
       Alert.alert("No Placements Selected", "Please select at least one placement before generating your design.");
       return;
     }
-
     setCurrentView("design");
+
+    if (preloadedDesignUri) {
+      setUploadedImages({ left: preloadedDesignUri, right: null });
+      setGeneratedImage(preloadedDesignUri);
+      setPreloadedDesignUri(null);
+    }
   };
 
   const pickImage = async () => {
@@ -606,42 +643,19 @@ export default function CreateNewDesignTab() {
   };
   const sortSizes = (sizes: string[]): string[] => {
     const sizeOrderMap: { [key: string]: number } = {
-      // Define a logical order for standard sizes
-      XS: 1,
-      S: 2,
-      M: 3,
-      L: 4,
-      XL: 5,
-      "2XL": 6,
-      XXL: 6, // Treat 2XL and XXL the same
-      "3XL": 7,
-      XXXL: 7, // Treat 3XL and XXXL the same
-      "4XL": 8,
-      "5XL": 9,
+      XS: 1, S: 2, M: 3, L: 4, XL: 5, "2XL": 6, XXL: 6,
+      "3XL": 7, XXXL: 7, "4XL": 8, "5XL": 9,
     };
 
     return [...sizes].sort((a, b) => {
       const aIsNum = /^\d+$/.test(a);
       const bIsNum = /^\d+$/.test(b);
-
-      // If both are simple numbers (like for shoes or pants), sort them numerically
-      if (aIsNum && bIsNum) {
-        return parseInt(a, 10) - parseInt(b, 10);
-      }
-
+      if (aIsNum && bIsNum) return parseInt(a, 10) - parseInt(b, 10);
       const aOrder = sizeOrderMap[a.toUpperCase()];
       const bOrder = sizeOrderMap[b.toUpperCase()];
-
-      // If both sizes are in our defined map, use that order
-      if (aOrder && bOrder) {
-        return aOrder - bOrder;
-      }
-
-      // If only one is in our map, it should come first
+      if (aOrder && bOrder) return aOrder - bOrder;
       if (aOrder) return -1;
       if (bOrder) return 1;
-
-      // For any other sizes not in our map (e.g., "One Size"), sort them alphabetically
       return a.localeCompare(b);
     });
   };
@@ -670,7 +684,7 @@ export default function CreateNewDesignTab() {
 
   const handleBackToDesign = () => {
     setCurrentView("design");
-    setGeneratedImage(null); // Clear generated image when returning to design step
+    setGeneratedImage(null);
   };
 
   const handleColorSelect = (colorVariant: Variant) => {
@@ -691,36 +705,24 @@ export default function CreateNewDesignTab() {
 
   const ProgressBar = () => {
     const steps = ["Product", "Design", "Final"];
-
-    const circleSize = 32;
-
     return (
       <View style={styles.progressWrapper}>
-        {/* Track line */}
         <View style={styles.progressTrack} />
-
-        {/* Animated gradient progress */}
         <Animated.View
           style={[
             styles.progressFill,
             {
-              width: progress.interpolate({
-                inputRange: [0, 2],
-                outputRange: ["0%", "100%"],
-              }),
+              width: progress.interpolate({ inputRange: [0, 2], outputRange: ["0%", "100%"] }),
             },
           ]}
         >
           <LinearGradient colors={[theme.progressLine, "#29e668ff"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flex: 1, borderRadius: 4 }} />
         </Animated.View>
-
-        {/* Step markers */}
         <View style={styles.stepsRow}>
           {steps.map((label, index) => {
             const stepNumber = index + 1;
             const isActive = currentStep === stepNumber;
             const isCompleted = currentStep > stepNumber;
-
             return (
               <View key={index} style={styles.stepContainer}>
                 <View style={[styles.stepCircle, isActive && styles.stepCircleActive, isCompleted && styles.stepCircleCompleted]}>
@@ -765,14 +767,13 @@ export default function CreateNewDesignTab() {
     </TouchableOpacity>
   );
 
-  // Handler to clear generated image
   const deleteGeneratedImage = () => {
     setGeneratedImage(null);
   };
 
   const putImageOnItem = async () => {
     if (!userId || !generatedImage) {
-      console.error("❌ Missing userId or generatedImage");
+      console.error("Missing userId or generatedImage");
       return;
     }
   
@@ -784,6 +785,24 @@ export default function CreateNewDesignTab() {
     setLoading(true);
   
     try {
+      let base64Data;
+      if (generatedImage.startsWith('data:')) {
+        base64Data = generatedImage.replace(/^data:image\/\w+;base64,/, "");
+      } else if (generatedImage.startsWith('http')) {
+        const tempLocalUri = FileSystem.cacheDirectory + uuidv4() + '.png';
+        await FileSystem.downloadAsync(generatedImage, tempLocalUri);
+        base64Data = await FileSystem.readAsStringAsync(tempLocalUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        await FileSystem.deleteAsync(tempLocalUri);
+      } else {
+        base64Data = await FileSystem.readAsStringAsync(generatedImage, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+      }
+      
+      const buffer = Buffer.from(base64Data, "base64");
+      
       const s3Client = new S3Client({
         region: REGION,
         credentials: fromCognitoIdentityPool({
@@ -794,8 +813,6 @@ export default function CreateNewDesignTab() {
   
       const timestamp = Date.now();
       const key = `${userId}/tempUpload/tempImage_${timestamp}.png`;
-      const base64Data = generatedImage.replace(/^data:image\/\w+;base64,/, "");
-      const buffer = Buffer.from(base64Data, "base64");
   
       await s3Client.send(
         new PutObjectCommand({
@@ -810,13 +827,12 @@ export default function CreateNewDesignTab() {
   
       const headCheck = await fetch(imageUrl, { method: "HEAD" });
       if (!headCheck.ok) {
-        console.error("❌ Uploaded image not accessible to Printful:", imageUrl);
+        console.error("Uploaded image not accessible to Printful:", imageUrl);
         Alert.alert("Error", "Image upload failed — URL is not accessible.");
         setLoading(false);
         return;
       }
   
-      // 3️⃣ Prepare mockup generation payload
       const storeId = await getStoreId();
       const mockupPayload = {
         variant_ids: [selectedVariant.id],
@@ -824,14 +840,7 @@ export default function CreateNewDesignTab() {
         files: selectedPlacements.map((placement) => ({
           placement,
           image_url: imageUrl,
-          position: {
-            area_width: 1800,
-            area_height: 2400,
-            width: 1800,
-            height: 1800,
-            top: 300,
-            left: 0,
-          },
+          position: { area_width: 1800, area_height: 2400, width: 1800, height: 1800, top: 300, left: 0 },
         })),
       };
   
@@ -839,17 +848,14 @@ export default function CreateNewDesignTab() {
         `https://api.printful.com/mockup-generator/create-task/${selectedProduct.id}?store_id=${storeId}`,
         {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${API_KEY}`,
-            "Content-Type": "application/json",
-          },
+          headers: { Authorization: `Bearer ${API_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify(mockupPayload),
         }
       );
   
       if (!mockupResponse.ok) {
         const errorData = await mockupResponse.json();
-        console.error("❌ Mockup creation failed:", errorData);
+        console.error("Mockup creation failed:", errorData);
         Alert.alert("Error", errorData.error?.message || "Failed to create mockup.");
         setLoading(false);
         return;
@@ -859,13 +865,12 @@ export default function CreateNewDesignTab() {
       const taskKey = mockupData?.result?.task_key;
   
       if (!taskKey) {
-        console.error("❌ No task_key returned from Printful:", mockupData);
+        console.error("No task_key returned from Printful:", mockupData);
         Alert.alert("Error", "Failed to start mockup task.");
         setLoading(false);
         return;
       }
   
-
       let attempts = 0;
       const maxAttempts = 30;
   
@@ -878,9 +883,7 @@ export default function CreateNewDesignTab() {
           { headers: { Authorization: `Bearer ${API_KEY}` } }
         );
   
-        if (!statusResponse.ok) {
-          continue;
-        }
+        if (!statusResponse.ok) continue;
   
         const statusData = await statusResponse.json();
         const status = statusData?.result?.status;
@@ -890,14 +893,11 @@ export default function CreateNewDesignTab() {
           const seenUrls = new Set<string>();
           const urls: string[] = [];
   
-          mockups.forEach((mockup: any, index: number) => {
-            // main mockup
+          mockups.forEach((mockup: any) => {
             if (mockup.mockup_url && !seenUrls.has(mockup.mockup_url)) {
               urls.push(mockup.mockup_url);
               seenUrls.add(mockup.mockup_url);
             }
-  
-            // extra mockups
             mockup.extra?.forEach((extra: any) => {
               if (extra.url && !seenUrls.has(extra.url)) {
                 urls.push(extra.url);
@@ -912,7 +912,6 @@ export default function CreateNewDesignTab() {
             return;
           }
   
-  
           setMockupUrls(urls);
           setMockupImages(urls);
           setCurrentView("viewFinalDesign");
@@ -921,102 +920,61 @@ export default function CreateNewDesignTab() {
         }
   
         if (status === "failed") {
-          console.error("❌ Mockup generation failed:", statusData);
+          console.error("Mockup generation failed:", statusData);
           Alert.alert("Error", "Mockup generation failed. Please try again.");
           setLoading(false);
           return;
         }
-  
       }
   
       Alert.alert("Timeout", "Mockup generation is taking longer than expected.");
       setLoading(false);
     } catch (err) {
-      console.error("❌ Error in putImageOnItem:", err);
+      console.error("Error in putImageOnItem:", err);
       Alert.alert("Error", "Something went wrong. Please try again.");
       setLoading(false);
     }
   };
   
   const addToStore = async (mockupUrls: string[]) => {
-    if (!mockupUrls.length) {
-      Alert.alert("Error", "No mockup URLs provided.");
-      return;
-    }
-  
-    if (!selectedVariant?.id) {
-      Alert.alert("Error", "No variant selected for the product.");
-      return;
-    }
-  
-    if (!selectedProduct) {
-      Alert.alert("Error", "No product selected.");
+    if (!mockupUrls.length || !selectedVariant?.id || !selectedProduct) {
+      Alert.alert("Error", "Missing product data to add to store.");
       return;
     }
   
     try {
       const storeId = await getStoreId();
-  
-      // 🔧 FIXED: Create files array with correct structure (url + type, NOT image_url + placement)
       const files = selectedPlacements.map((placement, i) => {
-        const fileObj: any = {
-          url: mockupUrls[i] || mockupUrls[0], // Use corresponding URL or fallback to first
-        };
-        
-        // Add type if it's not the default front placement
-        if (placement !== "front" && placement !== "default") {
-          fileObj.type = placement;
-        }
-        
+        const fileObj: any = { url: mockupUrls[i] || mockupUrls[0] };
+        if (placement !== "front" && placement !== "default") fileObj.type = placement;
         return fileObj;
       });
   
-      let endpoint: string;
-      let payload: any;
-
-        // 🆕 Create new product
-        if (!selectedProduct.title) {
-          Alert.alert("Error", "Product title is required to create a new product.");
-          return;
-        }
+      if (!selectedProduct.title) {
+        Alert.alert("Error", "Product title is required to create a new product.");
+        return;
+      }
   
-        endpoint = `https://api.printful.com/store/products?store_id=${storeId}`;
-        
-        payload = {
-          sync_product: {
-            name: selectedProduct.title,
-            thumbnail: mockupUrls[0],
-          },
-          sync_variants: [
-            {
-              retail_price: "25.00",
-              variant_id: selectedVariant.id,
-              files,
-            }
-          ]
-        };
-        
-        
+      const endpoint = `https://api.printful.com/store/products?store_id=${storeId}`;
+      const payload = {
+        sync_product: { name: selectedProduct.title, thumbnail: mockupUrls[0] },
+        sync_variants: [{ retail_price: "25.00", variant_id: selectedVariant.id, files }],
+      };
       
-  
-  
       const response = await fetch(endpoint, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${API_KEY}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bearer ${API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
   
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("❌ Failed to add product to store:", errorData);
+        console.error("Failed to add product to store:", errorData);
         Alert.alert("Error", errorData.error?.message || "Failed to add product to store.");
         return;
       }
   
-      const result = await response.json();
+      await response.json();
       Alert.alert("Success", "Product added to your store!");
     } catch (err) {
       console.error("Error in addToStore:", err);
@@ -1026,7 +984,7 @@ export default function CreateNewDesignTab() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
           <Text style={styles.loadingText}>Loading...</Text>
@@ -1048,7 +1006,7 @@ export default function CreateNewDesignTab() {
 
   if (currentView === "viewFinalDesign") {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <ProgressBar />
         <View style={styles.container}>
           <View style={styles.headerContainer}>
@@ -1057,14 +1015,10 @@ export default function CreateNewDesignTab() {
             </TouchableOpacity>
             <Text style={styles.headerText}>DESIGN RESULTS</Text>
           </View>
-
-          {/* Step 3: Final Design */}
           <ScrollView style={styles.scrollView} contentContainerStyle={styles.finalDesignContent}>
             <Text style={styles.finalDesignProductText}>
               Selected Product: {selectedProduct?.title} ({selectedColor?.color}, {selectedSize})
             </Text>
-
-            {/* Mockup Images Horizontal Scroll */}
             {mockupImages.length > 0 ? (
               <View style={styles.mockupContainer}>
                 <Text style={styles.mockupTitle}>Your Design on Product</Text>
@@ -1078,65 +1032,38 @@ export default function CreateNewDesignTab() {
                 </ScrollView>
               </View>
             ) : (
-              <View style={styles.noMockupContainer}>
-                <Text style={styles.noMockupText}>No mockup images available</Text>
-              </View>
+              <View style={styles.noMockupContainer}><Text style={styles.noMockupText}>No mockup images available</Text></View>
             )}
-
-            {/* Input for remix prompt */}
             <TextInput style={styles.input} placeholder="Type your smart adjustments for a remix..." placeholderTextColor={theme.secondaryText} value={prompt} onChangeText={setPrompt} />
-
-            {/* Button Rows */}
             <View style={styles.finalDesignButtonRow}>
-              {/* ADD TO STORE - Secondary button, neutral appearance */}
               <TouchableOpacity
                 style={styles.designControlButton}
                 onPress={async () => {
-                  Alert.alert("Action", "Adding to store...");
-                  try {
-                    if (!mockupUrls || mockupUrls.length === 0) {
-                      Alert.alert("Error", "No mockups available to add.");
-                      return;
-                    }
-                    await addToStore(mockupUrls); // call your function here
-                  } catch (err) {
-                    console.error(err);
-                    Alert.alert("Error", "Failed to add product to store.");
+                  if (!mockupUrls || mockupUrls.length === 0) {
+                    Alert.alert("Error", "No mockups available to add.");
+                    return;
                   }
+                  await addToStore(mockupUrls);
                 }}
               >
                 <Text style={styles.designControlButtonText}>ADD TO STORE</Text>
               </TouchableOpacity>
-              {/* REMIX - Secondary button, neutral appearance */}
               <TouchableOpacity style={styles.designControlButton} onPress={handleRemix}>
                 <Text style={styles.designControlButtonText}>REMIX</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.finalDesignButtonRow}>
-              {/* SAVE DESIGN - Secondary button, neutral appearance */}
-              <TouchableOpacity
-                style={styles.designControlButton}
-                onPress={() => {
-                  Alert.alert("Action", "Saving design...");
-                }}
-              >
-                <Text style={styles.designControlButtonText}>SAVE DESIGN</Text>
+              <TouchableOpacity style={styles.designControlButton} onPress={handleSaveDesign} disabled={isSaving}>
+                {isSaving ? <ActivityIndicator color={theme.text} /> : <Text style={styles.designControlButtonText}>SAVE DESIGN</Text>}
               </TouchableOpacity>
-              {/* PHOTOSHOOT - Secondary button, neutral appearance */}
-              <TouchableOpacity
-                style={styles.designControlButton}
-                onPress={() => {
-                  Alert.alert("Action", "Starting Photoshoot...");
-                }}
-              >
+              <TouchableOpacity style={styles.designControlButton} onPress={() => Alert.alert("Action", "Starting Photoshoot...")}>
                 <Text style={styles.designControlButtonText}>PHOTOSHOOT</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
           {loading && (
             <View style={styles.loadingOverlay}>
-              <ActivityIndicator size="large" color={theme.tint} />
-              <Text style={styles.loadingText}>Processing...</Text>
+              <ActivityIndicator size="large" color={theme.tint} /><Text style={styles.loadingText}>Processing...</Text>
             </View>
           )}
         </View>
@@ -1146,7 +1073,7 @@ export default function CreateNewDesignTab() {
 
   if (currentView === "design") {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <ProgressBar />
         <View style={styles.container}>
           <View style={styles.headerContainer}>
@@ -1157,24 +1084,13 @@ export default function CreateNewDesignTab() {
           </View>
           <ScrollView style={styles.scrollView} contentContainerStyle={styles.designContent} showsVerticalScrollIndicator={false}>
             <View style={styles.uploadButtonsContainer}>
-              <TouchableOpacity
-                style={styles.uploadButton}
-                onPress={() => {
-                  takePhoto();
-                }}
-              >
+              <TouchableOpacity style={styles.uploadButton} onPress={takePhoto}>
                 <Text style={styles.uploadButtonText}>📷 Take Photo</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.uploadButton}
-                onPress={() => {
-                  pickImage();
-                }}
-              >
+              <TouchableOpacity style={styles.uploadButton} onPress={pickImage}>
                 <Text style={styles.uploadButtonText}>📁 Choose Photo</Text>
               </TouchableOpacity>
             </View>
-
             <View style={styles.imagePreviewContainer}>
               <View style={styles.imagePreviewBox}>
                 {uploadedImages.left ? (
@@ -1185,12 +1101,9 @@ export default function CreateNewDesignTab() {
                     </TouchableOpacity>
                   </View>
                 ) : (
-                  <View style={styles.emptyImageBox}>
-                    <Text style={styles.emptyImageText}>Image 1</Text>
-                  </View>
+                  <View style={styles.emptyImageBox}><Text style={styles.emptyImageText}>Image 1</Text></View>
                 )}
               </View>
-
               <View style={styles.imagePreviewBox}>
                 {uploadedImages.right ? (
                   <View style={styles.imageWithDelete}>
@@ -1200,103 +1113,32 @@ export default function CreateNewDesignTab() {
                     </TouchableOpacity>
                   </View>
                 ) : (
-                  <View style={styles.emptyImageBox}>
-                    <Text style={styles.emptyImageText}>Image 2</Text>
-                  </View>
+                  <View style={styles.emptyImageBox}><Text style={styles.emptyImageText}>Image 2</Text></View>
                 )}
               </View>
             </View>
-            {/* Show generated image and remix controls below the upload area */}
             {generatedImage && (
-              <View
-                style={{
-                  marginTop: 30,
-                  marginBottom: 30,
-                  alignItems: "center",
-                  backgroundColor: theme.card,
-                  borderRadius: 16,
-                  padding: 24,
-                  shadowColor: theme.text,
-                  shadowOpacity: 0.08,
-                  shadowRadius: 8,
-                  elevation: 2,
-                  width: "100%",
-                  maxWidth: 400,
-                  alignSelf: "center",
-                  position: "relative",
-                }}
-              >
-                {/* X button in top right */}
-                <TouchableOpacity
-                  style={{
-                    position: "absolute",
-                    top: 10,
-                    right: 10,
-                    backgroundColor: "rgba(45, 55, 72, 0.7)",
-                    borderRadius: 15,
-                    width: 30,
-                    height: 30,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    zIndex: 2,
-                  }}
-                  onPress={deleteGeneratedImage}
-                >
-                  <Text style={{ color: "#fff", fontSize: 18, fontWeight: "bold", lineHeight: 20 }}>×</Text>
+              <View style={styles.generatedDesignContainer}>
+                <TouchableOpacity style={styles.deleteGeneratedButton} onPress={deleteGeneratedImage}>
+                  <Text style={styles.deleteGeneratedButtonText}>×</Text>
                 </TouchableOpacity>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    fontWeight: "600",
-                    color: theme.text,
-                    marginBottom: 16,
-                    textAlign: "center",
-                  }}
-                >
-                  Generated Design
-                </Text>
-                <Image
-                  source={{ uri: generatedImage }}
-                  style={{
-                    width: 260,
-                    height: 260,
-                    borderRadius: 14,
-                    marginBottom: 18,
-                    backgroundColor: theme.background,
-                    resizeMode: "contain",
-                    alignSelf: "center",
-                  }}
-                />
+                <Text style={styles.generatedDesignTitle}>Generated Design</Text>
+                <Image source={{ uri: generatedImage }} style={styles.generatedDesignImage} />
                 <TextInput style={styles.input} placeholder="Type your smart adjustments for a remix..." placeholderTextColor={theme.secondaryText} value={prompt} onChangeText={setPrompt} />
                 <TouchableOpacity style={[styles.finalGenerateButton, { marginTop: 0 }]} onPress={handleRemix}>
                   <Text style={styles.finalGenerateButtonText}>Remix</Text>
                 </TouchableOpacity>
-                {/* New Apply button */}
                 <TouchableOpacity style={[styles.finalGenerateButton, { marginTop: 16, backgroundColor: theme.tint }]} onPress={putImageOnItem}>
                   <Text style={[styles.finalGenerateButtonText, { color: theme.background }]}>Apply to selected item</Text>
                 </TouchableOpacity>
               </View>
             )}
-
-            {/* Generate Design Button only if no generated image */}
             {!generatedImage && (
               <TouchableOpacity onPress={GenerateFinalDesign} style={styles.finalGenerateButton}>
                 <Text style={styles.finalGenerateButtonText}>Generate Design</Text>
               </TouchableOpacity>
             )}
-
-            {/* Hidden view for capturing two images as one (for the real API call) */}
-            <View
-              ref={mergeRef}
-              collapsable={false}
-              style={{
-                flexDirection: "row",
-                width: 1024,
-                height: 512,
-                position: "absolute",
-                top: -9999,
-              }}
-            >
+            <View ref={mergeRef} collapsable={false} style={styles.hiddenMergeView}>
               {uploadedImages.left && <Image source={{ uri: uploadedImages.left }} style={{ width: 512, height: 512 }} />}
               {uploadedImages.right && <Image source={{ uri: uploadedImages.right }} style={{ width: 512, height: 512 }} />}
             </View>
@@ -1308,7 +1150,7 @@ export default function CreateNewDesignTab() {
 
   if (currentView === "placements") {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <ProgressBar />
         <View style={styles.container}>
           <View style={styles.headerContainer}>
@@ -1327,10 +1169,7 @@ export default function CreateNewDesignTab() {
             </View>
             {selectedPlacements.length > 0 && (
               <View style={styles.selectionSummary}>
-                <Text style={styles.selectionSummaryText}>
-                  {selectedPlacements.length} placement{selectedPlacements.length !== 1 ? "s" : ""} selected
-                </Text>
-                {/* This button moves to the design step (Step 2) */}
+                <Text style={styles.selectionSummaryText}>{selectedPlacements.length} placement{selectedPlacements.length !== 1 ? "s" : ""} selected</Text>
                 <TouchableOpacity style={styles.generateButton} onPress={handleGenerateDesign}>
                   <Text style={styles.generateButtonText}>Go to Design</Text>
                 </TouchableOpacity>
@@ -1343,16 +1182,23 @@ export default function CreateNewDesignTab() {
   }
 
   if (currentView === "variants") {
-    const { product, variants } = productDetails!;
+    if (!productDetails) {
+        return (
+            <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#007AFF" />
+                <Text style={styles.loadingText}>Loading Product Details...</Text>
+              </View>
+            </SafeAreaView>
+        );
+    }
+    const { product, variants } = productDetails;
     const uniqueColors = [...new Map(variants.map((v) => [v.color, v])).values()];
-
-    // MODIFICATION START: Get unique sizes first, then sort them
     const uniqueSizes = selectedColor ? [...new Set(variants.filter((v) => v.color === selectedColor.color).map((v) => v.size))] : [];
     const availableSizes = sortSizes(uniqueSizes);
-    // MODIFICATION END
 
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <ProgressBar />
         <View style={styles.container}>
           <View style={styles.headerContainer}>
@@ -1363,11 +1209,8 @@ export default function CreateNewDesignTab() {
           </View>
           <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             <Image source={{ uri: selectedColor ? selectedColor.image : product.image }} style={styles.mainProductImage} />
-
             <View style={styles.selectionContainer}>
-              <Text style={styles.selectionTitle}>
-                Color: <Text style={styles.selectionValue}>{selectedColor?.color || "Select a color"}</Text>
-              </Text>
+              <Text style={styles.selectionTitle}>Color: <Text style={styles.selectionValue}>{selectedColor?.color || "Select a color"}</Text></Text>
               <View style={styles.colorSwatchContainer}>
                 {uniqueColors.map((variant) => (
                   <TouchableOpacity key={variant.id} onPress={() => handleColorSelect(variant)} style={[styles.colorSwatch, selectedColor?.color === variant.color && styles.colorSwatchSelected]}>
@@ -1376,26 +1219,18 @@ export default function CreateNewDesignTab() {
                 ))}
               </View>
             </View>
-
             {selectedColor && (
               <View style={styles.selectionContainer}>
-                <Text style={styles.selectionTitle}>
-                  Size: <Text style={styles.selectionValue}>{selectedSize || "Select a size"}</Text>
-                </Text>
+                <Text style={styles.selectionTitle}>Size: <Text style={styles.selectionValue}>{selectedSize || "Select a size"}</Text></Text>
                 <View style={styles.sizeButtonContainer}>
-                  {availableSizes.map(
-                    (
-                      size // This will now map over the sorted sizes
-                    ) => (
-                      <TouchableOpacity key={size} onPress={() => handleSizeSelect(size)} style={[styles.sizeButton, selectedSize === size && styles.sizeButtonSelected]}>
-                        <Text style={[styles.sizeButtonText, selectedSize === size && styles.sizeButtonTextSelected]}>{size}</Text>
-                      </TouchableOpacity>
-                    )
-                  )}
+                  {availableSizes.map((size) => (
+                    <TouchableOpacity key={size} onPress={() => handleSizeSelect(size)} style={[styles.sizeButton, selectedSize === size && styles.sizeButtonSelected]}>
+                      <Text style={[styles.sizeButtonText, selectedSize === size && styles.sizeButtonTextSelected]}>{size}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
               </View>
             )}
-
             {selectedVariant && (
               <View style={styles.selectionSummary}>
                 <TouchableOpacity style={styles.generateButton} onPress={() => handleVariantSelect(selectedVariant)}>
@@ -1411,9 +1246,8 @@ export default function CreateNewDesignTab() {
 
   if (currentView === "products") {
     const filteredProducts = products.filter((product) => product.title.toLowerCase().includes(searchQuery.toLowerCase()));
-
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <ProgressBar />
         <View style={styles.container}>
           <View style={styles.headerContainer}>
@@ -1438,7 +1272,7 @@ export default function CreateNewDesignTab() {
   const displayedCategories = (subcategories.length > 0 ? subcategories : parentCategories).filter((c) => c.title.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ProgressBar />
       <View style={styles.container}>
         <View style={styles.headerContainer}>
@@ -1462,609 +1296,102 @@ export default function CreateNewDesignTab() {
 
 const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.background,
-    },
-    scrollView: {
-      flex: 1,
-    },
-    scrollContent: {
-      padding: 20,
-      paddingTop: 0,
-      paddingBottom: 40,
-    },
-    headerContainer: {
-      flexDirection: "row",
-      alignItems: "center",
-      paddingHorizontal: 20,
-      paddingTop: 20,
-      paddingBottom: 10,
-      backgroundColor: theme.background,
-    },
-    backButton: {
-      marginRight: 15,
-      padding: 5,
-    },
-    backButtonText: {
-      fontSize: 18,
-      color: theme.tint,
-      fontWeight: "600",
-    },
-    headerText: {
-      fontSize: 22,
-      fontWeight: "bold",
-      color: theme.text,
-      flex: 1,
-      textAlign: "center",
-      marginRight: 40,
-    },
-    searchContainer: {
-      paddingHorizontal: 20,
-      paddingBottom: 20,
-    },
-    searchInput: {
-      height: 44,
-      backgroundColor: theme.card,
-      borderRadius: 8,
-      paddingHorizontal: 15,
-      fontSize: 16,
-      borderWidth: 1,
-      borderColor: theme.tabIconDefault,
-      color: theme.text,
-    },
-    gridContainer: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      justifyContent: "space-between",
-    },
-    variantsContainer: {
-      paddingBottom: 20,
-    },
-    placementsContainer: {
-      paddingBottom: 20,
-    },
-    categoryCard: {
-      width: CARD_WIDTH,
-      backgroundColor: theme.card,
-      borderRadius: 16,
-      marginBottom: 20,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.05,
-      shadowRadius: 10,
-      elevation: 3,
-      borderWidth: 1,
-      borderColor: theme.tabIconDefault,
-    },
-    categoryImage: {
-      width: "100%",
-      height: CARD_WIDTH * 0.8,
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
-      backgroundColor: theme.tabIconDefault,
-    },
-    categoryTitle: {
-      fontSize: 14,
-      fontWeight: "600",
-      color: theme.text,
-      textAlign: "center",
-      padding: 12,
-    },
-    productCard: {
-      width: CARD_WIDTH,
-      backgroundColor: theme.card,
-      borderRadius: 16,
-      marginBottom: 20,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.05,
-      shadowRadius: 10,
-      elevation: 3,
-      borderWidth: 1,
-      borderColor: theme.tabIconDefault,
-      paddingBottom: 12,
-    },
-    productImage: {
-      width: "100%",
-      height: CARD_WIDTH * 0.8,
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
-      backgroundColor: theme.tabIconDefault,
-    },
-    productTitle: {
-      fontSize: 14,
-      fontWeight: "600",
-      color: theme.text,
-      paddingHorizontal: 12,
-      paddingTop: 12,
-    },
-    productBrand: {
-      fontSize: 12,
-      color: theme.secondaryText,
-      paddingHorizontal: 12,
-      paddingTop: 4,
-    },
-    productVariants: {
-      fontSize: 11,
-      color: theme.secondaryText,
-      paddingHorizontal: 12,
-      paddingTop: 2,
-    },
-    placementCard: {
-      backgroundColor: theme.card,
-      borderRadius: 12,
-      marginBottom: 15,
-      padding: 16,
-      borderWidth: 2,
-      borderColor: theme.tabIconDefault,
-    },
-    placementCardSelected: {
-      borderColor: theme.tint,
-      backgroundColor: theme.headerChip,
-    },
-    placementHeader: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-    },
-    placementTitle: {
-      fontSize: 16,
-      fontWeight: "600",
-      color: theme.text,
-    },
-    checkbox: {
-      width: 24,
-      height: 24,
-      borderRadius: 6,
-      borderWidth: 2,
-      borderColor: theme.tabIconDefault,
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    checkboxSelected: {
-      backgroundColor: theme.tint,
-      borderColor: theme.tint,
-    },
-    checkmark: {
-      color: theme.background,
-      fontSize: 14,
-      fontWeight: "bold",
-    },
-    noPlacementsText: {
-      fontSize: 16,
-      color: theme.secondaryText,
-      textAlign: "center",
-      marginTop: 40,
-    },
-    selectionSummary: {
-      padding: 16,
-      marginTop: 10,
-    },
-    selectionSummaryText: {
-      color: theme.text,
-      fontSize: 16,
-      fontWeight: "600",
-      textAlign: "center",
-      marginBottom: 16,
-    },
-    generateButton: {
-      backgroundColor: theme.tint,
-      paddingVertical: 16,
-      borderRadius: 12,
-      alignItems: "center",
-      shadowColor: theme.tint,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 5,
-    },
-    generateButtonText: {
-      color: theme.background,
-      fontSize: 16,
-      fontWeight: "bold",
-    },
-    designContent: {
-      paddingHorizontal: 20,
-      paddingBottom: 20,
-    },
-    uploadButtonsContainer: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      marginBottom: 30,
-      gap: 15,
-    },
-    uploadButton: {
-      flex: 1,
-      backgroundColor: theme.card,
-      paddingVertical: 20,
-      paddingHorizontal: 15,
-      borderRadius: 12,
-      alignItems: "center",
-      justifyContent: "center",
-      minHeight: 80,
-      borderWidth: 1,
-      borderColor: theme.tabIconDefault,
-    },
-    uploadButtonText: {
-      color: theme.tint,
-      fontSize: 16,
-      fontWeight: "600",
-      textAlign: "center",
-    },
-    imagePreviewContainer: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      marginBottom: 30,
-      gap: 15,
-    },
-    imagePreviewBox: {
-      flex: 1,
-      aspectRatio: 1,
-      backgroundColor: theme.card,
-      borderRadius: 12,
-      borderWidth: 2,
-      borderColor: theme.tabIconDefault,
-      borderStyle: "dashed",
-      position: "relative",
-    },
-    imageWithDelete: {
-      width: "100%",
-      height: "100%",
-    },
-    previewImage: {
-      width: "100%",
-      height: "100%",
-      borderRadius: 10,
-    },
-    deleteButton: {
-      position: "absolute",
-      top: 8,
-      right: 8,
-      backgroundColor: "rgba(45, 55, 72, 0.7)",
-      borderRadius: 15,
-      width: 30,
-      height: 30,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    deleteButtonText: {
-      color: "#FFFFFF",
-      fontSize: 18,
-      fontWeight: "bold",
-      lineHeight: 20,
-    },
-    emptyImageBox: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    emptyImageText: {
-      color: theme.secondaryText,
-      fontSize: 14,
-    },
-    finalGenerateButton: {
-      backgroundColor: theme.tint,
-      paddingVertical: 16,
-      borderRadius: 12,
-      alignItems: "center",
-      shadowColor: theme.tint,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 5,
-    },
-    finalGenerateButtonText: {
-      color: theme.background,
-      fontSize: 18,
-      fontWeight: "bold",
-    },
-    progressWrapper: {
-      marginHorizontal: 25,
-      marginVertical: Platform.OS === "android" ? 15 : -15,
-      height: 80,
-      justifyContent: "flex-start",
-      paddingTop: Platform.OS === "android" ? 40 : 10, // pushes it down slightly on Android
-    },
-    progressTrack: {
-      position: "absolute",
-      top: Platform.OS === "android" ? 65 : 35, // pushes it down slightly on Android
-      height: 6,
-      width: "100%",
-      backgroundColor: theme.tabIconDefault,
-      borderRadius: 3,
-    },
-    progressFill: {
-      position: "absolute",
-      top: Platform.OS === "android" ? 65 : 35, // pushes it down slightly on Android
-      height: 6,
-      borderRadius: 3,
-      overflow: "hidden",
-    },
-    stepsRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-    },
-
-    stepContainer: {
-      alignItems: "center",
-      width: 70, // ensures spacing for label
-    },
-
-    stepCircle: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: theme.card,
-      borderWidth: 2,
-      borderColor: theme.tabIconDefault,
-      justifyContent: "center",
-      alignItems: "center",
-    },
-
-    stepCircleActive: {
-      borderColor: theme.activebar,
-      backgroundColor: theme.activebar,
-    },
-
-    stepCircleCompleted: {
-      backgroundColor: "#4CAF50",
-      borderColor: "#4CAF50",
-    },
-
-    stepText: {
-      color: theme.text,
-      fontWeight: "600",
-    },
-    stepMarkersContainer: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      width: "100%",
-      position: "absolute",
-      bottom: 0,
-    },
-    stepLabel: {
-      marginTop: 2, // Position labels below the bar
-      fontSize: 12,
-      fontWeight: "500",
-      color: theme.tabIconDefault,
-      textAlign: "center",
-    },
-    stepLabelActive: {
-      color: theme.text,
-      fontWeight: "bold",
-    },
-
-    loadingContainer: {
-      flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
-      backgroundColor: theme.background,
-    },
-    loadingText: {
-      marginTop: 10,
-      fontSize: 16,
-      color: theme.secondaryText,
-    },
-    errorContainer: {
-      flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
-      backgroundColor: theme.background,
-      paddingHorizontal: 20,
-    },
-    errorText: {
-      fontSize: 16,
-      color: "#F44336",
-      textAlign: "center",
-      marginBottom: 20,
-    },
-    retryButton: {
-      backgroundColor: theme.tint,
-      paddingHorizontal: 20,
-      paddingVertical: 10,
-      borderRadius: 8,
-    },
-    retryButtonText: {
-      color: theme.background,
-      fontSize: 16,
-      fontWeight: "600",
-    },
-    mainProductImage: {
-      width: "100%",
-      aspectRatio: 1,
-      backgroundColor: theme.card,
-      borderRadius: 16,
-      marginBottom: 20,
-      borderWidth: 1,
-      borderColor: theme.tabIconDefault,
-    },
-    selectionContainer: {
-      marginBottom: 25,
-    },
-    selectionTitle: {
-      fontSize: 18,
-      fontWeight: "600",
-      color: theme.text,
-      marginBottom: 12,
-    },
-    selectionValue: {
-      fontWeight: "normal",
-      color: theme.secondaryText,
-    },
-    colorSwatchContainer: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 15,
-    },
-    colorSwatch: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      justifyContent: "center",
-      alignItems: "center",
-      backgroundColor: theme.card,
-      borderWidth: 2,
-      borderColor: "transparent",
-    },
-    colorSwatchSelected: {
-      borderColor: theme.tint,
-    },
-    colorInner: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: theme.tabIconDefault,
-    },
-    sizeButtonContainer: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 12,
-    },
-    sizeButton: {
-      paddingVertical: 10,
-      paddingHorizontal: 20,
-      backgroundColor: theme.card,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: theme.tabIconDefault,
-    },
-    sizeButtonSelected: {
-      backgroundColor: theme.tint,
-      borderColor: theme.tint,
-    },
-    sizeButtonText: {
-      fontSize: 14,
-      fontWeight: "600",
-      color: theme.text,
-    },
-    sizeButtonTextSelected: {
-      color: theme.background,
-    },
-    // New Styles for Final Design View
-    finalDesignContent: {
-      flex: 1,
-      alignItems: "center",
-      padding: 20,
-    },
-    finalDesignImage: {
-      width: 300,
-      height: 300,
-      borderRadius: 15,
-      resizeMode: "contain",
-      backgroundColor: theme.card,
-      marginBottom: 20,
-    },
-    finalDesignProductText: {
-      fontSize: 16,
-      color: theme.secondaryText,
-      marginBottom: 20,
-      textAlign: "center",
-    },
-    input: {
-      backgroundColor: theme.card,
-      width: "100%",
-      padding: 15,
-      borderRadius: 12,
-      marginBottom: 20,
-      color: theme.text,
-      borderWidth: 1,
-      borderColor: theme.tabIconDefault,
-    },
-    finalDesignButtonRow: {
-      flexDirection: "row",
-      width: "100%",
-      justifyContent: "space-between",
-      marginBottom: 15,
-    },
-    designControlButton: {
-      flex: 1,
-      paddingVertical: 16,
-      borderRadius: 12,
-      alignItems: "center",
-      backgroundColor: theme.card,
-      borderWidth: 1,
-      borderColor: theme.tabIconDefault,
-      marginHorizontal: 5,
-      shadowColor: theme.text,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-    },
-    designControlButtonText: {
-      color: theme.text,
-      fontSize: 14,
-      fontWeight: "bold",
-    },
-    noImageText: {
-      color: theme.secondaryText,
-      marginTop: 20,
-    },
-    loadingOverlay: {
-      position: "absolute",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: theme.background,
-      justifyContent: "center",
-      alignItems: "center",
-      opacity: 0.9,
-    },
-    // Mockup display styles
-    mockupContainer: {
-      marginBottom: 30,
-      width: "100%",
-    },
-    mockupTitle: {
-      fontSize: 18,
-      fontWeight: "600",
-      color: theme.text,
-      textAlign: "center",
-      marginBottom: 15,
-    },
-    mockupScrollView: {
-      maxHeight: 300,
-    },
-    mockupScrollContent: {
-      paddingHorizontal: 10,
-    },
-    mockupImageContainer: {
-      marginRight: 15,
-      alignItems: "center",
-      backgroundColor: theme.card,
-      borderRadius: 12,
-      padding: 10,
-      shadowColor: theme.text,
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
-      minWidth: 200,
-    },
-    mockupImage: {
-      width: 180,
-      height: 200,
-      borderRadius: 8,
-      backgroundColor: theme.background,
-    },
-    mockupImageLabel: {
-      fontSize: 12,
-      color: theme.secondaryText,
-      marginTop: 8,
-      textAlign: "center",
-    },
-    noMockupContainer: {
-      alignItems: "center",
-      padding: 20,
-      backgroundColor: theme.card,
-      borderRadius: 12,
-      marginBottom: 20,
-    },
-    noMockupText: {
-      fontSize: 16,
-      color: theme.secondaryText,
-      textAlign: "center",
-    },
+    container: { flex: 1, backgroundColor: theme.background },
+    scrollView: { flex: 1 },
+    scrollContent: { padding: 20, paddingTop: 0, paddingBottom: 40 },
+    headerContainer: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10, backgroundColor: theme.background },
+    backButton: { marginRight: 15, padding: 5 },
+    backButtonText: { fontSize: 18, color: theme.tint, fontWeight: "600" },
+    headerText: { fontSize: 22, fontWeight: "bold", color: theme.text, flex: 1, textAlign: "center", marginRight: 40 },
+    searchContainer: { paddingHorizontal: 20, paddingBottom: 20 },
+    searchInput: { height: 44, backgroundColor: theme.card, borderRadius: 8, paddingHorizontal: 15, fontSize: 16, borderWidth: 1, borderColor: theme.tabIconDefault, color: theme.text },
+    gridContainer: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
+    variantsContainer: { paddingBottom: 20 },
+    placementsContainer: { paddingBottom: 20 },
+    categoryCard: { width: CARD_WIDTH, backgroundColor: theme.card, borderRadius: 16, marginBottom: 20, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3, borderWidth: 1, borderColor: theme.tabIconDefault },
+    categoryImage: { width: "100%", height: CARD_WIDTH * 0.8, borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: theme.tabIconDefault },
+    categoryTitle: { fontSize: 14, fontWeight: "600", color: theme.text, textAlign: "center", padding: 12 },
+    productCard: { width: CARD_WIDTH, backgroundColor: theme.card, borderRadius: 16, marginBottom: 20, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3, borderWidth: 1, borderColor: theme.tabIconDefault, paddingBottom: 12 },
+    productImage: { width: "100%", height: CARD_WIDTH * 0.8, borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: theme.tabIconDefault },
+    productTitle: { fontSize: 14, fontWeight: "600", color: theme.text, paddingHorizontal: 12, paddingTop: 12 },
+    productBrand: { fontSize: 12, color: theme.secondaryText, paddingHorizontal: 12, paddingTop: 4 },
+    productVariants: { fontSize: 11, color: theme.secondaryText, paddingHorizontal: 12, paddingTop: 2 },
+    placementCard: { backgroundColor: theme.card, borderRadius: 12, marginBottom: 15, padding: 16, borderWidth: 2, borderColor: theme.tabIconDefault },
+    placementCardSelected: { borderColor: theme.tint, backgroundColor: theme.headerChip },
+    placementHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    placementTitle: { fontSize: 16, fontWeight: "600", color: theme.text },
+    checkbox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: theme.tabIconDefault, justifyContent: "center", alignItems: "center" },
+    checkboxSelected: { backgroundColor: theme.tint, borderColor: theme.tint },
+    checkmark: { color: theme.background, fontSize: 14, fontWeight: "bold" },
+    noPlacementsText: { fontSize: 16, color: theme.secondaryText, textAlign: "center", marginTop: 40 },
+    selectionSummary: { padding: 16, marginTop: 10 },
+    selectionSummaryText: { color: theme.text, fontSize: 16, fontWeight: "600", textAlign: "center", marginBottom: 16 },
+    generateButton: { backgroundColor: theme.tint, paddingVertical: 16, borderRadius: 12, alignItems: "center", shadowColor: theme.tint, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
+    generateButtonText: { color: theme.background, fontSize: 16, fontWeight: "bold" },
+    designContent: { paddingHorizontal: 20, paddingBottom: 20 },
+    uploadButtonsContainer: { flexDirection: "row", justifyContent: "space-between", marginBottom: 30, gap: 15 },
+    uploadButton: { flex: 1, backgroundColor: theme.card, paddingVertical: 20, paddingHorizontal: 15, borderRadius: 12, alignItems: "center", justifyContent: "center", minHeight: 80, borderWidth: 1, borderColor: theme.tabIconDefault },
+    uploadButtonText: { color: theme.tint, fontSize: 16, fontWeight: "600", textAlign: "center" },
+    imagePreviewContainer: { flexDirection: "row", justifyContent: "space-between", marginBottom: 30, gap: 15 },
+    imagePreviewBox: { flex: 1, aspectRatio: 1, backgroundColor: theme.card, borderRadius: 12, borderWidth: 2, borderColor: theme.tabIconDefault, borderStyle: "dashed", position: "relative" },
+    imageWithDelete: { width: "100%", height: "100%" },
+    previewImage: { width: "100%", height: "100%", borderRadius: 10 },
+    deleteButton: { position: "absolute", top: 8, right: 8, backgroundColor: "rgba(45, 55, 72, 0.7)", borderRadius: 15, width: 30, height: 30, alignItems: "center", justifyContent: "center" },
+    deleteButtonText: { color: "#FFFFFF", fontSize: 18, fontWeight: "bold", lineHeight: 20 },
+    emptyImageBox: { flex: 1, alignItems: "center", justifyContent: "center" },
+    emptyImageText: { color: theme.secondaryText, fontSize: 14 },
+    finalGenerateButton: { backgroundColor: theme.tint, paddingVertical: 16, borderRadius: 12, alignItems: "center", shadowColor: theme.tint, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
+    finalGenerateButtonText: { color: theme.background, fontSize: 18, fontWeight: "bold" },
+    progressWrapper: { marginHorizontal: 25, marginVertical: Platform.OS === "android" ? 15 : -15, height: 80, justifyContent: "flex-start", paddingTop: Platform.OS === "android" ? 40 : 10 },
+    progressTrack: { position: "absolute", top: Platform.OS === "android" ? 65 : 35, height: 6, width: "100%", backgroundColor: theme.tabIconDefault, borderRadius: 3 },
+    progressFill: { position: "absolute", top: Platform.OS === "android" ? 65 : 35, height: 6, borderRadius: 3, overflow: "hidden" },
+    stepsRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    stepContainer: { alignItems: "center", width: 70 },
+    stepCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: theme.card, borderWidth: 2, borderColor: theme.tabIconDefault, justifyContent: "center", alignItems: "center" },
+    stepCircleActive: { borderColor: theme.activebar, backgroundColor: theme.activebar },
+    stepCircleCompleted: { backgroundColor: "#4CAF50", borderColor: "#4CAF50" },
+    stepText: { color: theme.text, fontWeight: "600" },
+    stepLabel: { marginTop: 2, fontSize: 12, fontWeight: "500", color: theme.tabIconDefault, textAlign: "center" },
+    stepLabelActive: { color: theme.text, fontWeight: "bold" },
+    loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.background },
+    loadingText: { marginTop: 10, fontSize: 16, color: theme.secondaryText },
+    errorContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.background, paddingHorizontal: 20 },
+    errorText: { fontSize: 16, color: "#F44336", textAlign: "center", marginBottom: 20 },
+    retryButton: { backgroundColor: theme.tint, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
+    retryButtonText: { color: theme.background, fontSize: 16, fontWeight: "600" },
+    mainProductImage: { width: "100%", aspectRatio: 1, backgroundColor: theme.card, borderRadius: 16, marginBottom: 20, borderWidth: 1, borderColor: theme.tabIconDefault },
+    selectionContainer: { marginBottom: 25 },
+    selectionTitle: { fontSize: 18, fontWeight: "600", color: theme.text, marginBottom: 12 },
+    selectionValue: { fontWeight: "normal", color: theme.secondaryText },
+    colorSwatchContainer: { flexDirection: "row", flexWrap: "wrap", gap: 15 },
+    colorSwatch: { width: 40, height: 40, borderRadius: 20, justifyContent: "center", alignItems: "center", backgroundColor: theme.card, borderWidth: 2, borderColor: "transparent" },
+    colorSwatchSelected: { borderColor: theme.tint },
+    colorInner: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: theme.tabIconDefault },
+    sizeButtonContainer: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+    sizeButton: { paddingVertical: 10, paddingHorizontal: 20, backgroundColor: theme.card, borderRadius: 8, borderWidth: 1, borderColor: theme.tabIconDefault },
+    sizeButtonSelected: { backgroundColor: theme.tint, borderColor: theme.tint },
+    sizeButtonText: { fontSize: 14, fontWeight: "600", color: theme.text },
+    sizeButtonTextSelected: { color: theme.background },
+    finalDesignContent: { alignItems: "center", padding: 20, paddingBottom: 40 },
+    finalDesignProductText: { fontSize: 16, color: theme.secondaryText, marginBottom: 20, textAlign: "center" },
+    input: { backgroundColor: theme.card, width: "100%", padding: 15, borderRadius: 12, marginBottom: 20, color: theme.text, borderWidth: 1, borderColor: theme.tabIconDefault },
+    finalDesignButtonRow: { flexDirection: "row", width: "100%", justifyContent: "space-between", marginBottom: 15 },
+    designControlButton: { flex: 1, paddingVertical: 16, borderRadius: 12, alignItems: "center", backgroundColor: theme.card, borderWidth: 1, borderColor: theme.tabIconDefault, marginHorizontal: 5, shadowColor: theme.text, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
+    designControlButtonText: { color: theme.text, fontSize: 14, fontWeight: "bold" },
+    loadingOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: "center", alignItems: "center" },
+    mockupContainer: { marginBottom: 30, width: "100%" },
+    mockupTitle: { fontSize: 18, fontWeight: "600", color: theme.text, textAlign: "center", marginBottom: 15 },
+    mockupScrollView: { maxHeight: 300 },
+    mockupScrollContent: { paddingHorizontal: 10 },
+    mockupImageContainer: { marginRight: 15, alignItems: "center", backgroundColor: theme.card, borderRadius: 12, padding: 10, shadowColor: theme.text, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2, minWidth: 200 },
+    mockupImage: { width: 180, height: 200, borderRadius: 8, backgroundColor: theme.background },
+    mockupImageLabel: { fontSize: 12, color: theme.secondaryText, marginTop: 8, textAlign: "center" },
+    noMockupContainer: { alignItems: "center", padding: 20, backgroundColor: theme.card, borderRadius: 12, marginBottom: 20 },
+    noMockupText: { fontSize: 16, color: theme.secondaryText, textAlign: "center" },
+    hiddenMergeView: { flexDirection: "row", width: 1024, height: 512, position: "absolute", top: -9999 },
+    generatedDesignContainer: { marginTop: 30, marginBottom: 30, alignItems: "center", backgroundColor: theme.card, borderRadius: 16, padding: 24, shadowColor: theme.text, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2, width: "100%", maxWidth: 400, alignSelf: "center", position: "relative" },
+    deleteGeneratedButton: { position: "absolute", top: 10, right: 10, backgroundColor: "rgba(45, 55, 72, 0.7)", borderRadius: 15, width: 30, height: 30, alignItems: "center", justifyContent: "center", zIndex: 2 },
+    deleteGeneratedButtonText: { color: "#fff", fontSize: 18, fontWeight: "bold", lineHeight: 20 },
+    generatedDesignTitle: { fontSize: 18, fontWeight: "600", color: theme.text, marginBottom: 16, textAlign: "center" },
+    generatedDesignImage: { width: 260, height: 260, borderRadius: 14, marginBottom: 18, backgroundColor: theme.background, resizeMode: "contain", alignSelf: "center" },
   });
