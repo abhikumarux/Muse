@@ -28,7 +28,7 @@ export default function ProductDetailScreen() {
   const theme = Colors[colorScheme];
   const router = useRouter();
   const { productId } = useLocalSearchParams<{ productId: string }>();
-  const { printfulApiKey } = useUser();
+  const { printfulApiKey, currentStoreId } = useUser();
 
   const [product, setProduct] = useState<PrintfulSyncProduct | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,8 +42,12 @@ export default function ProductDetailScreen() {
         return;
       }
       try {
-        const details = await getPrintfulProductDetails(printfulApiKey, productId);
+        if(currentStoreId != null) {
+
+        
+        const details = await getPrintfulProductDetails(printfulApiKey, productId, currentStoreId);
         setProduct(details);
+        }
       } catch (error: any) {
         Alert.alert('Error', error.message);
       } finally {
@@ -67,7 +71,7 @@ export default function ProductDetailScreen() {
           onPress: async () => {
             try {
               if (!printfulApiKey) throw new Error("API Key not found");
-              await deletePrintfulProduct(printfulApiKey, product.id);
+              await deletePrintfulProduct(printfulApiKey, product.id, currentStoreId != null ? currentStoreId : "");
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               router.back();
             } catch (error: any) {

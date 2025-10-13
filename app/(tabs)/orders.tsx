@@ -46,7 +46,7 @@ export default function OrdersScreen() {
       
       // Then, fetch detailed info for each product in parallel
       const detailedProducts = await Promise.all(
-        basicProductList.map(p => getPrintfulProductDetails(printfulApiKey, String(p.id)))
+        basicProductList.map(p => getPrintfulProductDetails(printfulApiKey, String(p.id), currentStoreId))
       );
       
       setProducts(detailedProducts);
@@ -71,7 +71,7 @@ export default function OrdersScreen() {
 
     try {
       if (!printfulApiKey) throw new Error("API Key not found");
-      await deletePrintfulProduct(printfulApiKey, productId);
+      await deletePrintfulProduct(printfulApiKey, productId, currentStoreId != null ? currentStoreId : "");
     } catch (error: any) {
       setProducts(originalProducts);
       Alert.alert("Error", `Failed to delete product: ${error.message}`);

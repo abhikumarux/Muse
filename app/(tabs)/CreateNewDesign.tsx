@@ -17,7 +17,7 @@ import {
   ActivityIndicator,
   Platform,
 } from "react-native";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { captureRef } from "react-native-view-shot";
 import * as ImagePicker from "expo-image-picker";
 import ImageZoom from "react-native-image-pan-zoom";
@@ -327,99 +327,153 @@ export default function CreateNewDesignTab() {
   };
 
   const GenerateFinalDesign = async () => {
-    setLoading(true);
-    if (!uploadedImages.left) {
-      Alert.alert("Missing Images", "Please upload at least one image first.");
-      setLoading(false);
-      return;
+  setLoading(true);
+  if (!uploadedImages.left) {
+    Alert.alert("Missing Images", "Please upload at least one image first.");
+    setLoading(false);
+    return;
+  }
+
+  const getLocalUri = async (uri: string | null): Promise<string | null> => {
+    if (!uri) return null;
+    if (uri.startsWith("http")) {
+      const tempUri = FileSystem.cacheDirectory + uuidv4() + ".png";
+      await FileSystem.downloadAsync(uri, tempUri);
+      return tempUri;
     }
-
-    try {
-      const getLocalUri = async (uri: string | null): Promise<string | null> => {
-        if (!uri) return null;
-        if (uri.startsWith('http')) {
-          const tempUri = FileSystem.cacheDirectory + uuidv4() + '.png';
-          await FileSystem.downloadAsync(uri, tempUri);
-          return tempUri;
-        }
-        return uri;
-      };
-
-      const localUri1 = await getLocalUri(uploadedImages.left);
-      const localUri2 = await getLocalUri(uploadedImages.right);
-
-      if (!localUri1) {
-        throw new Error("First image is missing or could not be processed.");
-      }
-      
-      const usingSecond = !!localUri2;
-      const client = new DynamoDBClient({
-        region: REGION,
-        credentials: fromCognitoIdentityPool({ clientConfig: { region: REGION }, identityPoolId: IDENTITY_POOL_ID }),
-      });
-      
-      const userResult = await client.send(
-        new GetItemCommand({ TableName: "MuseUsers", Key: { userId: { S: userId ?? "" } } })
-      );
-      const selectedMuseId = userResult.Item?.selectedMuseId?.S;
-      
-      let museString = "";
-      if (selectedMuseId) {
-        const museResult = await client.send(
-          new GetItemCommand({ TableName: "Muse", Key: { museID: { S: selectedMuseId } } })
-        );
-        museString = museResult.Item?.Description?.S || "";
-        console.log("Muse String: ", museString);
-      }
-      
-      const tempMuseString = usingSecond
-        ? `Take the first image and the second image, merge them into one cohesive image that makes sense. I want you to make the whole image theme based off of this description: ${museString}`
-        : `Use the first image to generate an appealing, well-composed design based on the image provided. I want you to make the whole image theme based off of this description: ${museString}`;
-
-      const Gemini_API_KEY = "AIzaSyBNbBd8yqnOTSM5C3bt56hgN_5X8OmMorY";
-      const endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent";
-
-      const img1Base64 = await FileSystem.readAsStringAsync(localUri1, { encoding: "base64" });
-      let img2Base64: string | null = null;
-      if (localUri2) {
-        img2Base64 = await FileSystem.readAsStringAsync(localUri2, { encoding: "base64" });
-      }
-
-      const parts: any[] = [{ inline_data: { mime_type: "image/png", data: img1Base64 } }];
-      if (img2Base64) {
-        parts.push({ inline_data: { mime_type: "image/png", data: img2Base64 } });
-      }
-      parts.push({ text: tempMuseString });
-
-      const body = JSON.stringify({ contents: [{ parts }] });
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "x-goog-api-key": Gemini_API_KEY, "Content-Type": "application/json" },
-        body,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Gemini API HTTP error:", response.status, errorText);
-        throw new Error(`Gemini API request failed: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const base64Image = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-      if (!base64Image) {
-        throw new Error("No image data returned from Gemini API.");
-      }
-
-      const combinedImageUri = `data:image/png;base64,${base64Image}`;
-      setGeneratedImage(combinedImageUri);
-
-    } catch (err: any) {
-      console.error("Error generating combined image:", err);
-      Alert.alert("Error", "Failed to generate combined image. " + (err?.message || ""));
-    } finally {
-      setLoading(false);
-    }
+    return uri;
   };
+
+  const localUri1 = await getLocalUri(uploadedImages.left);
+  const localUri2 = await getLocalUri(uploadedImages.right);
+
+  if (!localUri1) {
+    Alert.alert("Error", "First image is missing or could not be processed.");
+    setLoading(false);
+    return;
+  }
+
+  const usingSecond = !!localUri2;
+  const client = new DynamoDBClient({
+    region: REGION,
+    credentials: fromCognitoIdentityPool({
+      clientConfig: { region: REGION },
+      identityPoolId: IDENTITY_POOL_ID,
+    }),
+  });
+
+  try {
+    const userResult = await client.send(
+      new GetItemCommand({
+        TableName: "MuseUsers",
+        Key: { userId: { S: userId ?? "" } },
+      })
+    );
+    const selectedMuseId = userResult.Item?.selectedMuseId?.S;
+
+    let museString = "";
+    if (selectedMuseId) {
+      const museResult = await client.send(
+        new GetItemCommand({
+          TableName: "Muse",
+          Key: { museID: { S: selectedMuseId } },
+        })
+      );
+      museString = museResult.Item?.Description?.S || "";
+      console.log("Muse String: ", museString);
+    }
+
+    const tempMuseString = usingSecond
+      ? `Take the first image and the second image, merge them into one cohesive image that makes sense. I want you to make the whole image theme based off of this description: ${museString}`
+      : `Use the first image to generate an appealing, well-composed design based on the image provided. I want you to make the whole image theme based off of this description: ${museString}`;
+
+    const Gemini_API_KEY = "AIzaSyBNbBd8yqnOTSM5C3bt56hgN_5X8OmMorY";
+    const endpoint =
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent";
+
+    const img1Base64 = await FileSystem.readAsStringAsync(localUri1, {
+      encoding: "base64",
+    });
+    let img2Base64: string | null = null;
+    if (localUri2) {
+      img2Base64 = await FileSystem.readAsStringAsync(localUri2, {
+        encoding: "base64",
+      });
+    }
+
+    const parts: any[] = [
+      { inline_data: { mime_type: "image/png", data: img1Base64 } },
+    ];
+    if (img2Base64) {
+      parts.push({
+        inline_data: { mime_type: "image/png", data: img2Base64 },
+      });
+    }
+    parts.push({ text: tempMuseString });
+
+    const body = JSON.stringify({ contents: [{ parts }] });
+
+    // ⬇️ Retry loop logic starts here
+    let success = false;
+    let attempt = 0;
+    const maxAttempts = 10; // You can increase or remove this if you want infinite retries
+
+    while (!success && attempt < maxAttempts) {
+      try {
+        attempt++;
+        console.log(`Attempt ${attempt} to generate design...`);
+
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "x-goog-api-key": Gemini_API_KEY,
+            "Content-Type": "application/json",
+          },
+          body,
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Gemini API HTTP error:", response.status, errorText);
+          throw new Error(`Gemini API request failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        console.log("Gemini raw response:", JSON.stringify(data, null, 2));
+
+        const base64Image =
+          data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+
+        if (!base64Image) {
+          const textResponse = data?.candidates?.[0]?.content?.parts
+            ?.map((p) => p.text)
+            ?.filter(Boolean)
+            ?.join("\n");
+
+          console.warn("⚠️ No image data returned. Gemini said:", textResponse || "No text explanation found.");
+          throw new Error("No image data returned.");
+        }
+
+        const combinedImageUri = `data:image/png;base64,${base64Image}`;
+        setGeneratedImage(combinedImageUri);
+        success = true;
+        console.log("✅ Image generation successful!");
+      } catch (error) {
+        console.error(`❌ Attempt ${attempt} failed:`, error);
+        await new Promise((res) => setTimeout(res, 2000)); // wait 2 seconds before retry
+      }
+    }
+
+    if (!success) {
+      Alert.alert("Error", "Failed to generate image after multiple attempts.");
+    }
+  } catch (err: any) {
+    console.error("Error generating combined image:", err);
+  } finally {
+    setLoading(false);
+  }
+};
   
   const handleSaveDesign = async () => {
     if (!generatedImage) {
@@ -945,20 +999,36 @@ export default function CreateNewDesignTab() {
                 </TouchableOpacity>
                 <TextInput style={styles.input} placeholder="Type adjustments for a remix..." placeholderTextColor={theme.secondaryText} value={prompt} onChangeText={setPrompt} />
                 <View style={styles.designActionRow}>
-                  <TouchableOpacity style={styles.designControlButton} onPress={handleRemix}>
-                    <Text style={styles.designControlButtonText}>Remix</Text>
+                  <TouchableOpacity
+                    style={[styles.designControlButton, loading && { opacity: 0.7 }]}
+                    onPress={handleRemix}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.designControlButtonText}>Remix</Text>
+                    )}
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.designControlButtonPrimary} onPress={putImageOnItem}>
+                                    <TouchableOpacity style={styles.designControlButtonPrimary} onPress={putImageOnItem}>
                     <Text style={styles.designControlButtonPrimaryText}>Apply to Item</Text>
                   </TouchableOpacity>
                 </View>
               </View>
             )}
             {!generatedImage && (
-              <TouchableOpacity onPress={GenerateFinalDesign} style={styles.finalGenerateButton}>
+            <TouchableOpacity
+              onPress={GenerateFinalDesign}
+              style={[styles.finalGenerateButton, loading && { opacity: 0.7 }]}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#46b355ff" />
+              ) : (
                 <Text style={styles.finalGenerateButtonText}>Generate Design</Text>
-              </TouchableOpacity>
-            )}
+              )}
+            </TouchableOpacity>
+          )}
           </ScrollView>
         </View>
       );
