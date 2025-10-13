@@ -51,9 +51,7 @@ Follow these instructions to get the project running on your local machine for d
 
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/abhikumarux/Muse.git](https://github.com/abhikumarux/Muse.git)
-    ```
-    ```bash
+    git clone [https://github.com/abhikumarux/Muse.git]: https://github.com/abhikumarux/Muse.git
     cd Muse
     ```
 
