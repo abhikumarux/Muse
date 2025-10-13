@@ -103,13 +103,14 @@ export const getVariantInfo = (variant: PrintfulSyncVariant) => {
 
 export const getPrintfulProductDetails = async (
   apiKey: string,
-  productId: string
+  productId: string,
+  storeId: string
 ): Promise<PrintfulSyncProduct> => {
   if (!apiKey || !productId) {
     throw new Error('API key and Product ID are required.');
   }
 
-  const response = await fetch(`https://api.printful.com/store/products/${productId}`, {
+  const response = await fetch(`https://api.printful.com/store/products/${productId}?store_id=${storeId}`, {
     headers: { Authorization: `Bearer ${apiKey}` },
   });
 
@@ -131,10 +132,10 @@ export const getPrintfulStoreProducts = async (
   apiKey: string,
   storeId: string
 ): Promise<PrintfulProduct[]> => {
+  console.log("SToreeeeeeeeeeeeeeeeeee id: ", storeId);
   if (!apiKey || !storeId) {
     throw new Error('API key and Store ID are required.');
   }
-
   const response = await fetch(`https://api.printful.com/store/products?store_id=${storeId}`, {
     headers: { Authorization: `Bearer ${apiKey}` },
   });
@@ -150,13 +151,14 @@ export const getPrintfulStoreProducts = async (
 
 export const deletePrintfulProduct = async (
   apiKey: string,
-  productId: number
+  productId: number,
+  storeId: string
 ): Promise<void> => {
     if (!apiKey || !productId) {
         throw new Error('API key and Product ID are required.');
     }
 
-    const response = await fetch(`https://api.printful.com/store/products/${productId}`, {
+    const response = await fetch(`https://api.printful.com/store/products/${productId}?store_id=${storeId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${apiKey}` },
     });
