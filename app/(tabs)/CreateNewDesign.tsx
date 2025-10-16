@@ -34,6 +34,9 @@ import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { saveDesign } from "../../lib/aws/saveDesign";
 import { v4 as uuidv4 } from 'uuid'; // Import uuid
+import { LogBox } from 'react-native';
+LogBox.ignoreLogs(['Warning: ...']); // Ignore log notification by message
+LogBox.ignoreAllLogs();//Ignore all log notifications
 
 // Interfaces (no changes needed)
 interface Category {

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   View, Text, TextInput, ActivityIndicator, Alert, TouchableOpacity,
-  StyleSheet, Dimensions, Image, ImageBackground
+  StyleSheet, Dimensions, Image, ImageBackground, TouchableWithoutFeedback, Keyboard
 } from "react-native";
 import { useRouter } from "expo-router";
 import { FontAwesome } from "@expo/vector-icons";
@@ -75,6 +75,7 @@ export default function LoginScreen() {
   };
 
   return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
     <View style={styles.container}>
       <ImageBackground
         source={require("../assets/images/grid.png")}
@@ -165,6 +166,7 @@ export default function LoginScreen() {
         </BlurView>
       </View>
     </View>
+    </TouchableWithoutFeedback>
   );
 }
 
