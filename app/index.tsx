@@ -1,39 +1,56 @@
-import { useEffect, useState } from "react";
-import { useRouter } from "expo-router";
-import LandingScreen from "./landing";
-import LoginScreen from "./login";
-import Splash from "@/components/Splash";
-import { getRememberedEmail } from "../lib/aws/auth";
+import React, { useEffect, useState, useCallback } from "react";
+import { View } from "react-native";
+import { SplashScreen } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getValidIdToken } from "../lib/aws/auth";
+import Splash from "@/components/Splash";
+
+// Keep the native splash screen visible while we figure out where to go
+SplashScreen.preventAutoHideAsync();
 
 export default function Index() {
-  // "routing" = deciding where to go; then either "landing" or "login"
-  const [screen, setScreen] = useState<"routing" | "landing" | "login">("routing");
-  const router = useRouter();
+  const [initialRoute, setInitialRoute] = useState<string | null>(null);
 
+  // This effect determines the user's destination
   useEffect(() => {
-    (async () => {
-      // 1) If we still have a valid session, go straight to the dashboard
-      const token = await getValidIdToken();
-      if (token) {
-        router.replace("/(tabs)");
-        return;
+    async function prepare() {
+      try {
+        const token = await getValidIdToken();
+        if (token) {
+          setInitialRoute("/(tabs)");
+          return;
+        }
+        const hasSeenLanding = await AsyncStorage.getItem("hasSeenLanding");
+        if (hasSeenLanding) {
+          setInitialRoute("/login");
+          return;
+        }
+        setInitialRoute("/landing");
+      } catch (e) {
+        console.warn(e);
+        setInitialRoute("/login"); // Default to login on any error
       }
+    }
+    prepare();
+  }, []);
 
-      // 2) If user opted into Remember Me before, skip landing and show Login
-      const remembered = await getRememberedEmail();
-      if (remembered) {
-        setScreen("login");
-        return;
-      }
+  const onLayoutRootView = useCallback(async () => {
+    // Hide the native splash screen ONLY when we're ready to show the video
+    if (initialRoute) {
+      await SplashScreen.hideAsync();
+    }
+  }, [initialRoute]);
 
-      // 3) Otherwise show the marketing/landing screen
-      setScreen("landing");
-    })();
-  }, [router]);
+  // While determining the route, this component returns nothing,
+  // so the native splash screen remains visible.
+  if (!initialRoute) {
+    return null;
+  }
 
-  if (screen === "routing") return <Splash onFinish={() => {}} />;
-
-  if (screen === "login") return <LoginScreen />;
-  return <LandingScreen />;
+  // Once the route is determined, we render the video splash and hide the native one
+  return (
+    <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+      <Splash initialRoute={initialRoute} />
+    </View>
+  );
 }
