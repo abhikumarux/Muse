@@ -1,58 +1,63 @@
-import React, { useEffect } from "react";
-import { Image, StyleSheet, Dimensions } from "react-native";
-import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, Easing, runOnJS } from "react-native-reanimated";
-import { LinearGradient } from "expo-linear-gradient";
-import { useColorScheme } from "@/hooks/useColorScheme";
-import { Colors } from "@/constants/Colors";
+import React, { useState } from "react";
+import { StyleSheet, View } from "react-native";
+import { Video, ResizeMode, AVPlaybackStatus } from "expo-av";
+import { useRouter } from "expo-router";
+import { runOnJS } from "react-native-reanimated";
 
-const { width, height } = Dimensions.get("window");
+// The component now takes the destination route as a prop
+interface SplashProps {
+  initialRoute: string;
+}
 
-export default function Splash({ onFinish }: { onFinish: () => void }) {
-  const colorScheme = useColorScheme();
-  const scale = useSharedValue(1);
-  const opacity = useSharedValue(1);
+export default function Splash({ initialRoute }: SplashProps) {
+  const router = useRouter();
+  const [hasTriggered, setHasTriggered] = useState(false);
 
-  // Pulse animation loop
-  useEffect(() => {
-    scale.value = withRepeat(withSequence(withTiming(1.05, { duration: 800, easing: Easing.inOut(Easing.ease) }), withTiming(0.95, { duration: 800, easing: Easing.inOut(Easing.ease) })), -1, true);
-  }, []);
+  // This function will be called to navigate
+  const startNavigation = () => {
+    router.replace(initialRoute as any);
+  };
 
-  // Fade out after 2s
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      opacity.value = withTiming(0, { duration: 500 });
-      scale.value = withTiming(1.2, { duration: 500 }, () => {
-        runOnJS(onFinish)();
-      });
-    }, 2000);
+  const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
+    // Exit if the video isn't ready or if we've already navigated
+    if (!status.isLoaded || hasTriggered) {
+      return;
+    }
 
-    return () => clearTimeout(timeout);
-  }, []);
+    const videoDuration = status.durationMillis ?? 0;
+    // The fade animation is 400ms. Start navigating 500ms before the video ends.
+    // This creates a 100ms overlap for a smooth cross-fade.
+    const fadeStartTime = videoDuration - 916;
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: opacity.value,
-  }));
+    // Trigger navigation when the video reaches the fade start time
+    if (fadeStartTime > 0 && status.positionMillis >= fadeStartTime) {
+      setHasTriggered(true); // Ensure this only runs once
+      runOnJS(startNavigation)();
+    }
+
+    // Fallback: If the video finishes for any reason, navigate
+    if (status.didJustFinish) {
+      if (!hasTriggered) {
+        setHasTriggered(true);
+        runOnJS(startNavigation)();
+      }
+    }
+  };
 
   return (
-    <LinearGradient colors={Colors[colorScheme ?? "light"].landingGradient} style={styles.container}>
-      <Animated.Image source={require("../assets/images/logo.png")} style={[styles.image, animatedStyle]} />
-    </LinearGradient>
+    <View style={styles.container}>
+      <Video style={styles.video} source={require("../assets/videos/splash.mp4")} shouldPlay isMuted resizeMode={ResizeMode.COVER} onPlaybackStatusUpdate={onPlaybackStatusUpdate} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    position: "absolute",
-    width,
-    height,
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 1000,
+    flex: 1,
+    backgroundColor: "#ffffff",
   },
-  image: {
-    width: 350,
-    height: 350,
-    resizeMode: "contain",
+  video: {
+    width: "100%",
+    height: "100%",
   },
 });
