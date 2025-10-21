@@ -15,6 +15,3 @@ node_modules
 
 # PEMs
 *.pem
-
-# Diagrams
-/diagrams
