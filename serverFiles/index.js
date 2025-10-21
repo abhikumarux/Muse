@@ -8,7 +8,7 @@ app.use(express.json());
 const client = new DynamoDBClient({ region: "us-east-2" });
 const dynamo = DynamoDBDocumentClient.from(client);
 
-app.get("/", (req, res) => res.send("✅ Hello from your EC2 server!"));
+app.get("/", (req, res) => res.send("👋 Hello from your EC2 server!"));
 
 app.post("/user", async (req, res) => {
   const { UserId, Email } = req.body;
