@@ -33,80 +33,19 @@ import { LinearGradient } from "expo-linear-gradient";
 import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { saveDesign } from "../../lib/aws/saveDesign";
-import { v4 as uuidv4 } from 'uuid'; // Import uuid
-import { LogBox } from 'react-native';
-LogBox.ignoreLogs(['Warning: ...']); // Ignore log notification by message
-LogBox.ignoreAllLogs();//Ignore all log notifications
+import { v4 as uuidv4 } from "uuid"; // Import uuid
+import { LogBox } from "react-native";
 
-// Interfaces (no changes needed)
-interface Category {
-  id: number;
-  parent_id: number;
-  image_url: string;
-  size: string;
-  title: string;
-}
-interface Product {
-  id: number;
-  main_category_id: number;
-  type: string;
-  type_name: string;
-  title: string;
-  brand: string;
-  model: string;
-  image: string;
-  variant_count: number;
-  currency: string;
-  files: any[];
-  options: any[];
-  is_discontinued: boolean;
-  avg_fulfillment_time: number;
-  description: string;
-  techniques: any[];
-  origin_country: string;
-}
-interface Variant {
-  id: number;
-  product_id: number;
-  name: string;
-  size: string;
-  color: string;
-  color_code: string;
-  color_code2?: string;
-  image: string;
-  price: string;
-  in_stock: boolean;
-  availability_regions: Record<string, string>;
-  availability_status: Array<{ region: string; status: string }>;
-  material: Array<{ name: string; percentage: number }>;
-}
-interface ProductDetails {
-  product: Product;
-  variants: Variant[];
-}
-interface PrintFilesResponse {
-  code: number;
-  result: {
-    available_placements: Record<string, string>;
-    option_groups: string[];
-    options: string[];
-    printfiles: any[];
-    product_id: number;
-    variant_printfiles: any[];
-  };
-}
-interface CategoriesResponse {
-  code: number;
-  result: { categories: Category[] };
-}
-interface ProductsResponse {
-  code: number;
-  result: Product[];
-}
-interface ProductDetailsResponse {
-  code: number;
-  result: ProductDetails;
-}
+// Import constants
+import { GEMINI_API_KEY, AWS_REGION, AWS_S3_BUCKET as BUCKET, AWS_IDENTITY_POOL_ID } from "@/lib/config/constants";
+
+// Import types
+import { Category, Product, Variant, ProductDetails, PrintFilesResponse, CategoriesResponse, ProductsResponse, ProductDetailsResponse, DesignView } from "@/lib/types/printful";
+
+LogBox.ignoreLogs(["Warning: ..."]); // Ignore log notification by message
+LogBox.ignoreAllLogs(); //Ignore all log notifications
+
+// Interfaces are now imported from @/lib/types/printful.ts
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 60) / 2;
@@ -116,9 +55,7 @@ export default function CreateNewDesignTab() {
   const theme = Colors[colorScheme ?? "light"];
   const styles = getStyles(theme);
 
-  const REGION = "us-east-2";
-  const IDENTITY_POOL_ID = "us-east-2:3680323d-0bc6-499f-acc5-f98acb534e36";
-  const BUCKET = "muse-app-uploads";
+  // AWS constants are now imported from @/lib/config/constants.ts
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -127,7 +64,7 @@ export default function CreateNewDesignTab() {
   const [selectedPlacements, setSelectedPlacements] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentView, setCurrentView] = useState<"categories" | "products" | "variants" | "viewFinalDesign" | "placements" | "design">("categories");
+  const [currentView, setCurrentView] = useState<DesignView>("categories");
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
@@ -175,7 +112,7 @@ export default function CreateNewDesignTab() {
     if (params.savedDesignUri) {
       resetFlow();
       setPreloadedDesignUri(params.savedDesignUri);
-      router.setParams({ savedDesignUri: '' });
+      router.setParams({ savedDesignUri: "" });
     }
   }, [params.savedDesignUri]);
 
@@ -272,9 +209,7 @@ export default function CreateNewDesignTab() {
       if (data.code === 200) {
         setProductDetails(data.result);
         if (data.result && data.result.variants.length > 0) {
-          const cheapestVariant = data.result.variants.reduce((cheapest, current) =>
-            parseFloat(current.price) < parseFloat(cheapest.price) ? current : cheapest
-          );
+          const cheapestVariant = data.result.variants.reduce((cheapest, current) => (parseFloat(current.price) < parseFloat(cheapest.price) ? current : cheapest));
           setSelectedColor(cheapestVariant);
         }
         setCurrentView("variants");
@@ -330,154 +265,154 @@ export default function CreateNewDesignTab() {
   };
 
   const GenerateFinalDesign = async () => {
-  setLoading(true);
-  if (!uploadedImages.left) {
-    Alert.alert("Missing Images", "Please upload at least one image first.");
-    setLoading(false);
-    return;
-  }
-
-  const getLocalUri = async (uri: string | null): Promise<string | null> => {
-    if (!uri) return null;
-    if (uri.startsWith("http")) {
-      const tempUri = FileSystem.cacheDirectory + uuidv4() + ".png";
-      await FileSystem.downloadAsync(uri, tempUri);
-      return tempUri;
+    if (!GEMINI_API_KEY) {
+      Alert.alert("Error", "Missing API Key. Please configure your .env file.");
+      setLoading(false);
+      return;
     }
-    return uri;
-  };
+    setLoading(true);
+    if (!uploadedImages.left) {
+      Alert.alert("Missing Images", "Please upload at least one image first.");
+      setLoading(false);
+      return;
+    }
 
-  const localUri1 = await getLocalUri(uploadedImages.left);
-  const localUri2 = await getLocalUri(uploadedImages.right);
+    const getLocalUri = async (uri: string | null): Promise<string | null> => {
+      if (!uri) return null;
+      if (uri.startsWith("http")) {
+        const tempUri = FileSystem.cacheDirectory + uuidv4() + ".png";
+        await FileSystem.downloadAsync(uri, tempUri);
+        return tempUri;
+      }
+      return uri;
+    };
 
-  if (!localUri1) {
-    Alert.alert("Error", "First image is missing or could not be processed.");
-    setLoading(false);
-    return;
-  }
+    const localUri1 = await getLocalUri(uploadedImages.left);
+    const localUri2 = await getLocalUri(uploadedImages.right);
 
-  const usingSecond = !!localUri2;
-  const client = new DynamoDBClient({
-    region: REGION,
-    credentials: fromCognitoIdentityPool({
-      clientConfig: { region: REGION },
-      identityPoolId: IDENTITY_POOL_ID,
-    }),
-  });
+    if (!localUri1) {
+      Alert.alert("Error", "First image is missing or could not be processed.");
+      setLoading(false);
+      return;
+    }
 
-  try {
-    const userResult = await client.send(
-      new GetItemCommand({
-        TableName: "MuseUsers",
-        Key: { userId: { S: userId ?? "" } },
-      })
-    );
-    const selectedMuseId = userResult.Item?.selectedMuseId?.S;
+    const usingSecond = !!localUri2;
+    const client = new DynamoDBClient({
+      region: AWS_REGION,
+      credentials: fromCognitoIdentityPool({
+        clientConfig: { region: AWS_REGION },
+        identityPoolId: AWS_IDENTITY_POOL_ID,
+      }),
+    });
 
-    let museString = "";
-    if (selectedMuseId) {
-      const museResult = await client.send(
+    try {
+      const userResult = await client.send(
         new GetItemCommand({
-          TableName: "Muse",
-          Key: { museID: { S: selectedMuseId } },
+          TableName: "MuseUsers",
+          Key: { userId: { S: userId ?? "" } },
         })
       );
-      museString = museResult.Item?.Description?.S || "";
-      console.log("Muse String: ", museString);
-    }
+      const selectedMuseId = userResult.Item?.selectedMuseId?.S;
 
-    const tempMuseString = usingSecond
-      ? `Take the first image and the second image, merge them into one cohesive image that makes sense. I want you to make the whole image theme based off of this description: ${museString}`
-      : `Use the first image to generate an appealing, well-composed design based on the image provided. I want you to make the whole image theme based off of this description: ${museString}`;
+      let museString = "";
+      if (selectedMuseId) {
+        const museResult = await client.send(
+          new GetItemCommand({
+            TableName: "Muse",
+            Key: { museID: { S: selectedMuseId } },
+          })
+        );
+        museString = museResult.Item?.Description?.S || "";
+        console.log("Muse String: ", museString);
+      }
 
-    const Gemini_API_KEY = "AIzaSyBNbBd8yqnOTSM5C3bt56hgN_5X8OmMorY";
-    const endpoint =
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent";
+      const tempMuseString = usingSecond
+        ? `Take the first image and the second image, merge them into one cohesive image that makes sense. I want you to make the whole image theme based off of this description: ${museString}`
+        : `Use the first image to generate an appealing, well-composed design based on the image provided. I want you to make the whole image theme based off of this description: ${museString}`;
 
-    const img1Base64 = await FileSystem.readAsStringAsync(localUri1, {
-      encoding: "base64",
-    });
-    let img2Base64: string | null = null;
-    if (localUri2) {
-      img2Base64 = await FileSystem.readAsStringAsync(localUri2, {
+      const endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent";
+
+      const img1Base64 = await FileSystem.readAsStringAsync(localUri1, {
         encoding: "base64",
       });
-    }
-
-    const parts: any[] = [
-      { inline_data: { mime_type: "image/png", data: img1Base64 } },
-    ];
-    if (img2Base64) {
-      parts.push({
-        inline_data: { mime_type: "image/png", data: img2Base64 },
-      });
-    }
-    parts.push({ text: tempMuseString });
-
-    const body = JSON.stringify({ contents: [{ parts }] });
-
-    // ⬇️ Retry loop logic starts here
-    let success = false;
-    let attempt = 0;
-    const maxAttempts = 10; // You can increase or remove this if you want infinite retries
-
-    while (!success && attempt < maxAttempts) {
-      try {
-        attempt++;
-        console.log(`Attempt ${attempt} to generate design...`);
-
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "x-goog-api-key": Gemini_API_KEY,
-            "Content-Type": "application/json",
-          },
-          body,
+      let img2Base64: string | null = null;
+      if (localUri2) {
+        img2Base64 = await FileSystem.readAsStringAsync(localUri2, {
+          encoding: "base64",
         });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("Gemini API HTTP error:", response.status, errorText);
-          throw new Error(`Gemini API request failed: ${response.status}`);
-        }
-
-        const data = await response.json();
-        
-        console.log("Gemini raw response:", JSON.stringify(data, null, 2));
-
-        const base64Image =
-          data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-
-        if (!base64Image) {
-          const textResponse = data?.candidates?.[0]?.content?.parts
-            ?.map((p) => p.text)
-            ?.filter(Boolean)
-            ?.join("\n");
-
-          console.warn("⚠️ No image data returned. Gemini said:", textResponse || "No text explanation found.");
-          throw new Error("No image data returned.");
-        }
-
-        const combinedImageUri = `data:image/png;base64,${base64Image}`;
-        setGeneratedImage(combinedImageUri);
-        success = true;
-        console.log("✅ Image generation successful!");
-      } catch (error) {
-        console.error(`❌ Attempt ${attempt} failed:`, error);
-        await new Promise((res) => setTimeout(res, 2000)); // wait 2 seconds before retry
       }
-    }
 
-    if (!success) {
-      Alert.alert("Error", "Failed to generate image after multiple attempts.");
+      const parts: any[] = [{ inline_data: { mime_type: "image/png", data: img1Base64 } }];
+      if (img2Base64) {
+        parts.push({
+          inline_data: { mime_type: "image/png", data: img2Base64 },
+        });
+      }
+      parts.push({ text: tempMuseString });
+
+      const body = JSON.stringify({ contents: [{ parts }] });
+
+      // ⬇️ Retry loop logic starts here
+      let success = false;
+      let attempt = 0;
+      const maxAttempts = 10; // You can increase or remove this if you want infinite retries
+
+      while (!success && attempt < maxAttempts) {
+        try {
+          attempt++;
+          console.log(`Attempt ${attempt} to generate design...`);
+
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+              "x-goog-api-key": GEMINI_API_KEY,
+              "Content-Type": "application/json",
+            },
+            body,
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error("Gemini API HTTP error:", response.status, errorText);
+            throw new Error(`Gemini API request failed: ${response.status}`);
+          }
+
+          const data = await response.json();
+
+          console.log("Gemini raw response:", JSON.stringify(data, null, 2));
+
+          const base64Image = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+
+          if (!base64Image) {
+            const textResponse = data?.candidates?.[0]?.content?.parts
+              ?.map((p) => p.text)
+              ?.filter(Boolean)
+              ?.join("\n");
+
+            console.warn("⚠️ No image data returned. Gemini said:", textResponse || "No text explanation found.");
+            throw new Error("No image data returned.");
+          }
+
+          const combinedImageUri = `data:image/png;base64,${base64Image}`;
+          setGeneratedImage(combinedImageUri);
+          success = true;
+          console.log("✅ Image generation successful!");
+        } catch (error) {
+          console.error(`❌ Attempt ${attempt} failed:`, error);
+          await new Promise((res) => setTimeout(res, 2000)); // wait 2 seconds before retry
+        }
+      }
+
+      if (!success) {
+        Alert.alert("Error", "Failed to generate image after multiple attempts.");
+      }
+    } catch (err: any) {
+      console.error("Error generating combined image:", err);
+    } finally {
+      setLoading(false);
     }
-  } catch (err: any) {
-    console.error("Error generating combined image:", err);
-  } finally {
-    setLoading(false);
-  }
-};
-  
+  };
+
   const handleSaveDesign = async () => {
     if (!generatedImage) {
       Alert.alert("Error", "No generated image to save.");
@@ -493,7 +428,7 @@ export default function CreateNewDesignTab() {
         variantId: selectedVariant?.id?.toString(),
         size: selectedSize ?? undefined,
         color: selectedColor?.color,
-        title: `${selectedProduct?.title || 'Custom Design'}`, 
+        title: `${selectedProduct?.title || "Custom Design"}`,
         prompt: prompt,
       });
 
@@ -507,6 +442,11 @@ export default function CreateNewDesignTab() {
   };
 
   const handleRemix = async () => {
+    if (!GEMINI_API_KEY) {
+      Alert.alert("Error", "Missing API Key. Please configure your .env file.");
+      setLoading(false);
+      return;
+    }
     if (!generatedImage) {
       Alert.alert("No Design", "Please generate an initial design first.");
       return;
@@ -519,13 +459,12 @@ export default function CreateNewDesignTab() {
 
     try {
       const base64Image = generatedImage.replace(/^data:image\/\w+;base64,/, "");
-      const Gemini_API_KEY = "AIzaSyBNbBd8yqnOTSM5C3bt56hgN_5X8OmMorY";
       const endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent";
       const parts: any[] = [{ inline_data: { mime_type: "image/png", data: base64Image } }, { text: prompt }];
       const body = JSON.stringify({ contents: [{ parts }] });
       const response = await fetch(endpoint, {
         method: "POST",
-        headers: { "x-goog-api-key": Gemini_API_KEY, "Content-Type": "application/json" },
+        headers: { "x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json" },
         body,
       });
 
@@ -703,30 +642,30 @@ export default function CreateNewDesignTab() {
     setLoading(true);
     try {
       let base64Data;
-      if (generatedImage.startsWith('data:')) {
+      if (generatedImage.startsWith("data:")) {
         base64Data = generatedImage.replace(/^data:image\/\w+;base64,/, "");
-      } else if (generatedImage.startsWith('http')) {
-        const tempLocalUri = FileSystem.cacheDirectory + uuidv4() + '.png';
+      } else if (generatedImage.startsWith("http")) {
+        const tempLocalUri = FileSystem.cacheDirectory + uuidv4() + ".png";
         await FileSystem.downloadAsync(generatedImage, tempLocalUri);
         base64Data = await FileSystem.readAsStringAsync(tempLocalUri, { encoding: FileSystem.EncodingType.Base64 });
         await FileSystem.deleteAsync(tempLocalUri);
       } else {
         base64Data = await FileSystem.readAsStringAsync(generatedImage, { encoding: FileSystem.EncodingType.Base64 });
       }
-      
+
       const buffer = Buffer.from(base64Data, "base64");
       const s3Client = new S3Client({
-        region: REGION,
+        region: AWS_REGION,
         credentials: fromCognitoIdentityPool({
-          client: new CognitoIdentityClient({ region: REGION }),
-          identityPoolId: IDENTITY_POOL_ID,
+          client: new CognitoIdentityClient({ region: AWS_REGION }),
+          identityPoolId: AWS_IDENTITY_POOL_ID,
         }),
       });
 
       const timestamp = Date.now();
       const key = `${userId}/tempUpload/tempImage_${timestamp}.png`;
       await s3Client.send(new PutObjectCommand({ Bucket: BUCKET, Key: key, Body: buffer, ContentType: "image/png" }));
-      const imageUrl = `https://${BUCKET}.s3.${REGION}.amazonaws.com/${encodeURIComponent(key)}?t=${timestamp}`;
+      const imageUrl = `https://${BUCKET}.s3.${AWS_REGION}.amazonaws.com/${encodeURIComponent(key)}?t=${timestamp}`;
 
       const headCheck = await fetch(imageUrl, { method: "HEAD" });
       if (!headCheck.ok) {
@@ -822,13 +761,13 @@ export default function CreateNewDesignTab() {
       });
 
       if (!selectedProduct.title) throw new Error("Product title is required.");
-      
+
       const endpoint = `https://api.printful.com/store/products?store_id=${storeId}`;
       const payload = {
         sync_product: { name: selectedProduct.title, thumbnail: mockupUrls[0] },
         sync_variants: [{ retail_price: "25.00", variant_id: selectedVariant.id, files }],
       };
-      
+
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { Authorization: `Bearer ${API_KEY}`, "Content-Type": "application/json" },
@@ -876,7 +815,7 @@ export default function CreateNewDesignTab() {
   };
 
   const renderCurrentView = () => {
-    if (loading && currentView === 'categories') {
+    if (loading && currentView === "categories") {
       return (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
@@ -884,7 +823,7 @@ export default function CreateNewDesignTab() {
         </View>
       );
     }
-    
+
     if (error) {
       return (
         <View style={styles.errorContainer}>
@@ -923,10 +862,23 @@ export default function CreateNewDesignTab() {
                   ))}
                 </ScrollView>
               </View>
-            ) : <View style={styles.noMockupContainer}><Text style={styles.noMockupText}>No mockups available</Text></View>}
+            ) : (
+              <View style={styles.noMockupContainer}>
+                <Text style={styles.noMockupText}>No mockups available</Text>
+              </View>
+            )}
             <TextInput style={styles.input} placeholder="Type adjustments for a remix..." placeholderTextColor={theme.secondaryText} value={prompt} onChangeText={setPrompt} />
             <View style={styles.finalDesignButtonRow}>
-              <TouchableOpacity style={styles.designControlButton} onPress={async () => { if (!mockupUrls || mockupUrls.length === 0) { Alert.alert("Error", "No mockups to add."); return; } await addToStore(mockupUrls); }}>
+              <TouchableOpacity
+                style={styles.designControlButton}
+                onPress={async () => {
+                  if (!mockupUrls || mockupUrls.length === 0) {
+                    Alert.alert("Error", "No mockups to add.");
+                    return;
+                  }
+                  await addToStore(mockupUrls);
+                }}
+              >
                 <Text style={styles.designControlButtonText}>ADD TO STORE</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.designControlButton} onPress={handleRemix}>
@@ -944,7 +896,8 @@ export default function CreateNewDesignTab() {
           </ScrollView>
           {loading && (
             <View style={styles.loadingOverlay}>
-              <ActivityIndicator size="large" color={theme.tint} /><Text style={styles.loadingText}>Processing...</Text>
+              <ActivityIndicator size="large" color={theme.tint} />
+              <Text style={styles.loadingText}>Processing...</Text>
             </View>
           )}
         </View>
@@ -978,7 +931,11 @@ export default function CreateNewDesignTab() {
                       <Text style={styles.deleteButtonText}>×</Text>
                     </TouchableOpacity>
                   </View>
-                ) : <View style={styles.emptyImageBox}><Text style={styles.emptyImageText}>Image 1</Text></View>}
+                ) : (
+                  <View style={styles.emptyImageBox}>
+                    <Text style={styles.emptyImageText}>Image 1</Text>
+                  </View>
+                )}
               </View>
               <View style={styles.imagePreviewBox}>
                 {uploadedImages.right ? (
@@ -988,7 +945,11 @@ export default function CreateNewDesignTab() {
                       <Text style={styles.deleteButtonText}>×</Text>
                     </TouchableOpacity>
                   </View>
-                ) : <View style={styles.emptyImageBox}><Text style={styles.emptyImageText}>Image 2</Text></View>}
+                ) : (
+                  <View style={styles.emptyImageBox}>
+                    <Text style={styles.emptyImageText}>Image 2</Text>
+                  </View>
+                )}
               </View>
             </View>
             {generatedImage && (
@@ -998,40 +959,24 @@ export default function CreateNewDesignTab() {
                 </TouchableOpacity>
                 <Text style={styles.generatedDesignTitle}>Generated Design</Text>
                 <TouchableOpacity onPress={() => handleImageZoom(generatedImage)}>
-                    <Image source={{ uri: generatedImage }} style={styles.generatedDesignImage} />
+                  <Image source={{ uri: generatedImage }} style={styles.generatedDesignImage} />
                 </TouchableOpacity>
                 <TextInput style={styles.input} placeholder="Type adjustments for a remix..." placeholderTextColor={theme.secondaryText} value={prompt} onChangeText={setPrompt} />
                 <View style={styles.designActionRow}>
-                  <TouchableOpacity
-                    style={[styles.designControlButton, loading && { opacity: 0.7 }]}
-                    onPress={handleRemix}
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <Text style={styles.designControlButtonText}>Remix</Text>
-                    )}
+                  <TouchableOpacity style={[styles.designControlButton, loading && { opacity: 0.7 }]} onPress={handleRemix} disabled={loading}>
+                    {loading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.designControlButtonText}>Remix</Text>}
                   </TouchableOpacity>
-                                    <TouchableOpacity style={styles.designControlButtonPrimary} onPress={putImageOnItem}>
+                  <TouchableOpacity style={styles.designControlButtonPrimary} onPress={putImageOnItem}>
                     <Text style={styles.designControlButtonPrimaryText}>Apply to Item</Text>
                   </TouchableOpacity>
                 </View>
               </View>
             )}
             {!generatedImage && (
-            <TouchableOpacity
-              onPress={GenerateFinalDesign}
-              style={[styles.finalGenerateButton, loading && { opacity: 0.7 }]}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator size="small" color="#46b355ff" />
-              ) : (
-                <Text style={styles.finalGenerateButtonText}>Generate Design</Text>
-              )}
-            </TouchableOpacity>
-          )}
+              <TouchableOpacity onPress={GenerateFinalDesign} style={[styles.finalGenerateButton, loading && { opacity: 0.7 }]} disabled={loading}>
+                {loading ? <ActivityIndicator size="small" color="#46b355ff" /> : <Text style={styles.finalGenerateButtonText}>Generate Design</Text>}
+              </TouchableOpacity>
+            )}
           </ScrollView>
         </View>
       );
@@ -1050,20 +995,22 @@ export default function CreateNewDesignTab() {
             <View style={styles.placementsContainer}>
               {placementFiles && Object.keys(placementFiles).length > 0 ? (
                 Object.entries(placementFiles).map(([key, value]) => (
-                    <TouchableOpacity key={key} style={[styles.placementCard, selectedPlacements.includes(key) && styles.placementCardSelected]} onPress={() => handlePlacementToggle(key)}>
-                        <View style={styles.placementHeader}>
-                            <Text style={styles.placementTitle}>{value}</Text>
-                            <View style={[styles.checkbox, selectedPlacements.includes(key) && styles.checkboxSelected]}>
-                                {selectedPlacements.includes(key) && <Text style={styles.checkmark}>✓</Text>}
-                            </View>
-                        </View>
-                    </TouchableOpacity>
+                  <TouchableOpacity key={key} style={[styles.placementCard, selectedPlacements.includes(key) && styles.placementCardSelected]} onPress={() => handlePlacementToggle(key)}>
+                    <View style={styles.placementHeader}>
+                      <Text style={styles.placementTitle}>{value}</Text>
+                      <View style={[styles.checkbox, selectedPlacements.includes(key) && styles.checkboxSelected]}>{selectedPlacements.includes(key) && <Text style={styles.checkmark}>✓</Text>}</View>
+                    </View>
+                  </TouchableOpacity>
                 ))
-              ) : <Text style={styles.noPlacementsText}>No placement options available</Text>}
+              ) : (
+                <Text style={styles.noPlacementsText}>No placement options available</Text>
+              )}
             </View>
             {selectedPlacements.length > 0 && (
               <View style={styles.selectionSummary}>
-                <Text style={styles.selectionSummaryText}>{selectedPlacements.length} placement{selectedPlacements.length !== 1 ? "s" : ""} selected</Text>
+                <Text style={styles.selectionSummaryText}>
+                  {selectedPlacements.length} placement{selectedPlacements.length !== 1 ? "s" : ""} selected
+                </Text>
                 <TouchableOpacity style={styles.generateButton} onPress={handleGenerateDesign}>
                   <Text style={styles.generateButtonText}>Go to Design</Text>
                 </TouchableOpacity>
@@ -1100,7 +1047,9 @@ export default function CreateNewDesignTab() {
             <TouchableOpacity onPress={handleBackToProducts} style={styles.backButton}>
               <Text style={styles.backButtonText}>←</Text>
             </TouchableOpacity>
-            <Text style={styles.headerText} numberOfLines={1}>{product.title}</Text>
+            <Text style={styles.headerText} numberOfLines={1}>
+              {product.title}
+            </Text>
             <View style={{ width: 40 }} />
           </View>
           <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -1114,7 +1063,9 @@ export default function CreateNewDesignTab() {
                     <TouchableOpacity onPress={() => handleColorSelect(variant)} style={[styles.colorThumbnail, selectedColor?.color === variant.color && styles.colorThumbnailSelected]}>
                       <Image source={{ uri: variant.image }} style={styles.colorThumbnailImage} />
                     </TouchableOpacity>
-                    <Text style={styles.colorNameText} numberOfLines={1}>{variant.color}</Text>
+                    <Text style={styles.colorNameText} numberOfLines={1}>
+                      {variant.color}
+                    </Text>
                   </View>
                 ))}
               </ScrollView>
@@ -1158,14 +1109,18 @@ export default function CreateNewDesignTab() {
             <TextInput style={styles.searchInput} placeholder="Search products..." placeholderTextColor={theme.secondaryText} value={searchQuery} onChangeText={setSearchQuery} />
           </View>
           <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            <View style={styles.gridContainer}>{filteredProducts.map((product) => (
+            <View style={styles.gridContainer}>
+              {filteredProducts.map((product) => (
                 <TouchableOpacity key={product.id} style={styles.productCard} onPress={() => handleProductSelect(product)}>
-                    <Image source={{ uri: product.image }} style={styles.productImage} resizeMode="cover" />
-                    <Text style={styles.productTitle} numberOfLines={2}>{product.title}</Text>
-                    <Text style={styles.productBrand}>{product.brand}</Text>
-                    <Text style={styles.productVariants}>{product.variant_count} variants</Text>
+                  <Image source={{ uri: product.image }} style={styles.productImage} resizeMode="cover" />
+                  <Text style={styles.productTitle} numberOfLines={2}>
+                    {product.title}
+                  </Text>
+                  <Text style={styles.productBrand}>{product.brand}</Text>
+                  <Text style={styles.productVariants}>{product.variant_count} variants</Text>
                 </TouchableOpacity>
-            ))}</View>
+              ))}
+            </View>
           </ScrollView>
         </View>
       );
@@ -1189,27 +1144,47 @@ export default function CreateNewDesignTab() {
           <TextInput style={styles.searchInput} placeholder="Search categories..." placeholderTextColor={theme.secondaryText} value={searchQuery} onChangeText={setSearchQuery} />
         </View>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.gridContainer}>{displayedCategories.map((category) => (
-            <TouchableOpacity key={category.id} style={styles.categoryCard} onPress={() => handleCategorySelect(category)}>
+          <View style={styles.gridContainer}>
+            {displayedCategories.map((category) => (
+              <TouchableOpacity key={category.id} style={styles.categoryCard} onPress={() => handleCategorySelect(category)}>
                 <Image source={{ uri: category.image_url }} style={styles.categoryImage} resizeMode="cover" />
-                <Text style={styles.categoryTitle} numberOfLines={2}>{category.title}</Text>
-            </TouchableOpacity>
-          ))}</View>
+                <Text style={styles.categoryTitle} numberOfLines={2}>
+                  {category.title}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </ScrollView>
       </View>
     );
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <ProgressBar />
       {renderCurrentView()}
       <Modal transparent={true} visible={!!selectedImageUrlForZoom} onRequestClose={() => setSelectedImageUrlForZoom(null)}>
         <View style={styles.modalContainer}>
           {selectedImageUrlForZoom && (
-            <MotiView from={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ type: "timing", duration: 250 }} style={{ width: "100%", height: "100%", alignItems: "center", justifyContent: "center" }}>
+            <MotiView
+              from={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ type: "timing", duration: 250 }}
+              style={{ width: "100%", height: "100%", alignItems: "center", justifyContent: "center" }}
+            >
               {/* @ts-ignore */}
-              <ImageZoom cropWidth={width} cropHeight={Dimensions.get("window").height} imageWidth={width} imageHeight={Dimensions.get("window").height * 0.9} minScale={1} maxScale={4} enableCenterFocus useNativeDriver doubleClickInterval={250}>
+              <ImageZoom
+                cropWidth={width}
+                cropHeight={Dimensions.get("window").height}
+                imageWidth={width}
+                imageHeight={Dimensions.get("window").height * 0.9}
+                minScale={1}
+                maxScale={4}
+                enableCenterFocus
+                useNativeDriver
+                doubleClickInterval={250}
+              >
                 <Image source={{ uri: selectedImageUrlForZoom }} style={{ width: width, height: Dimensions.get("window").height * 0.9, resizeMode: "contain" }} />
               </ImageZoom>
             </MotiView>
@@ -1223,22 +1198,57 @@ export default function CreateNewDesignTab() {
   );
 }
 
-const getStyles = (theme: typeof Colors.light | typeof Colors.dark) => StyleSheet.create({
+const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
+  StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
     scrollView: { flex: 1 },
     scrollContent: { padding: 20, paddingTop: 0, paddingBottom: 40 },
     headerContainer: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10, backgroundColor: theme.background },
-    variantHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 10, backgroundColor: theme.background, borderBottomWidth: 1, borderColor: theme.tabIconDefault },
+    variantHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      backgroundColor: theme.background,
+      borderBottomWidth: 1,
+      borderColor: theme.tabIconDefault,
+    },
     backButton: { padding: 5, marginRight: 15 },
     backButtonText: { fontSize: 18, color: theme.tint, fontWeight: "600" },
     headerText: { fontSize: 22, fontWeight: "bold", color: theme.text, flex: 1, textAlign: "center", marginRight: 40 },
     searchContainer: { paddingHorizontal: 20, paddingBottom: 20 },
     searchInput: { height: 44, backgroundColor: theme.card, borderRadius: 8, paddingHorizontal: 15, fontSize: 16, borderWidth: 1, borderColor: theme.tabIconDefault, color: theme.text },
     gridContainer: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
-    categoryCard: { width: CARD_WIDTH, backgroundColor: theme.card, borderRadius: 16, marginBottom: 20, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3, borderWidth: 1, borderColor: theme.tabIconDefault },
+    categoryCard: {
+      width: CARD_WIDTH,
+      backgroundColor: theme.card,
+      borderRadius: 16,
+      marginBottom: 20,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.05,
+      shadowRadius: 10,
+      elevation: 3,
+      borderWidth: 1,
+      borderColor: theme.tabIconDefault,
+    },
     categoryImage: { width: "100%", height: CARD_WIDTH * 0.8, borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: theme.tabIconDefault },
     categoryTitle: { fontSize: 14, fontWeight: "600", color: theme.text, textAlign: "center", padding: 12 },
-    productCard: { width: CARD_WIDTH, backgroundColor: theme.card, borderRadius: 16, marginBottom: 20, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3, borderWidth: 1, borderColor: theme.tabIconDefault, paddingBottom: 12 },
+    productCard: {
+      width: CARD_WIDTH,
+      backgroundColor: theme.card,
+      borderRadius: 16,
+      marginBottom: 20,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.05,
+      shadowRadius: 10,
+      elevation: 3,
+      borderWidth: 1,
+      borderColor: theme.tabIconDefault,
+      paddingBottom: 12,
+    },
     productImage: { width: "100%", height: CARD_WIDTH * 0.8, borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: theme.tabIconDefault },
     productTitle: { fontSize: 14, fontWeight: "600", color: theme.text, paddingHorizontal: 12, paddingTop: 12 },
     productBrand: { fontSize: 12, color: theme.secondaryText, paddingHorizontal: 12, paddingTop: 4 },
@@ -1253,11 +1263,32 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) => StyleShee
     noPlacementsText: { fontSize: 16, color: theme.secondaryText, textAlign: "center", marginTop: 40 },
     selectionSummary: { padding: 16, marginTop: 10 },
     selectionSummaryText: { color: theme.text, fontSize: 16, fontWeight: "600", textAlign: "center", marginBottom: 16 },
-    generateButton: { backgroundColor: theme.tint, paddingVertical: 16, borderRadius: 12, alignItems: "center", shadowColor: theme.tint, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
+    generateButton: {
+      backgroundColor: theme.tint,
+      paddingVertical: 16,
+      borderRadius: 12,
+      alignItems: "center",
+      shadowColor: theme.tint,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 5,
+    },
     generateButtonText: { color: theme.background, fontSize: 16, fontWeight: "bold" },
     designContent: { paddingHorizontal: 20, paddingBottom: 20 },
     uploadButtonsContainer: { flexDirection: "row", justifyContent: "space-between", marginBottom: 30, gap: 15 },
-    uploadButton: { flex: 1, backgroundColor: theme.card, paddingVertical: 20, paddingHorizontal: 15, borderRadius: 12, alignItems: "center", justifyContent: "center", minHeight: 80, borderWidth: 1, borderColor: theme.tabIconDefault },
+    uploadButton: {
+      flex: 1,
+      backgroundColor: theme.card,
+      paddingVertical: 20,
+      paddingHorizontal: 15,
+      borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+      minHeight: 80,
+      borderWidth: 1,
+      borderColor: theme.tabIconDefault,
+    },
     uploadButtonText: { color: theme.tint, fontSize: 16, fontWeight: "600", textAlign: "center" },
     imagePreviewContainer: { flexDirection: "row", justifyContent: "space-between", marginBottom: 30, gap: 15 },
     imagePreviewBox: { flex: 1, aspectRatio: 1, backgroundColor: theme.card, borderRadius: 12, borderWidth: 2, borderColor: theme.tabIconDefault, borderStyle: "dashed", position: "relative" },
@@ -1267,7 +1298,17 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) => StyleShee
     deleteButtonText: { color: "#FFFFFF", fontSize: 18, fontWeight: "bold", lineHeight: 20 },
     emptyImageBox: { flex: 1, alignItems: "center", justifyContent: "center" },
     emptyImageText: { color: theme.secondaryText, fontSize: 14 },
-    finalGenerateButton: { backgroundColor: theme.tint, paddingVertical: 16, borderRadius: 12, alignItems: "center", shadowColor: theme.tint, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
+    finalGenerateButton: {
+      backgroundColor: theme.tint,
+      paddingVertical: 16,
+      borderRadius: 12,
+      alignItems: "center",
+      shadowColor: theme.tint,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 5,
+    },
     finalGenerateButtonText: { color: theme.background, fontSize: 18, fontWeight: "bold" },
     progressWrapper: { marginHorizontal: 25, marginVertical: Platform.OS === "android" ? 15 : -15, height: 80, justifyContent: "flex-start", paddingTop: Platform.OS === "android" ? 40 : 10 },
     progressTrack: { position: "absolute", top: Platform.OS === "android" ? 65 : 35, height: 6, width: "100%", backgroundColor: theme.tabIconDefault, borderRadius: 3 },
@@ -1290,20 +1331,70 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) => StyleShee
     finalDesignProductText: { fontSize: 16, color: theme.secondaryText, marginBottom: 20, textAlign: "center" },
     input: { backgroundColor: theme.card, width: "100%", padding: 15, borderRadius: 12, marginBottom: 20, color: theme.text, borderWidth: 1, borderColor: theme.tabIconDefault },
     finalDesignButtonRow: { flexDirection: "row", width: "100%", justifyContent: "space-between", marginBottom: 15 },
-    designControlButton: { flex: 1, paddingVertical: 16, borderRadius: 12, alignItems: "center", backgroundColor: theme.card, borderWidth: 1, borderColor: theme.tabIconDefault, marginHorizontal: 5, shadowColor: theme.text, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
+    designControlButton: {
+      flex: 1,
+      paddingVertical: 16,
+      borderRadius: 12,
+      alignItems: "center",
+      backgroundColor: theme.card,
+      borderWidth: 1,
+      borderColor: theme.tabIconDefault,
+      marginHorizontal: 5,
+      shadowColor: theme.text,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+    },
     designControlButtonText: { color: theme.text, fontSize: 14, fontWeight: "bold" },
-    loadingOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: "center", alignItems: "center" },
+    loadingOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" },
     mockupContainer: { marginBottom: 30, width: "100%" },
     mockupTitle: { fontSize: 18, fontWeight: "600", color: theme.text, textAlign: "center", marginBottom: 15 },
     mockupScrollView: { maxHeight: 300 },
-    mockupScrollContent: { paddingHorizontal: 10, alignItems: 'center' },
-    mockupImageContainer: { marginRight: 15, alignItems: "center", backgroundColor: theme.card, borderRadius: 12, padding: 10, shadowColor: theme.text, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2, minWidth: 200 },
+    mockupScrollContent: { paddingHorizontal: 10, alignItems: "center" },
+    mockupImageContainer: {
+      marginRight: 15,
+      alignItems: "center",
+      backgroundColor: theme.card,
+      borderRadius: 12,
+      padding: 10,
+      shadowColor: theme.text,
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 2,
+      minWidth: 200,
+    },
     mockupImage: { width: 180, height: 200, borderRadius: 8, backgroundColor: theme.background },
     mockupImageLabel: { fontSize: 12, color: theme.secondaryText, marginTop: 8, textAlign: "center" },
     noMockupContainer: { alignItems: "center", padding: 20, backgroundColor: theme.card, borderRadius: 12, marginBottom: 20 },
     noMockupText: { fontSize: 16, color: theme.secondaryText, textAlign: "center" },
-    generatedDesignContainer: { marginTop: 30, marginBottom: 30, alignItems: "center", backgroundColor: theme.card, borderRadius: 16, padding: 24, shadowColor: theme.text, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2, width: "100%", maxWidth: 400, alignSelf: "center", position: "relative" },
-    deleteGeneratedButton: { position: "absolute", top: 10, right: 10, backgroundColor: "rgba(45, 55, 72, 0.7)", borderRadius: 15, width: 30, height: 30, alignItems: "center", justifyContent: "center", zIndex: 2 },
+    generatedDesignContainer: {
+      marginTop: 30,
+      marginBottom: 30,
+      alignItems: "center",
+      backgroundColor: theme.card,
+      borderRadius: 16,
+      padding: 24,
+      shadowColor: theme.text,
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 2,
+      width: "100%",
+      maxWidth: 400,
+      alignSelf: "center",
+      position: "relative",
+    },
+    deleteGeneratedButton: {
+      position: "absolute",
+      top: 10,
+      right: 10,
+      backgroundColor: "rgba(45, 55, 72, 0.7)",
+      borderRadius: 15,
+      width: 30,
+      height: 30,
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 2,
+    },
     deleteGeneratedButtonText: { color: "#fff", fontSize: 18, fontWeight: "bold", lineHeight: 20 },
     generatedDesignTitle: { fontSize: 18, fontWeight: "600", color: theme.text, marginBottom: 16, textAlign: "center" },
     generatedDesignImage: { width: 260, height: 260, borderRadius: 14, marginBottom: 18, backgroundColor: theme.background, resizeMode: "contain", alignSelf: "center" },
@@ -1321,7 +1412,17 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) => StyleShee
     selectionTitle: { fontSize: 18, fontWeight: "600", color: theme.text, marginBottom: 12 },
     sizeGuideLink: { fontSize: 16, color: theme.secondaryText },
     sizeButtonContainer: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-    sizeButtonNew: { paddingVertical: 12, paddingHorizontal: 16, backgroundColor: theme.background, borderRadius: 8, borderWidth: 1.5, borderColor: theme.tabIconDefault, minWidth: 60, alignItems: "center", marginBottom: 10 },
+    sizeButtonNew: {
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      backgroundColor: theme.background,
+      borderRadius: 8,
+      borderWidth: 1.5,
+      borderColor: theme.tabIconDefault,
+      minWidth: 60,
+      alignItems: "center",
+      marginBottom: 10,
+    },
     sizeButtonNewSelected: { backgroundColor: theme.text, borderColor: theme.text },
     sizeButtonTextNew: { fontSize: 16, fontWeight: "600", color: theme.text },
     sizeButtonTextNewSelected: { color: theme.background },
@@ -1330,9 +1431,32 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) => StyleShee
     confirmButtonText: { color: theme.background, fontSize: 18, fontWeight: "bold" },
     disabledButton: { backgroundColor: theme.tabIconDefault },
     modalContainer: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.9)", justifyContent: "center", alignItems: "center" },
-    modalCloseButton: { position: "absolute", top: 50, right: 20, backgroundColor: "rgba(255, 255, 255, 0.2)", borderRadius: 20, width: 40, height: 40, justifyContent: "center", alignItems: "center", zIndex: 10 },
+    modalCloseButton: {
+      position: "absolute",
+      top: 50,
+      right: 20,
+      backgroundColor: "rgba(255, 255, 255, 0.2)",
+      borderRadius: 20,
+      width: 40,
+      height: 40,
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 10,
+    },
     modalCloseButtonText: { color: "white", fontSize: 28, lineHeight: 30 },
     designActionRow: { flexDirection: "row", width: "100%", justifyContent: "space-between", marginTop: 10 },
-    designControlButtonPrimary: { flex: 1, paddingVertical: 16, borderRadius: 12, alignItems: "center", backgroundColor: theme.tint, marginHorizontal: 5, shadowColor: theme.tint, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
+    designControlButtonPrimary: {
+      flex: 1,
+      paddingVertical: 16,
+      borderRadius: 12,
+      alignItems: "center",
+      backgroundColor: theme.tint,
+      marginHorizontal: 5,
+      shadowColor: theme.tint,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 5,
+    },
     designControlButtonPrimaryText: { color: theme.background, fontSize: 14, fontWeight: "bold" },
-});
+  });
