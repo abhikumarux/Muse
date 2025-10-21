@@ -1,17 +1,5 @@
 import React, { useState } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  TextInput,
-  Pressable,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-  Image,
-  ScrollView,
-} from "react-native";
+import { StyleSheet, Text, View, TextInput, Pressable, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, Image, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
@@ -21,14 +9,14 @@ import { CognitoIdentityClient } from "@aws-sdk/client-cognito-identity";
 import { fromCognitoIdentityPool } from "@aws-sdk/credential-provider-cognito-identity";
 import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
 import { Buffer } from "buffer";
-
-const Gemini_API_KEY = "AIzaSyBNbBd8yqnOTSM5C3bt56hgN_5X8OmMorY";
-const MUSE_REFERENCE_IMAGE = "https://muse-app-uploads.s3.us-east-2.amazonaws.com/MuseStorage/Streetwear.png";
-
-// S3 Configuration
-const REGION = "us-east-2";
-const BUCKET = "muse-app-uploads";
-const IDENTITY_POOL_ID = "us-east-2:3680323d-0bc6-499f-acc5-f98acb534e36";
+// Import constants
+import {
+  GEMINI_API_KEY,
+  MUSE_REFERENCE_IMAGE,
+  AWS_REGION as REGION,
+  AWS_S3_BUCKET as BUCKET,
+  AWS_IDENTITY_POOL_ID, // This is the correct imported name
+} from "@/lib/config/constants";
 
 export default function CreateMuseScreen() {
   const colorScheme = useColorScheme() ?? "light";
@@ -52,20 +40,26 @@ export default function CreateMuseScreen() {
       return;
     }
 
+    if (!GEMINI_API_KEY) {
+      Alert.alert("Error", "Missing API Key. Please configure your .env file.");
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     try {
       // 1. Fetch the reference image and convert to base64
       const imageResponse = await fetch(MUSE_REFERENCE_IMAGE);
       const imageBlob = await imageResponse.blob();
-      
+
       // Convert blob to base64
       const reader = new FileReader();
       const imageBase64 = await new Promise<string>((resolve, reject) => {
         reader.onloadend = () => {
           const base64data = reader.result as string;
           // Remove the data URL prefix (e.g., "data:image/png;base64,")
-          const base64 = base64data.split(',')[1];
+          const base64 = base64data.split(",")[1];
           resolve(base64);
         };
         reader.onerror = reject;
@@ -92,11 +86,11 @@ export default function CreateMuseScreen() {
 
       // 4. Call Gemini API
       const endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent";
-      
+
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
-          "x-goog-api-key": Gemini_API_KEY,
+          "x-goog-api-key": GEMINI_API_KEY,
           "Content-Type": "application/json",
         },
         body,
@@ -115,7 +109,7 @@ export default function CreateMuseScreen() {
 
       // 5. Extract generated image from response
       let generatedImageData = null;
-      
+
       // The image is in: candidates[0].content.parts[0].inline_data.data
       const candidate = data?.candidates?.[0];
       if (candidate?.content?.parts) {
@@ -131,14 +125,11 @@ export default function CreateMuseScreen() {
           }
         }
       }
-      
+
       if (!generatedImageData) {
         console.error("Could not find image in response structure.");
         console.error("Full response:", JSON.stringify(data, null, 2));
-        Alert.alert(
-          "Error", 
-          "Gemini generated a response but no image was found. This might be a text-only response or unexpected format."
-        );
+        Alert.alert("Error", "Gemini generated a response but no image was found. This might be a text-only response or unexpected format.");
         setLoading(false);
         return;
       }
@@ -146,7 +137,6 @@ export default function CreateMuseScreen() {
       // 6. Set the generated image (with data URI prefix for display)
       const imageDataUri = `data:image/png;base64,${generatedImageData}`;
       setGeneratedImage(imageDataUri);
-      
     } catch (error) {
       console.error("Error creating muse:", error);
       Alert.alert("Error", "Something went wrong while creating the muse.");
@@ -166,7 +156,7 @@ export default function CreateMuseScreen() {
         region: REGION,
         credentials: fromCognitoIdentityPool({
           clientConfig: { region: REGION },
-          identityPoolId: IDENTITY_POOL_ID,
+          identityPoolId: AWS_IDENTITY_POOL_ID, // <-- FIX #1 HERE
         }),
       });
 
@@ -193,7 +183,7 @@ export default function CreateMuseScreen() {
         region: REGION,
         credentials: fromCognitoIdentityPool({
           clientConfig: { region: REGION },
-          identityPoolId: IDENTITY_POOL_ID,
+          identityPoolId: AWS_IDENTITY_POOL_ID, // <-- FIX #2 HERE
         }),
       });
 
@@ -220,7 +210,6 @@ export default function CreateMuseScreen() {
           onPress: () => router.back(),
         },
       ]);
-
     } catch (error) {
       console.error("Error saving muse:", error);
       Alert.alert("Error", "Failed to save muse. Please try again.");
@@ -230,22 +219,14 @@ export default function CreateMuseScreen() {
   };
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.background }]}
-      edges={["top", "left", "right"]}
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.keyboardView}
-      >
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top", "left", "right"]}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardView}>
         {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
             <Text style={styles.backButtonText}>←</Text>
           </Pressable>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>
-            {generatedImage ? "Your Muse" : "Create Muse"}
-          </Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>{generatedImage ? "Your Muse" : "Create Muse"}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -269,12 +250,8 @@ export default function CreateMuseScreen() {
               onChangeText={setMuseName}
             />
 
-            <Text style={[styles.label, { color: theme.text, marginTop: 24 }]}>
-              Describe your muse
-            </Text>
-            <Text style={[styles.subtitle, { color: theme.secondaryText }]}>
-              Enter a prompt that describes the style, vibe, or theme of your muse
-            </Text>
+            <Text style={[styles.label, { color: theme.text, marginTop: 24 }]}>Describe your muse</Text>
+            <Text style={[styles.subtitle, { color: theme.secondaryText }]}>Enter a prompt that describes the style, vibe, or theme of your muse</Text>
 
             <TextInput
               style={[
@@ -294,20 +271,11 @@ export default function CreateMuseScreen() {
               textAlignVertical="top"
             />
 
-            <Pressable
-              onPress={handleCreateMuse}
-              style={[
-                styles.createButton,
-                { backgroundColor: loading ? theme.secondaryText : theme.tint },
-              ]}
-              disabled={loading}
-            >
+            <Pressable onPress={handleCreateMuse} style={[styles.createButton, { backgroundColor: loading ? theme.secondaryText : theme.tint }]} disabled={loading}>
               {loading ? (
                 <View style={styles.loadingContainer}>
                   <ActivityIndicator color="#fff" />
-                  <Text style={[styles.createButtonText, { marginLeft: 12 }]}>
-                    Generating...
-                  </Text>
+                  <Text style={[styles.createButtonText, { marginLeft: 12 }]}>Generating...</Text>
                 </View>
               ) : (
                 <Text style={styles.createButtonText}>Generate Muse</Text>
@@ -322,28 +290,15 @@ export default function CreateMuseScreen() {
             </View>
 
             <View style={styles.messageContainer}>
-              <Text style={[styles.successTitle, { color: theme.text }]}>
-                ✨ {museName} is Ready!
-              </Text>
-              <Text style={[styles.successMessage, { color: theme.secondaryText }]}>
-                Your muse has been generated. Save it to add to your collection.
-              </Text>
+              <Text style={[styles.successTitle, { color: theme.text }]}>✨ {museName} is Ready!</Text>
+              <Text style={[styles.successMessage, { color: theme.secondaryText }]}>Your muse has been generated. Save it to add to your collection.</Text>
             </View>
 
-            <Pressable
-              onPress={handleSaveMuse}
-              style={[
-                styles.saveButton,
-                { backgroundColor: saving ? theme.secondaryText : theme.tint },
-              ]}
-              disabled={saving}
-            >
+            <Pressable onPress={handleSaveMuse} style={[styles.saveButton, { backgroundColor: saving ? theme.secondaryText : theme.tint }]} disabled={saving}>
               {saving ? (
                 <View style={styles.loadingContainer}>
                   <ActivityIndicator color="#fff" />
-                  <Text style={[styles.createButtonText, { marginLeft: 12 }]}>
-                    Saving...
-                  </Text>
+                  <Text style={[styles.createButtonText, { marginLeft: 12 }]}>Saving...</Text>
                 </View>
               ) : (
                 <Text style={styles.createButtonText}>Save Muse</Text>
