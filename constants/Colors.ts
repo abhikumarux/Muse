@@ -17,7 +17,7 @@ export const Colors = {
     activebar: "#ccf0cbff",
     progressLine: "#29e668ff",
     // New properties for cards and chips
-    card: "#f0e6d485",
+    card: "transparent",
     headerChip: "rgba(0, 0, 0, 0.05)",
     // SwipeButton properties
     buttonGradient: ["#bae542ff", "#5ff651ff"],
@@ -31,6 +31,11 @@ export const Colors = {
     inputPlaceholder: "#AAAAAA",
     loginGradient: ["#EEFFBE", "#D5FF60", "#C8FF2F"], // Green gradient
     cardBackground: "rgba(255, 255, 255, 0.9)", // Semi-transparent white for frosted card
+    // New Progress Bar Colors
+    progressBarBackground: "#F0F0F0", // Light grey for unfilled line/circle background
+    progressBarActive: "#000000", // Black for active circle/filled line
+    progressBarTextActive: "#FFFFFF", // White text on active circle
+    progressBarTextDefault: "#000000", // Black text on default circle/label
   },
   dark: {
     text: "#ECEDEE",
@@ -62,5 +67,10 @@ export const Colors = {
     inputPlaceholder: "#888888",
     loginGradient: ["#012514", "#006837", "#23B659"],
     cardBackground: "rgba(0, 0, 0, 0.7)", // Semi-transparent dark for frosted card
+    // New Progress Bar Colors (In dark mode, we reverse the colors for contrast on the progress bar)
+    progressBarBackground: "#444444", // Dark grey for unfilled line/circle background
+    progressBarActive: "#FFFFFF", // White for active circle/filled line
+    progressBarTextActive: "#000000", // Black text on active circle
+    progressBarTextDefault: "#FFFFFF", // White text on default circle/label
   },
 } as const;

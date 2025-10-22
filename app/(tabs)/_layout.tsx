@@ -11,12 +11,12 @@ import { IconSymbol } from "@/components/ui/IconSymbol";
 import TabBarBackground from "@/components/ui/TabBarBackground";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { CreateIcon } from "@/components/icons/CreateIcon";
+import { ContentIcon } from "@/components/icons/ContentIcon";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme() ?? "light";
   const themeColors = Colors[colorScheme];
-  // BG for the button on Android
-  const androidButtonBackground = colorScheme === "dark" ? "rgba(21, 23, 24, 0.95)" : "rgba(250, 250, 250, 0.95)";
   return (
     <Tabs
       screenOptions={{
@@ -30,7 +30,7 @@ export default function TabLayout() {
         // Push the icons down styles
         tabBarIconStyle: {
           alignContent: "center",
-          marginVertical: 13,
+          marginVertical: 17,
         },
 
         tabBarStyle: {
@@ -52,47 +52,26 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
+          title: "Create",
+          tabBarIcon: ({ color }) => <CreateIcon width={42} height={42} fill={color} />,
+        }}
+      />
+
+      <Tabs.Screen
+        name="products"
+        options={{
+          title: "Designs",
+          tabBarIcon: ({ color }) => <ContentIcon width={42} height={42} fill={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
           title: "Profile",
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="products"
-        options={{
-          // Designs
-          title: "Designs",
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="hanger" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="CreateNewDesign"
-        options={{
-          title: "Create",
-          tabBarIcon: (
-            { color } // The color prop is passed
-          ) => (
-            <View style={styles.createButton}>
-              {Platform.OS === "ios" ? (
-                <BlurView tint="systemMaterial" intensity={80} style={styles.buttonBackground}>
-                  <IconSymbol
-                    size={32}
-                    name="plus"
-                    color={color}
-                  />
-                </BlurView>
-              ) : (
-                <View style={[styles.buttonBackground, { backgroundColor: androidButtonBackground }]}>
-                  <IconSymbol
-                    size={32}
-                    name="plus"
-                    color={color}
-                  />
-                </View>
-              )}
-            </View>
-          ),
-        }}
-      />
+
       <Tabs.Screen
         name="orders"
         options={{
@@ -110,31 +89,3 @@ export default function TabLayout() {
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  createButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    shadowColor: "#353434ff",
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
-    borderWidth: 0.1,
-    elevation: 5,
-    overflow: "hidden", // Overflow to clip the blur effect
-  },
-  // Style for the BlurView
-  blurView: {
-    width: "100%",
-    height: "100%",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  buttonBackground: {
-    width: "100%",
-    height: "100%",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-});
