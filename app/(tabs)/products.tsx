@@ -81,7 +81,7 @@ export default function SavedDesignsScreen() {
       return;
     }
     router.push({
-      pathname: "/(tabs)/CreateNewDesign",
+      pathname: "/(tabs)",
       params: { savedDesignUri: design.s3Location },
     });
   };
