@@ -13,6 +13,7 @@ import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { CreateIcon } from "@/components/icons/CreateIcon";
 import { ContentIcon } from "@/components/icons/ContentIcon";
+import { ProfileIcon } from "@/components/icons/ProfileIcon";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme() ?? "light";
@@ -69,14 +70,14 @@ export default function TabLayout() {
         name="orders"
         options={{
           title: "Orders",
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="bag.fill" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={34} name="bag.fill" color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
+          tabBarIcon: ({ color }) => <ProfileIcon width={34} height={34} fill={color} />,
         }}
       />
     </Tabs>

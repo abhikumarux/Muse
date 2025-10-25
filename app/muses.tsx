@@ -1,8 +1,5 @@
 import React, { useState } from "react";
-import {
-  StyleSheet, Text, View, ScrollView, Image, Pressable,
-  TouchableOpacity, ActivityIndicator,
-} from "react-native";
+import { StyleSheet, Text, View, ScrollView, Image, Pressable, TouchableOpacity, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Colors } from "@/constants/Colors";
@@ -10,6 +7,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { useUser } from "../lib/UserContext";
 import { ddb } from "../lib/aws/dynamo";
 import { ScanCommand, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
+import { Ionicons } from "@expo/vector-icons"; // Import Ionicons
 
 interface Muse {
   museID: string;
@@ -26,6 +24,8 @@ export default function MusesScreen() {
 
   const [muses, setMuses] = useState<Muse[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const styles = getStyles(theme);
 
   const loadMuses = async () => {
     setLoading(true);
@@ -46,7 +46,11 @@ export default function MusesScreen() {
     }
   };
 
-  useFocusEffect(React.useCallback(() => { loadMuses(); }, []));
+  useFocusEffect(
+    React.useCallback(() => {
+      loadMuses();
+    }, [])
+  );
 
   const handleSelectMuse = async (museID: string) => {
     if (!userId) {
@@ -84,15 +88,18 @@ export default function MusesScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top", "left", "right"]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>←</Text>
-        </Pressable>
+        <TouchableOpacity style={styles.backButtonNew} onPress={() => router.back()}>
+          <View style={styles.backIconCircle}>
+            <Ionicons name="arrow-back" size={24} color={theme.text} />
+          </View>
+          <Text style={styles.backText}>back</Text>
+        </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Select Muse</Text>
-        <View style={{ width: 40 }} />
+        <View style={styles.backButtonNew} />
       </View>
 
       <View style={styles.addButtonContainer}>
-        <TouchableOpacity onPress={() => router.push("/create-muse")} style={[styles.addButton, { backgroundColor: theme.tint }]} disabled={!userId}>
+        <TouchableOpacity onPress={() => router.push("/create-muse")} style={[styles.addButton, { backgroundColor: theme.text }]} disabled={!userId}>
           <Text style={styles.addButtonText}>+ Add Muse</Text>
         </TouchableOpacity>
       </View>
@@ -111,15 +118,11 @@ export default function MusesScreen() {
           ) : (
             <View style={styles.musesGrid}>
               {muses.map((muse) => (
-                <TouchableOpacity
-                  key={muse.museID}
-                  onPress={() => handleSelectMuse(muse.museID)}
-                  style={[styles.museCard, { backgroundColor: theme.card }]}
-                  activeOpacity={0.7}
-                  disabled={!userId}
-                >
+                <TouchableOpacity key={muse.museID} onPress={() => handleSelectMuse(muse.museID)} style={[styles.museCard, { backgroundColor: theme.card }]} activeOpacity={0.7} disabled={!userId}>
                   <Image source={{ uri: muse.S3Location }} style={styles.museImage} />
-                  <Text style={[styles.museName, { color: theme.text }]} numberOfLines={2}>{muse.Name}</Text>
+                  <Text style={[styles.museName, { color: theme.text }]} numberOfLines={2}>
+                    {muse.Name}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -130,22 +133,77 @@ export default function MusesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12 },
-  backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(0,0,0,0.1)", justifyContent: "center", alignItems: "center" },
-  backButtonText: { fontSize: 24, fontWeight: "bold" },
-  headerTitle: { fontSize: 24, fontWeight: "bold" },
-  addButtonContainer: { paddingHorizontal: 20, paddingVertical: 12, alignItems: "flex-end" },
-  addButton: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20 },
-  addButtonText: { color: "#fff", fontSize: 14, fontWeight: "600" },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
-  emptyState: { marginTop: 60, alignItems: "center" },
-  emptyText: { fontSize: 16, textAlign: "center" },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", paddingTop: 100 },
-  loadingText: { fontSize: 16, marginTop: 16 },
-  musesGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
-  museCard: { width: "48%", borderRadius: 12, marginBottom: 16, overflow: "hidden", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
-  museImage: { width: "100%", height: 200, resizeMode: "cover" },
-  museName: { fontSize: 16, fontWeight: "600", textAlign: "center", padding: 12 },
-});
+const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
+  StyleSheet.create({
+    container: { flex: 1 },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 20,
+      paddingTop: 10,
+      paddingBottom: 5,
+    },
+    headerTitle: {
+      flex: 1,
+      fontSize: 28,
+      fontWeight: "bold",
+      textAlign: "center",
+      color: theme.text,
+      marginHorizontal: 10,
+    },
+    addButtonContainer: { paddingHorizontal: 20, paddingVertical: 12, alignItems: "flex-end" },
+    addButton: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20 },
+    addButtonText: {
+      color: theme.background,
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+    emptyState: { marginTop: 60, alignItems: "center" },
+    emptyText: { fontSize: 16, textAlign: "center", color: theme.secondaryText }, // Added theme color
+    loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", paddingTop: 100 },
+    loadingText: { fontSize: 16, marginTop: 16, color: theme.secondaryText }, // Added theme color
+    musesGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
+    museCard: {
+      width: "48%",
+      borderRadius: 12,
+      marginBottom: 16,
+      overflow: "hidden",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      backgroundColor: theme.card,
+    },
+    museImage: { width: "100%", height: 200, resizeMode: "cover" },
+    museName: {
+      fontSize: 16,
+      fontWeight: "600",
+      textAlign: "center",
+      padding: 12,
+      color: theme.text,
+    },
+    backButtonNew: {
+      alignItems: "center",
+      justifyContent: "center",
+      width: 50,
+      height: 50,
+      backgroundColor: "transparent",
+    },
+    backIconCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      borderWidth: 2,
+      justifyContent: "center",
+      alignItems: "center",
+      borderColor: theme.text,
+    },
+    backText: {
+      fontSize: 12,
+      fontWeight: "600",
+      marginTop: 2,
+      color: theme.text,
+    },
+  });
