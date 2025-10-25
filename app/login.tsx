@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import {
   View, Text, TextInput, ActivityIndicator, Alert, TouchableOpacity,
-  StyleSheet, Dimensions, Image, ImageBackground, TouchableWithoutFeedback, Keyboard
+  StyleSheet, Dimensions, Image, ImageBackground, TouchableWithoutFeedback, Keyboard,
+  ScrollView, KeyboardAvoidingView, Platform
 } from "react-native";
 import { useRouter } from "expo-router";
 import { FontAwesome } from "@expo/vector-icons";
@@ -36,12 +37,22 @@ export default function LoginScreen() {
       const remembered = await getRememberedEmail();
       if (remembered) setEmail(remembered);
 
+      // Check for token, refresh user context, THEN navigate
       const token = await getIdTokenFromStorage();
-      if (token) router.replace("/(tabs)");
+      if (token) {
+        try {
+          await refreshUser(); // Make sure user data is loaded
+          router.replace("/(tabs)");
+        } catch (e) {
+          console.error("Error refreshing user on initial load:", e);
+          // If refresh fails, stay on login
+        }
+      }
     })();
-  }, []);
+  }, [refreshUser, router]); // Add dependencies
 
   const handleLogin = async () => {
+    Keyboard.dismiss(); // Dismiss keyboard
     if (!password) {
       Alert.alert("Missing password", "Please enter your password.");
       return;
@@ -57,11 +68,13 @@ export default function LoginScreen() {
       const idToken = await getIdTokenFromStorage();
       if (idToken) await ensureMuseUserRow(idToken);
 
-      // **Important**: hydrate context before rendering tabs
+      // Hydrate context before rendering tabs
       await refreshUser();
 
-      setEmail("");
+      // Only clear email if rememberMe is false
       setPassword("");
+      if (!rememberMe) setEmail("");
+      
       router.replace("/(tabs)");
     } catch (err: any) {
       const msg =
@@ -75,106 +88,134 @@ export default function LoginScreen() {
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-    <View style={styles.container}>
-      <ImageBackground
-        source={require("../assets/images/grid.png")}
-        style={StyleSheet.absoluteFill}
-        imageStyle={styles.gridImageStyle}
-        resizeMode="repeat"
-      />
-      <BlurView intensity={4} tint={colorScheme} style={StyleSheet.absoluteFill} />
-
-      <View style={styles.contentWrapper}>
-        <BlurView intensity={80} tint={colorScheme} style={styles.formContainer}>
-          <View style={styles.logoContainer}>
-            <Image
-              source={require("../assets/images/logo.png")}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </View>
-
-          <Text style={styles.header}>Hello there,</Text>
-          <Text style={styles.subheader}>Welcome Back!</Text>
-
-          <Text style={styles.label}>Enter Email Address</Text>
-          <TextInput
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            placeholder="Email address"
-            style={styles.input}
-            placeholderTextColor={themeColors.inputPlaceholder}
+    // Wrap with KeyboardAvoidingView
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.keyboardAvoidingContainer}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View style={styles.container}>
+          <ImageBackground
+            source={require("../assets/images/grid.png")}
+            style={StyleSheet.absoluteFill}
+            imageStyle={styles.gridImageStyle}
+            resizeMode="repeat"
           />
+          <BlurView intensity={4} tint={colorScheme} style={StyleSheet.absoluteFill} />
 
-          <Text style={styles.label}>Enter Password</Text>
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            placeholder="Password"
-            style={styles.input}
-            placeholderTextColor={themeColors.inputPlaceholder}
-          />
+          {/* Replace View with ScrollView */}
+          <ScrollView
+            contentContainerStyle={styles.scrollContentContainer}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <BlurView intensity={80} tint={colorScheme} style={styles.formContainer}>
+              <View style={styles.logoContainer}>
+                <Image
+                  source={require("../assets/images/logo.png")}
+                  style={styles.logo}
+                  resizeMode="contain"
+                />
+              </View>
 
-          <View style={styles.optionsRow}>
-            <TouchableOpacity
-              style={styles.rememberMeContainer}
-              onPress={() => setRememberMe(!rememberMe)}
-            >
-              <FontAwesome
-                name={rememberMe ? "check-square" : "square-o"}
-                size={20}
-                color={rememberMe ? themeColors.buttonBackground : themeColors.text}
-                style={styles.rememberMeIcon}
+              <Text style={styles.header}>Hello there,</Text>
+              <Text style={styles.subheader}>Welcome Back!</Text>
+
+              <Text style={styles.label}>Enter Email Address</Text>
+              <TextInput
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                placeholder="Email address"
+                style={styles.input}
+                placeholderTextColor={themeColors.inputPlaceholder}
+                editable={!loading} // Add disabled state
               />
-              <Text style={styles.rememberMeText}>Remember me</Text>
-            </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => router.push("/forgot-password")}>
-              <Text style={styles.forgotPasswordText}>Forgot password?</Text>
-            </TouchableOpacity>
-          </View>
+              <Text style={styles.label}>Enter Password</Text>
+              <TextInput
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                placeholder="Password"
+                style={styles.input}
+                placeholderTextColor={themeColors.inputPlaceholder}
+                editable={!loading} // Add disabled state
+                returnKeyType="done"
+                onSubmitEditing={handleLogin}
+              />
 
-          {loading ? (
-            <ActivityIndicator size="large" color={themeColors.text} style={styles.loginButtonContainer} />
-          ) : (
-            <TouchableOpacity style={styles.loginButtonContainer} onPress={handleLogin}>
-              <Text style={styles.loginButtonText}>Login</Text>
-            </TouchableOpacity>
-          )}
+              <View style={styles.optionsRow}>
+                <TouchableOpacity
+                  style={styles.rememberMeContainer}
+                  onPress={() => setRememberMe(!rememberMe)}
+                  disabled={loading} //Add disabled state
+                >
+                  <FontAwesome
+                    name={rememberMe ? "check-square" : "square-o"}
+                    size={20}
+                    color={rememberMe ? themeColors.buttonBackground : themeColors.text}
+                    style={styles.rememberMeIcon}
+                  />
+                  <Text style={styles.rememberMeText}>Remember me</Text>
+                </TouchableOpacity>
 
-          <Text style={styles.orText}>Or Continue with</Text>
+                <TouchableOpacity onPress={() => router.push("/forgot-password")} disabled={loading}>
+                  <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+                </TouchableOpacity>
+              </View>
 
-          <View style={styles.socialContainer}>
-            <TouchableOpacity style={styles.socialButton}>
-              <FontAwesome name="google" size={24} color="#fc6e6eff" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.socialButton}>
-              <FontAwesome name="apple" size={24} color={themeColors.text} />
-            </TouchableOpacity>
-          </View>
+              {loading ? (
+                <ActivityIndicator size="large" color={themeColors.text} style={styles.loginButtonContainer} />
+              ) : (
+                <TouchableOpacity style={styles.loginButtonContainer} onPress={handleLogin} disabled={loading}>
+                  <Text style={styles.loginButtonText}>Login</Text>
+                </TouchableOpacity>
+              )}
 
-          <View style={styles.registerContainer}>
-            <Text style={styles.registerText}>Don&apos;t have an account? </Text>
-            <TouchableOpacity onPress={() => router.replace("/register")}>
-              <Text style={styles.registerLink}>Sign up</Text>
-            </TouchableOpacity>
-          </View>
-        </BlurView>
-      </View>
-    </View>
-    </TouchableWithoutFeedback>
+              <Text style={styles.orText}>Or Continue with</Text>
+
+              <View style={styles.socialContainer}>
+                <TouchableOpacity style={styles.socialButton} disabled={loading}>
+                  <FontAwesome name="google" size={24} color="#fc6e6eff" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.socialButton} disabled={loading}>
+                  <FontAwesome name="apple" size={24} color={themeColors.text} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.registerContainer}>
+                <Text style={styles.registerText}>Don&apos;t have an account? </Text>
+                <TouchableOpacity onPress={() => router.replace("/register")} disabled={loading}>
+                  <Text style={styles.registerLink}>Sign up</Text>
+                </TouchableOpacity>
+              </View>
+            </BlurView>
+          </ScrollView>
+          {/* End ScrollView */}
+        </View>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
+    // End KeyboardAvoidingView
   );
 }
 
 const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
   StyleSheet.create({
+    // Add keyboardAvoidingContainer
+    keyboardAvoidingContainer: {
+      flex: 1,
+    },
     container: { flex: 1, backgroundColor: themeColors.loginBackground },
     gridImageStyle: { opacity: 0.5 },
-    contentWrapper: { flex: 1, paddingTop: 80, justifyContent: "flex-start" },
+    // Changed contentWrapper to scrollContentContainer
+    scrollContentContainer: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      paddingTop: 60,
+      paddingBottom: 40,
+    },
     logoContainer: { alignItems: "center", marginBottom: 20 },
     logo: { width: SCREEN_WIDTH * 0.5, height: SCREEN_HEIGHT * 0.1 },
     formContainer: {
