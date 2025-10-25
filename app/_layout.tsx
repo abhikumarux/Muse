@@ -21,12 +21,12 @@ export default function RootLayout() {
       <UserProvider>
         <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
           <Stack
-             screenOptions={{
-                headerStyle: { backgroundColor: theme.loginBackground },
-                headerTintColor: theme.text,
-                headerTitleStyle: { fontWeight: 'bold' },
-                headerBackTitle: 'Back',
-             }}
+            screenOptions={{
+              headerStyle: { backgroundColor: theme.loginBackground },
+              headerTintColor: theme.text,
+              headerTitleStyle: { fontWeight: "bold" },
+              headerBackTitle: "Back",
+            }}
           >
             <Stack.Screen name="index" options={{ headerShown: false }} />
             <Stack.Screen name="landing" options={{ headerShown: false, animation: "fade", animationDuration: 250 }} />
@@ -34,18 +34,19 @@ export default function RootLayout() {
             <Stack.Screen name="register" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: "fade", animationDuration: 250 }} />
             <Stack.Screen name="product-detail" options={{ presentation: "modal", headerShown: false }} />
+            <Stack.Screen name="muses" options={{ presentation: "modal", headerShown: false }} />
             {}
             <Stack.Screen
               name="forgot-password"
               options={{
-                title: 'Forgot Password',
-                headerBackTitle: 'Back',
+                title: "Forgot Password",
+                headerBackTitle: "Back",
               }}
             />
             {}
             <Stack.Screen name="+not-found" />
           </Stack>
-          <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+          <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
         </ThemeProvider>
       </UserProvider>
     </GestureHandlerRootView>

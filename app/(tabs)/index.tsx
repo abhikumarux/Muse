@@ -112,6 +112,9 @@ export default function CreateNewDesignTab() {
   const scrollX = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef<ScrollView>(null);
 
+  // Find the current muse (moved up for earlier access)
+  const currentMuse = muses.find((m) => m.museID === selectedMuseId);
+
   const resetFlow = () => {
     setProducts([]);
     setProductDetails(null);
@@ -1482,7 +1485,8 @@ export default function CreateNewDesignTab() {
           // Use the original topBarContainer for the top-level view
           <View style={styles.topBarContainer}>
             <TouchableOpacity style={styles.museSelectorButton} onPress={openMuseSelector}>
-              <Text style={styles.museSelectorText}>Choose Muse</Text>
+              {/* MODIFIED: Show Muse image or fallback text */}
+              {currentMuse ? <Image source={{ uri: currentMuse.S3Location }} style={styles.museSelectorImage} /> : <Text style={styles.museSelectorText}>Choose Muse</Text>}
             </TouchableOpacity>
             <View style={styles.titleImageContainer}>
               <DesignText height={45} width="100%" fill={theme.text} preserveAspectRatio="xMidYMid meet" style={{ height: 55, width: "100%" }} />
@@ -1520,7 +1524,7 @@ export default function CreateNewDesignTab() {
       </View>
     );
   };
-  const currentMuse = muses.find((m) => m.museID === selectedMuseId);
+
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       {/* RENDER CURRENT VIEW */}
@@ -1558,16 +1562,11 @@ export default function CreateNewDesignTab() {
           </TouchableOpacity>
         </View>
       </Modal>
-
-      {/* NEW: Muse Selector Modal */}
       <Modal animationType="slide" transparent visible={museSelectorVisible} onRequestClose={() => setMuseSelectorVisible(false)}>
         <View style={styles.museModalContainer}>
-          {/* BACKGROUND TAP TO CLOSE */}
           <TouchableWithoutFeedback onPress={() => setMuseSelectorVisible(false)}>
             <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.5)" }]} />
           </TouchableWithoutFeedback>
-
-          {/* FOREGROUND CONTENT */}
           <View style={[styles.museModalContent, { backgroundColor: theme.card, zIndex: 10, elevation: 10 }]} pointerEvents="box-none">
             <View style={styles.museModalHeader}>
               <TouchableOpacity
@@ -1598,10 +1597,7 @@ export default function CreateNewDesignTab() {
                 snapToInterval={MUSE_ITEM_WIDTH}
                 contentContainerStyle={[styles.museCarouselScrollView, { paddingHorizontal: MUSE_ITEM_SPACING }]}
                 onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], { useNativeDriver: true })}
-                onMomentumScrollEnd={(event) => {
-                  const newIndex = Math.round(event.nativeEvent.contentOffset.x / MUSE_ITEM_WIDTH);
-                  handleMuseSelection(newIndex);
-                }}
+                onMomentumScrollEnd={(event) => {}}
                 scrollEventThrottle={16}
               >
                 {muses.map((muse, index) => {
@@ -1617,23 +1613,36 @@ export default function CreateNewDesignTab() {
                     extrapolate: "clamp",
                   });
                   return (
-                    <Animated.View
+                    <TouchableOpacity
                       key={muse.museID}
-                      style={[
-                        styles.museImageCard,
-                        {
-                          width: MUSE_ITEM_WIDTH,
-                          height: MUSE_ITEM_WIDTH * MUSE_CARD_ASPECT_RATIO,
-                          transform: [{ scale }],
-                          opacity,
-                        },
-                      ]}
+                      activeOpacity={0.8}
+                      onPress={() => {
+                        handleMuseSelection(index);
+                        scrollViewRef.current?.scrollTo({ x: index * MUSE_ITEM_WIDTH, animated: true });
+                      }}
                     >
-                      <Image source={{ uri: muse.S3Location }} style={styles.museBackgroundImage} />
-                      <View style={styles.museOverlay}>
-                        <Text style={styles.museTitleOverlay}>{muse.Name}</Text>
-                      </View>
-                    </Animated.View>
+                      <Animated.View
+                        style={[
+                          styles.museImageCard,
+                          {
+                            width: MUSE_ITEM_WIDTH,
+                            height: MUSE_ITEM_WIDTH * MUSE_CARD_ASPECT_RATIO,
+                            transform: [{ scale }],
+                            opacity,
+                          },
+                        ]}
+                      >
+                        <Image source={{ uri: muse.S3Location }} style={styles.museBackgroundImage} />
+                        <View style={styles.museOverlay}>
+                          <Text style={styles.museTitleOverlay}>{muse.Name}</Text>
+                        </View>
+                        {muse.museID === selectedMuseId && (
+                          <View style={styles.museSelectedCheckmarkContainer}>
+                            <Ionicons name="checkmark-circle" size={40} color="#FFFFFF" style={styles.museSelectedCheckmark} />
+                          </View>
+                        )}
+                      </Animated.View>
+                    </TouchableOpacity>
                   );
                 })}
               </Animated.ScrollView>
@@ -1654,7 +1663,6 @@ export default function CreateNewDesignTab() {
           </View>
         </View>
       </Modal>
-      {/* END NEW: Muse Selector Modal */}
     </SafeAreaView>
   );
 }
@@ -1663,9 +1671,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
     scrollView: { flex: 1 },
-    // MODIFIED: Adjusted paddingTop for scrollContent when header is present
     scrollContent: { padding: 20, paddingTop: 10, paddingBottom: 80 }, // Adjusted paddingBottom slightly
-    // REMOVED: headerContainer styles are not needed
     variantHeader: {
       flexDirection: "row",
       alignItems: "center",
@@ -1676,7 +1682,6 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       borderBottomWidth: 1,
       borderColor: theme.tabIconDefault,
     },
-    // backButton: { padding: 5, marginRight: 15 }, // Keep if needed elsewhere
     backButtonText: { fontSize: 18, color: theme.tint, fontWeight: "600" },
     headerText: { fontSize: 22, fontWeight: "bold", color: theme.text, flex: 1, textAlign: "center", marginRight: 40 },
     gridContainer: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
@@ -1716,7 +1721,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     selectionSummary: { padding: 16, marginTop: 10 },
     selectionSummaryText: { color: theme.text, fontSize: 16, fontWeight: "600", textAlign: "center", marginBottom: 16 },
     generateButton: {
-      backgroundColor: theme.text, // Changed to theme.text for consistent styling with index.tsx flow
+      backgroundColor: theme.text,
       paddingVertical: 16,
       borderRadius: 12,
       alignItems: "center",
@@ -1751,7 +1756,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     emptyImageBox: { flex: 1, alignItems: "center", justifyContent: "center" },
     emptyImageText: { color: theme.secondaryText, fontSize: 14 },
     finalGenerateButton: {
-      backgroundColor: theme.text, // Changed to theme.text
+      backgroundColor: theme.text,
       paddingVertical: 16,
       borderRadius: 12,
       alignItems: "center",
@@ -1762,8 +1767,6 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       elevation: 5,
     },
     finalGenerateButtonText: { color: theme.background, fontSize: 18, fontWeight: "bold" },
-
-    // --- NEW PROGRESS BAR STYLES ---
     progressWrapperNew: {
       marginHorizontal: 5,
       marginVertical: 15,
@@ -1811,7 +1814,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       alignItems: "center",
     },
     stepCircleActiveNew: {
-      shadowColor: theme.text, // Using theme.text for active color
+      shadowColor: theme.text,
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.4,
       shadowRadius: 5,
@@ -1820,7 +1823,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     stepTextNew: {
       fontWeight: "800",
       fontSize: 16,
-      color: theme.text, // Default text color
+      color: theme.text,
     },
     stepLabelNew: {
       marginTop: 8,
@@ -1833,8 +1836,6 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       fontWeight: "bold",
       color: theme.text,
     },
-    // --- END NEW PROGRESS BAR STYLES ---
-
     loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.background },
     loadingText: { marginTop: 10, fontSize: 16, color: theme.secondaryText },
     errorContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.background, paddingHorizontal: 20 },
@@ -1964,7 +1965,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       paddingVertical: 16,
       borderRadius: 12,
       alignItems: "center",
-      backgroundColor: theme.text, // Changed to theme.text
+      backgroundColor: theme.text,
       marginHorizontal: 5,
       shadowColor: theme.text,
       shadowOffset: { width: 0, height: 4 },
@@ -1973,16 +1974,14 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       elevation: 5,
     },
     designControlButtonPrimaryText: { color: theme.background, fontSize: 14, fontWeight: "bold" },
-
-    // --- NEW: Product Flow Header Styles ---
     productFlowHeaderContainer: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
       paddingHorizontal: 20,
-      paddingTop: 10, // Adjusted padding
-      paddingBottom: 5, // Added padding bottom
-      backgroundColor: theme.background, // Ensure background color
+      paddingTop: 10,
+      paddingBottom: 5,
+      backgroundColor: theme.background,
     },
     backButtonNew: {
       alignItems: "center",
@@ -2013,11 +2012,11 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     },
     productFlowTitle: {
       flex: 1,
-      fontSize: 28, // Adjusted size slightly
+      fontSize: 28,
       fontWeight: "bold",
       textAlign: "center",
       color: theme.text,
-      marginHorizontal: 10, // Added margin to prevent overlap
+      marginHorizontal: 10,
     },
     coinsContainerFlow: {
       flexDirection: "row",
@@ -2025,9 +2024,8 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       borderRadius: 20,
       paddingHorizontal: 12,
       paddingVertical: 6,
-      minWidth: 70, // Ensure minimum width
+      minWidth: 70,
       backgroundColor: theme.text,
-      // Removed fixed position, rely on flexbox in header
     },
     coinTextFlow: { fontSize: 18, fontWeight: "bold", color: theme.background },
     coinIconPlaceholder: {
@@ -2036,16 +2034,13 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       color: theme.background,
       marginRight: 8,
     },
-    // --- End Product Flow Header Styles ---
-
-    // --- NEW: Muse Selector Styles ---
     museSelectorButton: {
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: theme.background,
-      width: 70, // Circle dimensions
-      height: 70, // Circle dimensions
-      borderRadius: 35, // Half of width/height
+      width: 70,
+      height: 70,
+      borderRadius: 35,
       alignSelf: "flex-start",
       borderWidth: 1,
       borderColor: theme.tabIconDefault,
@@ -2054,6 +2049,14 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       shadowOpacity: 0.05,
       shadowRadius: 4,
       elevation: 2,
+      overflow: "hidden",
+    },
+    museSelectorImage: {
+      width: "100%",
+      height: "100%",
+      borderRadius: 35,
+      resizeMode: "cover",
+      backgroundColor: theme.tabIconDefault,
     },
     museSelectorText: {
       color: theme.text,
@@ -2061,7 +2064,6 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       fontSize: 12,
       textAlign: "center",
     },
-    // Placeholder for title image
     titleImagePlaceholder: {
       fontSize: 40,
       fontWeight: "900",
@@ -2082,8 +2084,8 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       alignItems: "center",
       paddingHorizontal: 20,
       paddingTop: 10,
-      paddingBottom: 5, // Match padding of ProductFlowHeader
-      backgroundColor: theme.background, // Ensure background
+      paddingBottom: 5,
+      backgroundColor: theme.background,
     },
     coinsContainer: {
       flexDirection: "row",
@@ -2157,7 +2159,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       shadowOpacity: 0.3,
       shadowRadius: 12,
       elevation: 10,
-      // marginHorizontal: MUSE_ITEM_SPACING / 2, // <-- REMOVED THIS LINE
+      position: "relative",
     },
     museBackgroundImage: {
       width: "100%",
@@ -2180,17 +2182,28 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       color: "#fff",
       textAlign: "center",
     },
+    museSelectedCheckmarkContainer: {
+      position: "absolute",
+      top: 16,
+      right: 16,
+      zIndex: 10,
+    },
+    museSelectedCheckmark: {
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.8,
+      shadowRadius: 3,
+      elevation: 5,
+    },
     coinIcon: { width: 24, height: 24, marginRight: 8 },
     coinText: { fontSize: 18, fontWeight: "bold", color: theme.background },
-
-    // --- NEW: Pill Selector Styles ---
     pillContainer: {
       flexDirection: "row",
       justifyContent: "center",
       alignItems: "center",
       paddingHorizontal: 20,
-      paddingVertical: 10, // Keep padding for spacing
-      backgroundColor: theme.background, // Ensure background
+      paddingVertical: 10,
+      backgroundColor: theme.background,
       gap: 10,
     },
     pillButton: {
@@ -2214,14 +2227,10 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       color: theme.background,
       fontWeight: "700",
     },
-    // --- End Pill Selector Styles ---
-
-    // --- NEW: All Products Button Styles ---
     allProductsButtonContainer: {
-      paddingHorizontal: 0, // No horizontal padding needed as it's inside scrollContent padding
-      marginTop: 0, // No extra top margin needed if grid has marginBottom
-      paddingBottom: 0, // Let scrollContent handle final padding
-      // backgroundColor: theme.background, // Not needed inside ScrollView
+      paddingHorizontal: 0,
+      marginTop: 0,
+      paddingBottom: 0,
     },
     allProductsButton: {
       backgroundColor: theme.card,
@@ -2234,17 +2243,12 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
       shadowRadius: 4,
-      elevation: 2,
-      // MODIFIED: Add a top margin to separate from the grid if the grid was populated
-      marginTop: 0, // Reset marginTop, marginBottom on categoryCard handles spacing mostly
-      marginBottom: 0, // Let scrollContent padding handle bottom space
+      marginTop: 0,
+      marginBottom: 0,
     },
     allProductsButtonText: {
       color: theme.text,
       fontSize: 16,
       fontWeight: "600",
     },
-    // --- End All Products Button Styles ---
-
-    // --- End Muse Selector Styles ---
   });

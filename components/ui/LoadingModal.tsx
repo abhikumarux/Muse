@@ -22,7 +22,7 @@ export function LoadingModal({ visible, text = "Loading..." }: LoadingModalProps
       onRequestClose={() => {}} // Required for Android
     >
       <BlurView intensity={20} tint={colorScheme} style={styles.overlay}>
-        <View style={[styles.container, { backgroundColor: theme.card, shadowColor: theme.text }]}>
+        <View style={[styles.container, { backgroundColor: theme.loadingAnimationBackground, shadowColor: theme.text }]}>
           <LoadingAnimation size={80} />
           <Text style={[styles.text, { color: theme.text }]}>{text}</Text>
         </View>

@@ -36,6 +36,7 @@ export const Colors = {
     progressBarActive: "#000000", // Black for active circle/filled line
     progressBarTextActive: "#FFFFFF", // White text on active circle
     progressBarTextDefault: "#000000", // Black text on default circle/label
+    loadingAnimationBackground: "#ffffff6a", // White background for loading animation
   },
   dark: {
     text: "#ECEDEE",
@@ -72,5 +73,6 @@ export const Colors = {
     progressBarActive: "#FFFFFF", // White for active circle/filled line
     progressBarTextActive: "#000000", // Black text on active circle
     progressBarTextDefault: "#FFFFFF", // White text on default circle/label
+    loadingAnimationBackground: "#0000006a", // White background for loading animation
   },
 } as const;
