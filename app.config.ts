@@ -10,11 +10,6 @@ export default {
     scheme: "expomultiscreenapp",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
-    splash: {
-      image: "./assets/images/logo.png",
-      resizeMode: "contain",
-      backgroundColor: "#ffffff",
-    },
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.jake14turner.expo-multiscreen-app",
