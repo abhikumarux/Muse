@@ -1,22 +1,10 @@
 import React, { useState, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  useColorScheme as useDeviceColorScheme,
-  Dimensions,
-  FlatList,
-  Modal,
-  Pressable,
-} from "react-native";
+import { View, Text, StyleSheet, Image, TouchableOpacity, Alert, useColorScheme as useDeviceColorScheme, Dimensions, FlatList, Modal, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import { listDesignsForCurrentUser, deleteDesign, MuseDesignRow } from "@/lib/aws/saveDesign";
 import { Colors } from "@/constants/Colors";
+import { LoadingModal } from "@/components/ui/LoadingModal";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
@@ -51,28 +39,23 @@ export default function SavedDesignsScreen() {
   );
 
   const handleRemove = (designId: string) => {
-    Alert.alert(
-      "Remove Design",
-      "Are you sure you want to permanently remove this design?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteDesign(designId);
-              // Refresh the list after deletion
-              setDesigns((prev) => prev.filter((d) => d.designId !== designId));
-              Alert.alert("Success", "Design removed.");
-            } catch (error: any) {
-              console.error("Failed to delete design:", error);
-              Alert.alert("Error", "Could not remove design. " + error.message);
-            }
-          },
+    Alert.alert("Remove Design", "Are you sure you want to permanently remove this design?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteDesign(designId);
+            setDesigns((prev) => prev.filter((d) => d.designId !== designId));
+            Alert.alert("Success", "Design removed.");
+          } catch (error: any) {
+            console.error("Failed to delete design:", error);
+            Alert.alert("Error", "Could not remove design. " + error.message);
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleApply = (design: MuseDesignRow) => {
@@ -90,21 +73,11 @@ export default function SavedDesignsScreen() {
     setSelectedImage(imageUrl);
     setModalVisible(true);
   };
-
-  if (loading) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.background, justifyContent: 'center' }]}>
-        <ActivityIndicator size="large" color={theme.tint} />
-        <Text style={[styles.messageText, { color: theme.text, marginTop: 10 }]}>Loading Designs...</Text>
-      </View>
-    );
-  }
-
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top", "left", "right"]}>
+      <LoadingModal visible={loading} text="Loading Designs..." />
       <Text style={[styles.header, { color: theme.text }]}>My Saved Designs</Text>
-      
-      {designs.length === 0 ? (
+      {designs.length === 0 && !loading ? (
         <View style={styles.emptyContainer}>
           <Text style={[styles.messageText, { color: theme.secondaryText }]}>You haven't saved any designs yet.</Text>
         </View>
@@ -118,11 +91,7 @@ export default function SavedDesignsScreen() {
             <View style={[styles.card, { backgroundColor: theme.card }]}>
               {design.s3Location && (
                 <TouchableOpacity onPress={() => openImageModal(design.s3Location!)}>
-                  <Image
-                    source={{ uri: design.s3Location }}
-                    style={styles.image}
-                    resizeMode="cover"
-                  />
+                  <Image source={{ uri: design.s3Location }} style={styles.image} resizeMode="cover" />
                 </TouchableOpacity>
               )}
               <View style={styles.buttonContainer}>
@@ -138,20 +107,9 @@ export default function SavedDesignsScreen() {
         />
       )}
 
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
+      <Modal animationType="fade" transparent={true} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
         <Pressable style={styles.modalContainer} onPress={() => setModalVisible(false)}>
-          {selectedImage && (
-            <Image
-              source={{ uri: selectedImage }}
-              style={styles.fullscreenImage}
-              resizeMode="contain"
-            />
-          )}
+          {selectedImage && <Image source={{ uri: selectedImage }} style={styles.fullscreenImage} resizeMode="contain" />}
         </Pressable>
       </Modal>
     </SafeAreaView>
@@ -164,9 +122,9 @@ const styles = StyleSheet.create({
   },
   header: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     margin: 16,
-    textAlign: 'center',
+    textAlign: "center",
   },
   grid: {
     paddingHorizontal: 16,
@@ -182,15 +140,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   image: {
-    width: '100%',
+    width: "100%",
     height: CARD_WIDTH,
   },
   buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+    flexDirection: "row",
+    justifyContent: "space-around",
     paddingVertical: 8,
   },
   button: {
@@ -199,33 +157,33 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   buttonText: {
-    fontWeight: '600',
+    fontWeight: "600",
     fontSize: 14,
   },
   removeButton: {
-    backgroundColor: '#ff3b3020',
+    backgroundColor: "#ff3b3020",
   },
   removeButtonText: {
-    color: '#ff3b30',
-    fontWeight: '600',
+    color: "#ff3b30",
+    fontWeight: "600",
     fontSize: 14,
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   messageText: {
     fontSize: 16,
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.85)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0,0,0,0.85)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   fullscreenImage: {
-    width: '90%',
-    height: '90%',
+    width: "90%",
+    height: "90%",
   },
 });

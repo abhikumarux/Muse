@@ -17,6 +17,7 @@ import {
 } from "../lib/aws/auth";
 import { ensureMuseUserRow } from "../lib/aws/userProfile";
 import { useUser } from "../lib/UserContext";
+import { LoadingModal } from "@/components/ui/LoadingModal";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -49,7 +50,7 @@ export default function LoginScreen() {
         }
       }
     })();
-  }, [refreshUser, router]); // Add dependencies
+  }, [refreshUser, router]); // Keep dependencies
 
   const handleLogin = async () => {
     Keyboard.dismiss(); // Dismiss keyboard
@@ -57,8 +58,7 @@ export default function LoginScreen() {
       Alert.alert("Missing password", "Please enter your password.");
       return;
     }
-
-    setLoading(true);
+    setLoading(true); // Show LoadingModal
     try {
       if (rememberMe) await rememberEmail(email.trim());
       else await rememberEmail(null);
@@ -74,27 +74,27 @@ export default function LoginScreen() {
       // Only clear email if rememberMe is false
       setPassword("");
       if (!rememberMe) setEmail("");
-      
+
       router.replace("/(tabs)");
     } catch (err: any) {
-      const msg =
-        err?.name === "UserNotConfirmedException"
-          ? "Your email isn’t confirmed yet. Check your inbox for the code, or sign up again to resend it."
-          : err?.message || "Login failed.";
+      const msg = err?.name === "UserNotConfirmedException" ? "Your email isn’t confirmed yet. Check your inbox for the code, or sign up again to resend it." : err?.message || "Login failed.";
       Alert.alert("Error", msg);
     } finally {
-      setLoading(false);
+      setLoading(false); // Hide LoadingModal
     }
   };
 
   return (
-    // Wrap with KeyboardAvoidingView
+    // Keep KeyboardAvoidingView structure
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.keyboardAvoidingContainer}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <View style={styles.container}>
+          {/* Add the LoadingModal component */}
+          <LoadingModal visible={loading} text="Logging in..." />
+
           <ImageBackground
             source={require("../assets/images/grid.png")}
             style={StyleSheet.absoluteFill}
@@ -103,7 +103,7 @@ export default function LoginScreen() {
           />
           <BlurView intensity={4} tint={colorScheme} style={StyleSheet.absoluteFill} />
 
-          {/* Replace View with ScrollView */}
+          {/* Keep ScrollView */}
           <ScrollView
             contentContainerStyle={styles.scrollContentContainer}
             keyboardShouldPersistTaps="handled"
@@ -150,7 +150,7 @@ export default function LoginScreen() {
                 <TouchableOpacity
                   style={styles.rememberMeContainer}
                   onPress={() => setRememberMe(!rememberMe)}
-                  disabled={loading} //Add disabled state
+                  disabled={loading} // Add disabled state
                 >
                   <FontAwesome
                     name={rememberMe ? "check-square" : "square-o"}
@@ -166,13 +166,15 @@ export default function LoginScreen() {
                 </TouchableOpacity>
               </View>
 
-              {loading ? (
-                <ActivityIndicator size="large" color={themeColors.text} style={styles.loginButtonContainer} />
-              ) : (
-                <TouchableOpacity style={styles.loginButtonContainer} onPress={handleLogin} disabled={loading}>
-                  <Text style={styles.loginButtonText}>Login</Text>
-                </TouchableOpacity>
-              )}
+              {/* Use TouchableOpacity with disabled style instead of ActivityIndicator */}
+              <TouchableOpacity
+                 style={[styles.loginButtonContainer, loading && styles.disabledButton]} // Apply disabled style when loading
+                 onPress={handleLogin}
+                 disabled={loading}
+              >
+                <Text style={styles.loginButtonText}>Login</Text>
+              </TouchableOpacity>
+
 
               <Text style={styles.orText}>Or Continue with</Text>
 
@@ -203,13 +205,13 @@ export default function LoginScreen() {
 
 const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
   StyleSheet.create({
-    // Add keyboardAvoidingContainer
+    // Keep keyboardAvoidingContainer
     keyboardAvoidingContainer: {
       flex: 1,
     },
     container: { flex: 1, backgroundColor: themeColors.loginBackground },
     gridImageStyle: { opacity: 0.5 },
-    // Changed contentWrapper to scrollContentContainer
+    // Keep scrollContentContainer
     scrollContentContainer: {
       flexGrow: 1,
       justifyContent: 'center',
@@ -250,11 +252,22 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
     forgotPasswordText: { color: themeColors.text, fontSize: 16 },
     loginButtonContainer: { marginTop: 10, borderRadius: 12, height: 50, justifyContent: "center", alignItems: "center", backgroundColor: themeColors.buttonBackground },
     loginButtonText: { color: themeColors.text, fontSize: 18, fontWeight: "bold" },
+    
+    disabledButton: {
+      backgroundColor: themeColors.inputBorder,
+      opacity: 0.7,
+    },
     orText: { color: themeColors.text, textAlign: "center", marginVertical: 20, fontSize: 16 },
     socialContainer: { flexDirection: "row", justifyContent: "space-around", marginBottom: 30 },
     socialButton: {
-      flex: 1, marginHorizontal: 10, paddingVertical: 10, backgroundColor: themeColors.inputBackground,
-      borderRadius: 12, alignItems: "center", height: 50, justifyContent: "center",
+      flex: 1,
+      marginHorizontal: 10,
+      paddingVertical: 10,
+      backgroundColor: themeColors.inputBackground,
+      borderRadius: 12,
+      alignItems: "center",
+      height: 50,
+      justifyContent: "center",
     },
     registerContainer: { flexDirection: "row", justifyContent: "center" },
     registerText: { color: themeColors.text, fontSize: 18 },
