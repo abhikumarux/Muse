@@ -1,21 +1,14 @@
 import React, { useEffect, useState } from "react";
-import {
-  View, Text, TextInput, ActivityIndicator, Alert, TouchableOpacity,
-  StyleSheet, Dimensions, Image, ImageBackground, TouchableWithoutFeedback, Keyboard
-} from "react-native";
+import { View, Text, TextInput, Alert, TouchableOpacity, StyleSheet, Dimensions, Image, ImageBackground, TouchableWithoutFeedback, Keyboard } from "react-native";
 import { useRouter } from "expo-router";
 import { FontAwesome } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
-import {
-  signInEmailPassword,
-  getRememberedEmail,
-  rememberEmail,
-  getIdTokenFromStorage,
-} from "../lib/aws/auth";
+import { signInEmailPassword, getRememberedEmail, rememberEmail, getIdTokenFromStorage } from "../lib/aws/auth";
 import { ensureMuseUserRow } from "../lib/aws/userProfile";
 import { useUser } from "../lib/UserContext";
+import { LoadingModal } from "@/components/ui/LoadingModal";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -46,7 +39,6 @@ export default function LoginScreen() {
       Alert.alert("Missing password", "Please enter your password.");
       return;
     }
-
     setLoading(true);
     try {
       if (rememberMe) await rememberEmail(email.trim());
@@ -56,18 +48,12 @@ export default function LoginScreen() {
 
       const idToken = await getIdTokenFromStorage();
       if (idToken) await ensureMuseUserRow(idToken);
-
-      // **Important**: hydrate context before rendering tabs
       await refreshUser();
-
       setEmail("");
       setPassword("");
       router.replace("/(tabs)");
     } catch (err: any) {
-      const msg =
-        err?.name === "UserNotConfirmedException"
-          ? "Your email isn’t confirmed yet. Check your inbox for the code, or sign up again to resend it."
-          : err?.message || "Login failed.";
+      const msg = err?.name === "UserNotConfirmedException" ? "Your email isn’t confirmed yet. Check your inbox for the code, or sign up again to resend it." : err?.message || "Login failed.";
       Alert.alert("Error", msg);
     } finally {
       setLoading(false);
@@ -76,96 +62,71 @@ export default function LoginScreen() {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-    <View style={styles.container}>
-      <ImageBackground
-        source={require("../assets/images/grid.png")}
-        style={StyleSheet.absoluteFill}
-        imageStyle={styles.gridImageStyle}
-        resizeMode="repeat"
-      />
-      <BlurView intensity={4} tint={colorScheme} style={StyleSheet.absoluteFill} />
+      <View style={styles.container}>
+        {/* 2. Add the LoadingModal component */}
+        <LoadingModal visible={loading} text="Logging in..." />
 
-      <View style={styles.contentWrapper}>
-        <BlurView intensity={80} tint={colorScheme} style={styles.formContainer}>
-          <View style={styles.logoContainer}>
-            <Image
-              source={require("../assets/images/logo.png")}
-              style={styles.logo}
-              resizeMode="contain"
+        <ImageBackground source={require("../assets/images/grid.png")} style={StyleSheet.absoluteFill} imageStyle={styles.gridImageStyle} resizeMode="repeat" />
+        <BlurView intensity={4} tint={colorScheme} style={StyleSheet.absoluteFill} />
+
+        <View style={styles.contentWrapper}>
+          <BlurView intensity={80} tint={colorScheme} style={styles.formContainer}>
+            <View style={styles.logoContainer}>
+              <Image source={require("../assets/images/logo.png")} style={styles.logo} resizeMode="contain" />
+            </View>
+
+            <Text style={styles.header}>Hello there,</Text>
+            <Text style={styles.subheader}>Welcome Back!</Text>
+
+            <Text style={styles.label}>Enter Email Address</Text>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              placeholder="Email address"
+              style={styles.input}
+              placeholderTextColor={themeColors.inputPlaceholder}
             />
-          </View>
 
-          <Text style={styles.header}>Hello there,</Text>
-          <Text style={styles.subheader}>Welcome Back!</Text>
+            <Text style={styles.label}>Enter Password</Text>
+            <TextInput value={password} onChangeText={setPassword} secureTextEntry placeholder="Password" style={styles.input} placeholderTextColor={themeColors.inputPlaceholder} />
 
-          <Text style={styles.label}>Enter Email Address</Text>
-          <TextInput
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            placeholder="Email address"
-            style={styles.input}
-            placeholderTextColor={themeColors.inputPlaceholder}
-          />
+            <View style={styles.optionsRow}>
+              <TouchableOpacity style={styles.rememberMeContainer} onPress={() => setRememberMe(!rememberMe)}>
+                <FontAwesome name={rememberMe ? "check-square" : "square-o"} size={20} color={rememberMe ? themeColors.buttonBackground : themeColors.text} style={styles.rememberMeIcon} />
+                <Text style={styles.rememberMeText}>Remember me</Text>
+              </TouchableOpacity>
 
-          <Text style={styles.label}>Enter Password</Text>
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            placeholder="Password"
-            style={styles.input}
-            placeholderTextColor={themeColors.inputPlaceholder}
-          />
+              <TouchableOpacity onPress={() => router.push("/forgot-password")}>
+                <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+              </TouchableOpacity>
+            </View>
 
-          <View style={styles.optionsRow}>
-            <TouchableOpacity
-              style={styles.rememberMeContainer}
-              onPress={() => setRememberMe(!rememberMe)}
-            >
-              <FontAwesome
-                name={rememberMe ? "check-square" : "square-o"}
-                size={20}
-                color={rememberMe ? themeColors.buttonBackground : themeColors.text}
-                style={styles.rememberMeIcon}
-              />
-              <Text style={styles.rememberMeText}>Remember me</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => router.push("/forgot-password")}>
-              <Text style={styles.forgotPasswordText}>Forgot password?</Text>
-            </TouchableOpacity>
-          </View>
-
-          {loading ? (
-            <ActivityIndicator size="large" color={themeColors.text} style={styles.loginButtonContainer} />
-          ) : (
-            <TouchableOpacity style={styles.loginButtonContainer} onPress={handleLogin}>
+            <TouchableOpacity style={[styles.loginButtonContainer, loading && styles.disabledButton]} onPress={handleLogin} disabled={loading}>
               <Text style={styles.loginButtonText}>Login</Text>
             </TouchableOpacity>
-          )}
 
-          <Text style={styles.orText}>Or Continue with</Text>
+            <Text style={styles.orText}>Or Continue with</Text>
 
-          <View style={styles.socialContainer}>
-            <TouchableOpacity style={styles.socialButton}>
-              <FontAwesome name="google" size={24} color="#fc6e6eff" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.socialButton}>
-              <FontAwesome name="apple" size={24} color={themeColors.text} />
-            </TouchableOpacity>
-          </View>
+            <View style={styles.socialContainer}>
+              <TouchableOpacity style={styles.socialButton}>
+                <FontAwesome name="google" size={24} color="#fc6e6eff" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.socialButton}>
+                <FontAwesome name="apple" size={24} color={themeColors.text} />
+              </TouchableOpacity>
+            </View>
 
-          <View style={styles.registerContainer}>
-            <Text style={styles.registerText}>Don&apos;t have an account? </Text>
-            <TouchableOpacity onPress={() => router.replace("/register")}>
-              <Text style={styles.registerLink}>Sign up</Text>
-            </TouchableOpacity>
-          </View>
-        </BlurView>
+            <View style={styles.registerContainer}>
+              <Text style={styles.registerText}>Don&apos;t have an account? </Text>
+              <TouchableOpacity onPress={() => router.replace("/register")}>
+                <Text style={styles.registerLink}>Sign up</Text>
+              </TouchableOpacity>
+            </View>
+          </BlurView>
+        </View>
       </View>
-    </View>
     </TouchableWithoutFeedback>
   );
 }
@@ -209,11 +170,22 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
     forgotPasswordText: { color: themeColors.text, fontSize: 16 },
     loginButtonContainer: { marginTop: 10, borderRadius: 12, height: 50, justifyContent: "center", alignItems: "center", backgroundColor: themeColors.buttonBackground },
     loginButtonText: { color: themeColors.text, fontSize: 18, fontWeight: "bold" },
+    disabledButton: {
+      backgroundColor: themeColors.inputBorder,
+      opacity: 0.7,
+    },
+
     orText: { color: themeColors.text, textAlign: "center", marginVertical: 20, fontSize: 16 },
     socialContainer: { flexDirection: "row", justifyContent: "space-around", marginBottom: 30 },
     socialButton: {
-      flex: 1, marginHorizontal: 10, paddingVertical: 10, backgroundColor: themeColors.inputBackground,
-      borderRadius: 12, alignItems: "center", height: 50, justifyContent: "center",
+      flex: 1,
+      marginHorizontal: 10,
+      paddingVertical: 10,
+      backgroundColor: themeColors.inputBackground,
+      borderRadius: 12,
+      alignItems: "center",
+      height: 50,
+      justifyContent: "center",
     },
     registerContainer: { flexDirection: "row", justifyContent: "center" },
     registerText: { color: themeColors.text, fontSize: 18 },

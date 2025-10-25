@@ -45,7 +45,8 @@ export default function TabLayout() {
           shadowOpacity: 0.4,
           shadowRadius: 10,
           elevation: 5,
-          marginHorizontal: 20,
+          marginHorizontal: 30,
+          paddingHorizontal: 10,
         },
       }}
     >
@@ -53,7 +54,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Create",
-          tabBarIcon: ({ color }) => <CreateIcon width={42} height={42} fill={color} />,
+          tabBarIcon: ({ color }) => <CreateIcon width={36} height={36} fill={color} />,
         }}
       />
 
@@ -61,17 +62,9 @@ export default function TabLayout() {
         name="products"
         options={{
           title: "Designs",
-          tabBarIcon: ({ color }) => <ContentIcon width={42} height={42} fill={color} />,
+          tabBarIcon: ({ color }) => <ContentIcon width={38} height={38} fill={color} />,
         }}
       />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
-        }}
-      />
-
       <Tabs.Screen
         name="orders"
         options={{
@@ -80,10 +73,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="settings"
+        name="profile"
         options={{
-          title: "Settings",
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="gearshape.fill" color={color} />,
+          title: "Profile",
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
         }}
       />
     </Tabs>

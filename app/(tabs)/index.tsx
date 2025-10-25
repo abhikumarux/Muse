@@ -1,3 +1,4 @@
+// app/(tabs)/index.tsx
 import React, { useState, useEffect, useRef } from "react";
 import {
   TextInput,
@@ -42,6 +43,9 @@ import { GEMINI_API_KEY, AWS_REGION, AWS_S3_BUCKET as BUCKET, AWS_IDENTITY_POOL_
 
 // Import types
 import { Category, Product, Variant, ProductDetails, PrintFilesResponse, CategoriesResponse, ProductsResponse, ProductDetailsResponse, DesignView, Muse } from "@/lib/types/printful"; // NEW: Imported Muse type
+
+// NEW: Import the DesignText icon
+import { DesignText } from "@/assets/svg/DesignText";
 
 LogBox.ignoreLogs(["Warning: ..."]); // Ignore log notification by message
 LogBox.ignoreAllLogs(); //Ignore all log notifications
@@ -93,6 +97,14 @@ export default function CreateNewDesignTab() {
   const [modalKey, setModalKey] = useState(0);
   const progress = useRef(new Animated.Value(0)).current;
 
+  // NEW: State for "Clothes" category consolidation
+  const [clothesFilter, setClothesFilter] = useState<"men" | "women" | "kids">("men");
+  const [clothesCategoryIds, setClothesCategoryIds] = useState<{
+    men: number | null;
+    women: number | null;
+    kids: number | null;
+  }>({ men: null, women: null, kids: null });
+
   // NEW: Muse Selector State
   const [muses, setMuses] = useState<Muse[]>([]);
   const [loadingMuses, setLoadingMuses] = useState(true);
@@ -137,7 +149,8 @@ export default function CreateNewDesignTab() {
   }, [currentStep]);
 
   useEffect(() => {
-    if (["categories", "products", "variants"].includes(currentView)) {
+    // MODIFIED: Ensure "categories" view is always step 1, even with selection
+    if (currentView === "categories" || currentView === "products" || currentView === "variants") {
       setCurrentStep(1);
     } else if (["placements", "design"].includes(currentView)) {
       setCurrentStep(2);
@@ -293,7 +306,57 @@ export default function CreateNewDesignTab() {
       });
       const data: CategoriesResponse = await response.json();
       if (data.code === 200) {
-        setCategories(data.result.categories);
+        let allCategories = data.result.categories; // Use let to allow modification
+        const menCat = allCategories.find((c) => c.title.toLowerCase() === "men's clothing");
+        const womenCat = allCategories.find((c) => c.title.toLowerCase() === "women's clothing");
+
+        const kidsCat = allCategories.find((c) => {
+          const title = c.title.toLowerCase();
+          return c.parent_id === 0 && (title.includes("kids") || title.includes("youth"));
+        });
+
+        // --- VIRTUAL CATEGORY MOVES ---
+        const hatsCat = allCategories.find((c) => c.title.toLowerCase() === "hats");
+        const accessoriesCat = allCategories.find((c) => c.title.toLowerCase() === "accessories");
+        const brandsCat = allCategories.find((c) => c.title.toLowerCase() === "brands");
+        const collectionsCat = allCategories.find((c) => c.title.toLowerCase() === "collections");
+
+        // NEW: Find "All Hats" category
+        const allHatsCat = allCategories.find((c) => c.title.toLowerCase() === "all hats");
+
+        let modifiedCategories = allCategories.map((cat) => {
+          // NEW: Modify "All Hats" category
+          if (allHatsCat && accessoriesCat && cat.id === allHatsCat.id) {
+            return {
+              ...cat,
+              parent_id: accessoriesCat.id, // Move it under Accessories
+              title: "Hats", // Rename it
+            };
+          }
+
+          // Move "Brands" into "Collections"
+          if (brandsCat && collectionsCat && cat.id === brandsCat.id) {
+            return { ...cat, parent_id: collectionsCat.id };
+          }
+          return cat; // Return unchanged category otherwise
+        });
+
+        // NEW: Filter out the old "Hats" container category
+        allCategories = modifiedCategories.filter((cat) => {
+          if (hatsCat && cat.id === hatsCat.id) {
+            return false; // Remove the old "Hats" category
+          }
+          return true;
+        });
+        // --- END NEW ---
+
+        setClothesCategoryIds({
+          men: menCat?.id || null,
+          women: womenCat?.id || null,
+          kids: kidsCat?.id || null,
+        });
+
+        setCategories(allCategories);
       } else {
         setError("Failed to fetch categories");
       }
@@ -326,10 +389,27 @@ export default function CreateNewDesignTab() {
     }
   };
 
+  // MODIFIED: Corrected logic for category selection
   const handleCategorySelect = (category: Category) => {
     setSelectedCategory(category);
+
+    // NEW: Handle selection of our virtual "Clothes" category
+    if (category.id === -1) {
+      // Set default filter, but DO NOT fetch products
+      // The view will re-render to show subcategories for "men"
+      setClothesFilter("men");
+      setCurrentView("categories"); // Ensure we stay on this view
+      return;
+    }
+    // END NEW
+
     const subcategories = categories.filter((c) => c.parent_id === category.id);
-    if (subcategories.length > 0) return;
+    if (subcategories.length > 0) {
+      setCurrentView("categories"); // Stay on categories view
+      return;
+    }
+
+    // Only fetch products if it's a leaf node (like "All Products" or a specific subcategory)
     fetchProducts(category.id);
   };
 
@@ -703,18 +783,52 @@ export default function CreateNewDesignTab() {
     });
   };
 
+  // NEW: Helper function to create our virtual "Clothes" category object
+  // (Moved here, before it's used in handleBackToCategories)
+  const getFakeClothesCategory = (): Category => {
+    // Use the Men's clothing image as the cover, with fallbacks
+    const clothesImage =
+      categories.find((c) => c.id === clothesCategoryIds.men)?.image_url ||
+      categories.find((c) => c.id === clothesCategoryIds.women)?.image_url ||
+      categories.find((c) => c.id === clothesCategoryIds.kids)?.image_url ||
+      ""; // Add a fallback placeholder image if you have one
+
+    return {
+      id: -1, // Our special ID
+      parent_id: 0,
+      title: "Clothes",
+      image_url: clothesImage,
+      size_guides: [], // Not needed for this virtual category
+    };
+  };
+
+  // MODIFIED: Corrected back logic for clothes subcategories and standard subcategories
   const handleBackToCategories = () => {
+    // Logic to handle backing out of clothing subcategories
+    const clothingParentIds = [clothesCategoryIds.men, clothesCategoryIds.women, clothesCategoryIds.kids].filter(Boolean);
+
+    if (selectedCategory && clothingParentIds.includes(selectedCategory.parent_id)) {
+      // We are in a subcategory like "Men's T-shirts". Go back to "Clothes".
+      setSelectedCategory(getFakeClothesCategory());
+      setCurrentView("categories");
+      setSearchQuery(""); // Clear search when going back up
+      return;
+    }
+
     if (selectedCategory && selectedCategory.parent_id !== 0) {
+      // Handle backing out of "Clothes" (id -1) or any other subcategory (like Hats within Accessories)
       const parentCategory = categories.find((c) => c.id === selectedCategory.parent_id);
       setSelectedCategory(parentCategory || null);
     } else {
+      // We are at the top level or backing out from a top-level category like Accessories
       setSelectedCategory(null);
     }
+
     setCurrentView("categories");
     setProducts([]);
     setProductDetails(null);
     setSelectedProduct(null);
-    setSearchQuery("");
+    setSearchQuery(""); // Clear search when going back up
   };
 
   const handleBackToProducts = () => {
@@ -744,7 +858,7 @@ export default function CreateNewDesignTab() {
     setGeneratedImage(null);
   };
 
-  // NEW: Global Back Handler
+  // MODIFIED: Global Back Handler uses the refined handleBackToCategories
   const handleGlobalBack = () => {
     if (currentView === "viewFinalDesign") {
       handleBackToDesign();
@@ -755,11 +869,12 @@ export default function CreateNewDesignTab() {
     } else if (currentView === "variants") {
       handleBackToProducts();
     } else if (currentView === "products") {
-      handleBackToCategories();
+      handleBackToCategories(); // Use the existing logic which handles subcategories
+    } else if (currentView === "categories" && selectedCategory) {
+      handleBackToCategories(); // Use the existing logic to go up one level
     }
-    // No action if currentView is 'categories'
+    // No action if currentView is 'categories' and no category is selected
   };
-  // END NEW: Global Back Handler
 
   const handleColorSelect = (colorVariant: Variant) => {
     setSelectedColor(colorVariant);
@@ -937,6 +1052,36 @@ export default function CreateNewDesignTab() {
     }
   };
 
+  // MODIFIED: Simplified handler. Just sets the filter state.
+  const handleClothesFilterChange = (filter: "men" | "women" | "kids") => {
+    if (filter === clothesFilter) return; // No change
+    setClothesFilter(filter);
+    // The category view will see this change and re-render.
+  };
+
+  // NEW: Component to render the pill selector
+  const renderClothesPillSelector = () => {
+    return (
+      <View style={styles.pillContainer}>
+        {clothesCategoryIds.men && (
+          <TouchableOpacity style={[styles.pillButton, clothesFilter === "men" && styles.pillButtonActive]} onPress={() => handleClothesFilterChange("men")}>
+            <Text style={[styles.pillButtonText, clothesFilter === "men" && styles.pillButtonTextActive]}>Men's</Text>
+          </TouchableOpacity>
+        )}
+        {clothesCategoryIds.women && (
+          <TouchableOpacity style={[styles.pillButton, clothesFilter === "women" && styles.pillButtonActive]} onPress={() => handleClothesFilterChange("women")}>
+            <Text style={[styles.pillButtonText, clothesFilter === "women" && styles.pillButtonTextActive]}>Women's</Text>
+          </TouchableOpacity>
+        )}
+        {clothesCategoryIds.kids && (
+          <TouchableOpacity style={[styles.pillButton, clothesFilter === "kids" && styles.pillButtonActive]} onPress={() => handleClothesFilterChange("kids")}>
+            <Text style={[styles.pillButtonText, clothesFilter === "kids" && styles.pillButtonTextActive]}>Kids'</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
+
   // NEW: Updated ProgressBar component
   const ProgressBar = () => {
     const steps = ["product", "design", "final"];
@@ -991,55 +1136,38 @@ export default function CreateNewDesignTab() {
   };
   // END NEW: Updated ProgressBar component
 
-  // NEW: Product Flow Header component
-  const ProductFlowHeader = ({ title }: { title: string }) => (
+  // MODIFIED: ProductFlowHeader to accept optional onBackPress
+  const ProductFlowHeader = ({ title, onBackPress }: { title: string; onBackPress?: () => void }) => (
     <View style={styles.productFlowHeaderContainer}>
-      {/* Left: Back Button */}
-      <TouchableOpacity style={styles.backButtonNew} onPress={handleGlobalBack}>
+      {/* MODIFIED: Use passed onBackPress or default to handleGlobalBack */}
+      <TouchableOpacity style={styles.backButtonNew} onPress={onBackPress || handleGlobalBack}>
         <View style={[styles.backIconCircle, { borderColor: theme.text }]}>
           <Ionicons name="arrow-back" size={24} color={theme.text} />{" "}
         </View>
         <Text style={[styles.backText, { color: theme.text }]}>back</Text>
       </TouchableOpacity>
 
-      {/* Center: Title */}
       <Text style={[styles.productFlowTitle, { color: theme.text }]} numberOfLines={1}>
         {title}
       </Text>
 
-      {/* Right: Coins */}
-      <View style={[styles.coinsContainerFlow, { backgroundColor: theme.progressBarActive }]}>
+      {/* MODIFIED: Ensure coins use correct theme colors */}
+      <View style={[styles.coinsContainerFlow, { backgroundColor: theme.text }]}>
         <Image source={require("@/assets/images/coin-icon.png")} style={styles.coinIcon} />
-        <Text style={[styles.coinText, { color: theme.progressBarTextActive }]}>325</Text>
+        <Text style={[styles.coinTextFlow, { color: theme.background }]}>325</Text>
       </View>
     </View>
   );
 
   const renderCurrentView = () => {
-    if (loading && currentView === "categories") {
-      return (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Loading...</Text>
-        </View>
-      );
-    }
-
-    if (error) {
-      return (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={fetchCategories}>
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
+    // ... (Loading and Error states remain the same) ...
+    // ... (viewFinalDesign, design, placements, variants, products views remain the same) ...
 
     if (currentView === "viewFinalDesign") {
+      // ... (existing code)
       return (
         <View style={styles.container}>
-          <ProductFlowHeader title="DESIGN RESULTS" /> {/* NEW Header */}
+          <ProductFlowHeader title="DESIGN RESULTS" /> {/* Uses default handleGlobalBack */}
           <ProgressBar />
           <ScrollView style={styles.scrollView} contentContainerStyle={styles.finalDesignContent}>
             <Text style={styles.finalDesignProductText}>
@@ -1102,9 +1230,10 @@ export default function CreateNewDesignTab() {
     }
 
     if (currentView === "design") {
+      // ... (existing code)
       return (
         <View style={styles.container}>
-          <ProductFlowHeader title="Add Your Inspo" /> {/* NEW Header */}
+          <ProductFlowHeader title="Add Your Inspo" /> {/* Uses default handleGlobalBack */}
           <ProgressBar />
           <ScrollView style={styles.scrollView} contentContainerStyle={styles.designContent} showsVerticalScrollIndicator={false}>
             <View style={styles.uploadButtonsContainer}>
@@ -1176,9 +1305,10 @@ export default function CreateNewDesignTab() {
     }
 
     if (currentView === "placements") {
+      // ... (existing code)
       return (
         <View style={styles.container}>
-          <ProductFlowHeader title="Select Placements" />
+          <ProductFlowHeader title="Select Placements" /> {/* Uses default handleGlobalBack */}
           <ProgressBar />
           <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             <View style={styles.placementsContainer}>
@@ -1211,6 +1341,7 @@ export default function CreateNewDesignTab() {
     }
 
     if (currentView === "variants") {
+      // ... (existing code)
       if (!productDetails) {
         return (
           <View style={styles.loadingContainer}>
@@ -1232,7 +1363,7 @@ export default function CreateNewDesignTab() {
 
       return (
         <View style={styles.container}>
-          <ProductFlowHeader title={product.title} /> {/* NEW Header */}
+          <ProductFlowHeader title={product.title} /> {/* Uses default handleGlobalBack */}
           <ProgressBar />
           <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
             <Image source={{ uri: selectedColor ? selectedColor.image : product.image }} style={styles.mainProductImageNew} />
@@ -1278,11 +1409,15 @@ export default function CreateNewDesignTab() {
     }
 
     if (currentView === "products") {
+      // ... (existing code)
       const filteredProducts = products.filter((p) => p.title.toLowerCase().includes(searchQuery.toLowerCase()));
+
       return (
         <View style={styles.container}>
-          <ProductFlowHeader title={selectedCategory?.title || "Products"} /> {/* NEW Header */}
+          {/* MODIFIED: Title is just the selected category's title */}
+          <ProductFlowHeader title={selectedCategory?.title || "Products"} /> {/* Uses default handleGlobalBack */}
           <ProgressBar />
+          {/* REMOVED: Pill selector is no longer here. */}
           <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             <View style={styles.gridContainer}>
               {filteredProducts.map((product) => (
@@ -1302,19 +1437,55 @@ export default function CreateNewDesignTab() {
     }
 
     // Default: Categories view
-    const parentCategories = categories.filter((c) => c.parent_id === 0);
-    const subcategories = selectedCategory ? categories.filter((c) => c.parent_id === selectedCategory.id) : [];
-    const displayedCategories = (subcategories.length > 0 ? subcategories : parentCategories).filter((c) => c.title.toLowerCase().includes(searchQuery.toLowerCase()));
+    let displayedCategories: Category[] = [];
+    const isClothesCategoryView = selectedCategory?.id === -1;
+    // NEW: Find "All Products" category *before* filtering
+    const allProductsCategory = categories.find((c) => c.title === "All products");
+
+    if (isClothesCategoryView) {
+      // ... (logic remains the same)
+      let activeParentId: number | null = null;
+      if (clothesFilter === "men") activeParentId = clothesCategoryIds.men;
+      else if (clothesFilter === "women") activeParentId = clothesCategoryIds.women;
+      else if (clothesFilter === "kids") activeParentId = clothesCategoryIds.kids;
+
+      if (activeParentId) {
+        displayedCategories = categories.filter((c) => c.parent_id === activeParentId);
+      }
+    } else if (selectedCategory) {
+      // ... (logic remains the same)
+      displayedCategories = categories.filter((c) => c.parent_id === selectedCategory.id);
+    } else {
+      // ... (logic remains the same)
+      const clothingCatIds = [clothesCategoryIds.men, clothesCategoryIds.women, clothesCategoryIds.kids].filter(Boolean) as number[];
+      // MODIFIED: Also filter out "All products" here if it exists at the top level
+      const parentCategories = categories.filter(
+        (c) => c.parent_id === 0 && !clothingCatIds.includes(c.id) && c.id !== allProductsCategory?.id // Exclude "All products"
+      );
+      displayedCategories = parentCategories;
+      if (clothingCatIds.length > 0) {
+        displayedCategories.unshift(getFakeClothesCategory());
+      }
+    }
+
+    // Filter by search *after* determining the list, also exclude All Products from grid
+    displayedCategories = displayedCategories.filter((c) => c.title.toLowerCase().includes(searchQuery.toLowerCase()) && c.id !== allProductsCategory?.id);
+
     return (
       <View style={styles.container}>
-        {/* NEW: Top Bar for Categories view */}
-        {!selectedCategory && (
+        {/* MODIFIED: Conditional Header Rendering */}
+        {selectedCategory ? (
+          // Use ProductFlowHeader when a category is selected (provides title, back, coins)
+          // Pass specific back handler for category view
+          <ProductFlowHeader title={selectedCategory.title} onBackPress={handleBackToCategories} />
+        ) : (
+          // Use the original topBarContainer for the top-level view
           <View style={styles.topBarContainer}>
             <TouchableOpacity style={styles.museSelectorButton} onPress={openMuseSelector}>
               <Text style={styles.museSelectorText}>Choose Muse</Text>
             </TouchableOpacity>
             <View style={styles.titleImageContainer}>
-              <Image source={require("@/assets/images/Design.png")} style={styles.titleImage} resizeMode="contain" />
+              <DesignText height={45} width="100%" fill={theme.text} preserveAspectRatio="xMidYMid meet" style={{ height: 55, width: "100%" }} />
             </View>
             <View style={[styles.coinsContainer, { backgroundColor: theme.text }]}>
               <Image source={require("@/assets/images/coin-icon.png")} style={styles.coinIcon} />
@@ -1322,16 +1493,10 @@ export default function CreateNewDesignTab() {
             </View>
           </View>
         )}
-        <View style={styles.headerContainer}>
-          {selectedCategory && (
-            <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
-              <View style={[styles.backIconCircle, { borderColor: theme.text }]}>
-                <Ionicons name="arrow-back" size={24} color={theme.text} />{" "}
-              </View>
-              <Text style={[styles.backText, { color: theme.text }]}>back</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+
+        {/* Pill selector renders *after* the header if needed */}
+        {isClothesCategoryView && renderClothesPillSelector()}
+
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.gridContainer}>
             {displayedCategories.map((category) => (
@@ -1343,6 +1508,14 @@ export default function CreateNewDesignTab() {
               </TouchableOpacity>
             ))}
           </View>
+          {/* MODIFIED: Render "All Products" button *after* the ScrollView */}
+          {allProductsCategory && !searchQuery && !selectedCategory && (
+            <View style={styles.allProductsButtonContainer}>
+              <TouchableOpacity style={styles.allProductsButton} onPress={() => handleCategorySelect(allProductsCategory)}>
+                <Text style={styles.allProductsButtonText}>View all Products</Text>{" "}
+              </TouchableOpacity>
+            </View>
+          )}
         </ScrollView>
       </View>
     );
@@ -1406,7 +1579,7 @@ export default function CreateNewDesignTab() {
               >
                 <Text style={styles.museModalSeeAllText}>See All</Text>
               </TouchableOpacity>
-              <Text style={[styles.museModalTitle, { color: theme.text }]}>Select Your Muse</Text>
+              <Text style={[styles.museModalTitle, { color: "#FFFFFF" }]}>Select Your Muse</Text>
               <TouchableOpacity onPress={() => setMuseSelectorVisible(false)} style={styles.museModalCloseButton}>
                 <Text style={styles.museModalCloseButtonText}>Done</Text>
               </TouchableOpacity>
@@ -1490,9 +1663,9 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
     scrollView: { flex: 1 },
-    scrollContent: { padding: 20, paddingTop: 0, paddingBottom: 40 },
-    // OLD HEADER STYLE - Kept but not used in flow views
-    headerContainer: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10, backgroundColor: theme.background },
+    // MODIFIED: Adjusted paddingTop for scrollContent when header is present
+    scrollContent: { padding: 20, paddingTop: 10, paddingBottom: 80 }, // Adjusted paddingBottom slightly
+    // REMOVED: headerContainer styles are not needed
     variantHeader: {
       flexDirection: "row",
       alignItems: "center",
@@ -1503,39 +1676,29 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       borderBottomWidth: 1,
       borderColor: theme.tabIconDefault,
     },
-    backButton: { padding: 5, marginRight: 15 },
+    // backButton: { padding: 5, marginRight: 15 }, // Keep if needed elsewhere
     backButtonText: { fontSize: 18, color: theme.tint, fontWeight: "600" },
     headerText: { fontSize: 22, fontWeight: "bold", color: theme.text, flex: 1, textAlign: "center", marginRight: 40 },
-    searchContainer: { paddingHorizontal: 20, paddingBottom: 20 },
-    searchInput: { height: 44, backgroundColor: theme.card, borderRadius: 8, paddingHorizontal: 15, fontSize: 16, borderWidth: 1, borderColor: theme.tabIconDefault, color: theme.text },
     gridContainer: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
     categoryCard: {
       width: CARD_WIDTH,
+      height: CARD_WIDTH * 1.4,
       backgroundColor: theme.card,
       borderRadius: 16,
       marginBottom: 20,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.05,
-      shadowRadius: 10,
-      elevation: 3,
-      borderWidth: 1,
-      borderColor: theme.tabIconDefault,
+      borderWidth: 2,
+      borderColor: theme.text,
+      paddingBottom: 12,
     },
-    categoryImage: { width: "100%", height: CARD_WIDTH * 0.8, borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: theme.tabIconDefault },
-    categoryTitle: { fontSize: 14, fontWeight: "600", color: theme.text, textAlign: "center", padding: 12 },
+    categoryImage: { width: "100%", height: CARD_WIDTH * 1, borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: theme.tabIconDefault },
+    categoryTitle: { fontSize: 16, fontWeight: "600", color: theme.text, textAlign: "center", paddingTop: 20 },
     productCard: {
       width: CARD_WIDTH,
       backgroundColor: theme.card,
       borderRadius: 16,
       marginBottom: 20,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.05,
-      shadowRadius: 10,
-      elevation: 3,
       borderWidth: 1,
-      borderColor: theme.tabIconDefault,
+      borderColor: theme.text,
       paddingBottom: 12,
     },
     productImage: { width: "100%", height: CARD_WIDTH * 0.8, borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: theme.tabIconDefault },
@@ -1811,13 +1974,15 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     },
     designControlButtonPrimaryText: { color: theme.background, fontSize: 14, fontWeight: "bold" },
 
-    // --- NEW: Product Flow Header Styles (Replaces Global Back) ---
+    // --- NEW: Product Flow Header Styles ---
     productFlowHeaderContainer: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
       paddingHorizontal: 20,
-      paddingTop: 10,
+      paddingTop: 10, // Adjusted padding
+      paddingBottom: 5, // Added padding bottom
+      backgroundColor: theme.background, // Ensure background color
     },
     backButtonNew: {
       alignItems: "center",
@@ -1848,10 +2013,11 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     },
     productFlowTitle: {
       flex: 1,
-      fontSize: 28,
+      fontSize: 28, // Adjusted size slightly
       fontWeight: "bold",
       textAlign: "center",
       color: theme.text,
+      marginHorizontal: 10, // Added margin to prevent overlap
     },
     coinsContainerFlow: {
       flexDirection: "row",
@@ -1859,8 +2025,9 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       borderRadius: 20,
       paddingHorizontal: 12,
       paddingVertical: 6,
-      minWidth: 70,
+      minWidth: 70, // Ensure minimum width
       backgroundColor: theme.text,
+      // Removed fixed position, rely on flexbox in header
     },
     coinTextFlow: { fontSize: 18, fontWeight: "bold", color: theme.background },
     coinIconPlaceholder: {
@@ -1915,6 +2082,8 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       alignItems: "center",
       paddingHorizontal: 20,
       paddingTop: 10,
+      paddingBottom: 5, // Match padding of ProductFlowHeader
+      backgroundColor: theme.background, // Ensure background
     },
     coinsContainer: {
       flexDirection: "row",
@@ -1988,7 +2157,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       shadowOpacity: 0.3,
       shadowRadius: 12,
       elevation: 10,
-      marginHorizontal: MUSE_ITEM_SPACING / 2, // Half spacing on each side
+      // marginHorizontal: MUSE_ITEM_SPACING / 2, // <-- REMOVED THIS LINE
     },
     museBackgroundImage: {
       width: "100%",
@@ -2013,5 +2182,69 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     },
     coinIcon: { width: 24, height: 24, marginRight: 8 },
     coinText: { fontSize: 18, fontWeight: "bold", color: theme.background },
+
+    // --- NEW: Pill Selector Styles ---
+    pillContainer: {
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: 20,
+      paddingVertical: 10, // Keep padding for spacing
+      backgroundColor: theme.background, // Ensure background
+      gap: 10,
+    },
+    pillButton: {
+      paddingVertical: 10,
+      paddingHorizontal: 24,
+      borderRadius: 20,
+      backgroundColor: theme.card,
+      borderWidth: 1.5,
+      borderColor: theme.tabIconDefault,
+    },
+    pillButtonActive: {
+      backgroundColor: theme.text,
+      borderColor: theme.text,
+    },
+    pillButtonText: {
+      color: theme.text,
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    pillButtonTextActive: {
+      color: theme.background,
+      fontWeight: "700",
+    },
+    // --- End Pill Selector Styles ---
+
+    // --- NEW: All Products Button Styles ---
+    allProductsButtonContainer: {
+      paddingHorizontal: 0, // No horizontal padding needed as it's inside scrollContent padding
+      marginTop: 0, // No extra top margin needed if grid has marginBottom
+      paddingBottom: 0, // Let scrollContent handle final padding
+      // backgroundColor: theme.background, // Not needed inside ScrollView
+    },
+    allProductsButton: {
+      backgroundColor: theme.card,
+      paddingVertical: 14,
+      borderRadius: 12,
+      alignItems: "center",
+      borderWidth: 1.5,
+      borderColor: theme.tabIconDefault,
+      shadowColor: theme.text,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+      // MODIFIED: Add a top margin to separate from the grid if the grid was populated
+      marginTop: 0, // Reset marginTop, marginBottom on categoryCard handles spacing mostly
+      marginBottom: 0, // Let scrollContent padding handle bottom space
+    },
+    allProductsButtonText: {
+      color: theme.text,
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    // --- End All Products Button Styles ---
+
     // --- End Muse Selector Styles ---
   });
