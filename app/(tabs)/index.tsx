@@ -9,7 +9,7 @@ import {
   View,
   Text,
   ScrollView,
-  Image, // Keep Image for other uses
+  Image,
   TouchableOpacity,
   StyleSheet,
   Dimensions,
@@ -23,9 +23,6 @@ import { captureRef } from "react-native-view-shot";
 import * as ImagePicker from "expo-image-picker";
 import ImageZoom from "react-native-image-pan-zoom";
 import { MotiView } from "moti";
-// --- (ADDITION) ---
-import AnimatedReanimated, { useSharedValue, useAnimatedStyle, useAnimatedScrollHandler, interpolate, Extrapolate } from "react-native-reanimated";
-// --- (END ADDITION) ---
 import { Colors } from "@/constants/Colors";
 import { useUser } from "../../lib/UserContext";
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
@@ -40,10 +37,6 @@ import { saveDesign } from "../../lib/aws/saveDesign";
 import { v4 as uuidv4 } from "uuid"; // Import uuid
 import { LogBox } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-// --- (DELETION) ---
-// import { LoadingAnimation } from "@/components/ui/LoadingAnimation"; // --- REMOVE THIS IMPORT
-// --- (ADDITION) ---
-import { LoadingModal } from "@/components/ui/LoadingModal"; // +++ ADD THIS IMPORT
 
 // Import constants
 import { GEMINI_API_KEY, AWS_REGION, AWS_S3_BUCKET as BUCKET, AWS_IDENTITY_POOL_ID } from "@/lib/config/constants";
@@ -53,11 +46,6 @@ import { Category, Product, Variant, ProductDetails, PrintFilesResponse, Categor
 
 // NEW: Import the DesignText icon
 import { DesignText } from "@/assets/svg/DesignText";
-
-// --- (ADDITION) ---
-// Import the MuseCoin component
-import { MuseCoin } from "@/assets/svg/MuseCoin"; //
-// --- (END ADDITION) ---
 
 LogBox.ignoreLogs(["Warning: ..."]); // Ignore log notification by message
 LogBox.ignoreAllLogs(); //Ignore all log notifications
@@ -83,7 +71,7 @@ export default function CreateNewDesignTab() {
   const [productDetails, setProductDetails] = useState<ProductDetails | null>(null);
   const [placementFiles, setPlacementFiles] = useState<Record<string, string>>({});
   const [selectedPlacements, setSelectedPlacements] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true); // This state is for the initial category fetch
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<DesignView>("categories");
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
@@ -109,12 +97,6 @@ export default function CreateNewDesignTab() {
   const [modalKey, setModalKey] = useState(0);
   const progress = useRef(new Animated.Value(0)).current;
 
-  // --- (ADDITION) ---
-  // New states for the popup loading modal
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [modalLoadingText, setModalLoadingText] = useState("Loading...");
-  // --- (END ADDITION) ---
-
   // NEW: State for "Clothes" category consolidation
   const [clothesFilter, setClothesFilter] = useState<"men" | "women" | "kids">("men");
   const [clothesCategoryIds, setClothesCategoryIds] = useState<{
@@ -123,57 +105,12 @@ export default function CreateNewDesignTab() {
     kids: number | null;
   }>({ men: null, women: null, kids: null });
 
-  // NEW: State for the switch animation
-  const [switchLayout, setSwitchLayout] = useState({ width: 0, height: 0 });
-  const switchTranslateX = useRef(new Animated.Value(0)).current;
-
   // NEW: Muse Selector State
   const [muses, setMuses] = useState<Muse[]>([]);
   const [loadingMuses, setLoadingMuses] = useState(true);
   const [museSelectorVisible, setMuseSelectorVisible] = useState(false);
   const scrollX = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef<ScrollView>(null);
-  const categoryScrollViewRef = useRef<ScrollView>(null);
-  // --- (ADDITION) ---
-  // Ref for the design view scroll
-  const designScrollViewRef = useRef<ScrollView>(null);
-  // --- (END ADDITION) ---
-
-  // --- (ADDITION) ---
-  // Reanimated values for variant image scroll
-  const variantScrollY = useSharedValue(0);
-  const variantScrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      variantScrollY.value = event.contentOffset.y;
-    },
-  });
-
-  const animatedImageStyle = useAnimatedStyle(() => {
-    const scale = interpolate(
-      variantScrollY.value,
-      [-100, 0, width * 0.7], // Animate from pull-down to scrolling 70% of image height
-      [1.05, 1, 0.75], // Scale from 1.05 down to 0.75
-      Extrapolate.CLAMP
-    );
-    const opacity = interpolate(
-      variantScrollY.value,
-      [0, width * 0.5], // Start fading after scrolling 50% of image height
-      [1, 0.8],
-      Extrapolate.CLAMP
-    );
-    const translateY = interpolate(
-      variantScrollY.value,
-      [0, width * 0.7],
-      [0, width * 0.15], // Move image down slightly for parallax
-      Extrapolate.CLAMP
-    );
-
-    return {
-      transform: [{ scale }, { translateY }],
-      opacity: opacity,
-    };
-  });
-  // --- (END ADDITION) ---
 
   // Find the current muse (moved up for earlier access)
   const currentMuse = muses.find((m) => m.museID === selectedMuseId);
@@ -231,17 +168,6 @@ export default function CreateNewDesignTab() {
     loadMusesAndSelection(); // NEW: Load muses on mount
   }, [userId]);
 
-  // --- (ADDITION) ---
-  // Scroll to generated image when it appears
-  useEffect(() => {
-    if (generatedImage && currentView === "design") {
-      setTimeout(() => {
-        designScrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100); // Small delay to ensure layout is complete
-    }
-  }, [generatedImage, currentView]);
-  // --- (END ADDITION) ---
-
   // NEW: Muse selector visible effect
   useEffect(() => {
     if (museSelectorVisible) {
@@ -256,33 +182,6 @@ export default function CreateNewDesignTab() {
       }, 0);
     }
   }, [museSelectorVisible]);
-
-  // NEW: useEffect for switch animation
-  useEffect(() => {
-    if (switchLayout.width > 0) {
-      let toValue = 0;
-      const filters: ("men" | "women" | "kids")[] = [];
-      if (clothesCategoryIds.men) filters.push("men");
-      if (clothesCategoryIds.women) filters.push("women");
-      if (clothesCategoryIds.kids) filters.push("kids");
-
-      const filterIndex = filters.indexOf(clothesFilter);
-      // Ensure division by zero doesn't happen if filters are somehow empty
-      const segmentWidth = filters.length > 0 ? switchLayout.width / filters.length : 0;
-
-      if (filterIndex !== -1) {
-        toValue = segmentWidth * filterIndex;
-      }
-
-      Animated.spring(switchTranslateX, {
-        toValue,
-        stiffness: 180,
-        damping: 20,
-        mass: 1,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [clothesFilter, switchLayout.width, clothesCategoryIds]);
 
   const handleImageZoom = (imageUrl: string) => {
     setSelectedImageUrlForZoom(imageUrl);
@@ -585,18 +484,13 @@ export default function CreateNewDesignTab() {
   const GenerateFinalDesign = async () => {
     if (!GEMINI_API_KEY) {
       Alert.alert("Error", "Missing API Key. Please configure your .env file.");
-      return; // --- MODIFICATION --- No need to setLoading(false)
+      setLoading(false);
+      return;
     }
-    // --- (ADDITION) ---
-    setModalLoadingText("Generating Design...");
-    setIsProcessing(true);
-    // --- (DELETION) ---
-    // setLoading(true);
+    setLoading(true);
     if (!uploadedImages.left) {
       Alert.alert("Missing Images", "Please upload at least one image first.");
-      // --- (MODIFICATION) ---
-      setIsProcessing(false);
-      // setLoading(false);
+      setLoading(false);
       return;
     }
 
@@ -615,9 +509,7 @@ export default function CreateNewDesignTab() {
 
     if (!localUri1) {
       Alert.alert("Error", "First image is missing or could not be processed.");
-      // --- (MODIFICATION) ---
-      setIsProcessing(false);
-      // setLoading(false);
+      setLoading(false);
       return;
     }
 
@@ -733,9 +625,7 @@ export default function CreateNewDesignTab() {
     } catch (err: any) {
       console.error("Error generating combined image:", err);
     } finally {
-      // --- (MODIFICATION) ---
-      setIsProcessing(false);
-      // setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -770,7 +660,8 @@ export default function CreateNewDesignTab() {
   const handleRemix = async () => {
     if (!GEMINI_API_KEY) {
       Alert.alert("Error", "Missing API Key. Please configure your .env file.");
-      return; // --- MODIFICATION ---
+      setLoading(false);
+      return;
     }
     if (!generatedImage) {
       Alert.alert("No Design", "Please generate an initial design first.");
@@ -780,10 +671,7 @@ export default function CreateNewDesignTab() {
       Alert.alert("No Prompt", "Please enter a prompt to remix the image.");
       return;
     }
-    // --- (MODIFICATION) ---
-    setModalLoadingText("Remixing Design...");
-    setIsProcessing(true);
-    // setLoading(true);
+    setLoading(true);
 
     try {
       const base64Image = generatedImage.replace(/^data:image\/\w+;base64,/, "");
@@ -800,9 +688,7 @@ export default function CreateNewDesignTab() {
         const errorText = await response.text();
         console.error("Gemini API HTTP error:", response.status, errorText);
         Alert.alert("Error", `Gemini API request failed: ${response.status}`);
-        // --- (MODIFICATION) ---
-        setIsProcessing(false);
-        // setLoading(false);
+        setLoading(false);
         return;
       }
 
@@ -815,9 +701,7 @@ export default function CreateNewDesignTab() {
       console.error("Error remixing image:", err);
       Alert.alert("Error", "Failed to remix image. " + (err?.message || ""));
     } finally {
-      // --- (MODIFICATION) ---
-      setIsProcessing(false);
-      // setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -835,32 +719,7 @@ export default function CreateNewDesignTab() {
     }
   };
 
-  // --- (ADDITION) ---
-  const handleImageAdd = (position: "left" | "right") => {
-    Alert.alert(
-      "Add Image",
-      "Choose a source for your image:",
-      [
-        {
-          text: "Take Photo",
-          onPress: () => takePhoto(position), // Pass position
-        },
-        {
-          text: "Choose from Library",
-          onPress: () => pickImage(position), // Pass position
-        },
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-      ],
-      { cancelable: true }
-    );
-  };
-  // --- (END ADDITION) ---
-
-  const pickImage = async (position: "left" | "right") => {
-    // MODIFIED
+  const pickImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -870,11 +729,11 @@ export default function CreateNewDesignTab() {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setUploadedImages((prev) => ({
-          // MODIFIED
-          ...prev,
-          [position]: result.assets[0].uri,
-        }));
+        setUploadedImages((prev) => {
+          if (!prev.left) return { ...prev, left: result.assets[0].uri };
+          if (!prev.right) return { ...prev, right: result.assets[0].uri };
+          return prev;
+        });
       }
     } catch (error) {
       console.error("Image picker error:", error);
@@ -882,8 +741,7 @@ export default function CreateNewDesignTab() {
     }
   };
 
-  const takePhoto = async (position: "left" | "right") => {
-    // MODIFIED
+  const takePhoto = async () => {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== "granted") {
@@ -897,12 +755,12 @@ export default function CreateNewDesignTab() {
         quality: 1,
       });
 
-      if (!result.canceled && result.assets.length > 0) {
-        setUploadedImages((prev) => ({
-          // MODIFIED
-          ...prev,
-          [position]: result.assets[0].uri,
-        }));
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setUploadedImages((prev) => {
+          if (!prev.left) return { ...prev, left: result.assets[0].uri };
+          if (!prev.right) return { ...prev, right: result.assets[0].uri };
+          return prev;
+        });
       }
     } catch (error) {
       Alert.alert("Error", "Failed to open camera.");
@@ -1049,10 +907,7 @@ export default function CreateNewDesignTab() {
       return;
     }
 
-    // --- (MODIFICATION) ---
-    setModalLoadingText("Applying to Product...");
-    setIsProcessing(true);
-    // setLoading(true);
+    setLoading(true);
     try {
       let base64Data;
       if (generatedImage.startsWith("data:")) {
@@ -1143,9 +998,7 @@ export default function CreateNewDesignTab() {
           setMockupUrls(urls);
           setMockupImages(urls);
           setCurrentView("viewFinalDesign");
-          // --- (MODIFICATION) ---
-          setIsProcessing(false);
-          // setLoading(false);
+          setLoading(false);
           return;
         }
 
@@ -1157,9 +1010,7 @@ export default function CreateNewDesignTab() {
     } catch (err: any) {
       console.error("Error in putImageOnItem:", err);
       Alert.alert("Error", err.message || "Something went wrong.");
-      // --- (MODIFICATION) ---
-      setIsProcessing(false);
-      // setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -1207,61 +1058,29 @@ export default function CreateNewDesignTab() {
   // MODIFIED: Simplified handler. Just sets the filter state.
   const handleClothesFilterChange = (filter: "men" | "women" | "kids") => {
     if (filter === clothesFilter) return; // No change
-
-    // --- (ADDITION) ---
-    // Scroll to top when filter changes
-    categoryScrollViewRef.current?.scrollTo({ x: 0, y: 0, animated: true });
-    // --- (END ADDITION) ---
-
     setClothesFilter(filter);
     // The category view will see this change and re-render.
   };
 
-  // MODIFIED: Component to render the new animated switch
-  const renderClothesSwitch = () => {
-    const filters: { key: "men" | "women" | "kids"; label: string }[] = [];
-    if (clothesCategoryIds.men) filters.push({ key: "men", label: "Men's" });
-    if (clothesCategoryIds.women) filters.push({ key: "women", label: "Women's" });
-    if (clothesCategoryIds.kids) filters.push({ key: "kids", label: "Kids'" });
-
-    // Don't render if only 1 or 0 options
-    if (filters.length <= 1) return null;
-
-    // Adjust thumb width based on number of filters
-    const thumbWidth = `${100 / filters.length}%`;
-
-    // NEW: Define dynamic gradient colors
-    let currentGradient: string[];
-    if (clothesFilter === "men") {
-      currentGradient = ["#007AFF", "#00C6FF"]; // Blue gradient
-    } else if (clothesFilter === "women") {
-      currentGradient = ["#E91E63", "#F48FB1"]; // Pink gradient
-    } else {
-      // 'kids'
-      currentGradient = ["#4CAF50", "#81C784"]; // Green gradient
-    }
-
+  // NEW: Component to render the pill selector
+  const renderClothesPillSelector = () => {
     return (
-      <View style={styles.clothesSwitchContainer} onLayout={(e) => setSwitchLayout(e.nativeEvent.layout)}>
-        {switchLayout.width > 0 && (
-          <Animated.View
-            style={[
-              styles.clothesSwitchThumb,
-              {
-                width: thumbWidth,
-                transform: [{ translateX: switchTranslateX }],
-              },
-            ]}
-          >
-            {/* NEW: Add the gradient inside the thumb */}
-            <LinearGradient colors={currentGradient} style={styles.gradientThumb} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-          </Animated.View>
-        )}
-        {filters.map((filter) => (
-          <TouchableOpacity key={filter.key} style={styles.clothesSwitchButton} onPress={() => handleClothesFilterChange(filter.key)}>
-            <Text style={[styles.clothesSwitchText, clothesFilter === filter.key && styles.clothesSwitchTextActive]}>{filter.label}</Text>
+      <View style={styles.pillContainer}>
+        {clothesCategoryIds.men && (
+          <TouchableOpacity style={[styles.pillButton, clothesFilter === "men" && styles.pillButtonActive]} onPress={() => handleClothesFilterChange("men")}>
+            <Text style={[styles.pillButtonText, clothesFilter === "men" && styles.pillButtonTextActive]}>Men's</Text>
           </TouchableOpacity>
-        ))}
+        )}
+        {clothesCategoryIds.women && (
+          <TouchableOpacity style={[styles.pillButton, clothesFilter === "women" && styles.pillButtonActive]} onPress={() => handleClothesFilterChange("women")}>
+            <Text style={[styles.pillButtonText, clothesFilter === "women" && styles.pillButtonTextActive]}>Women's</Text>
+          </TouchableOpacity>
+        )}
+        {clothesCategoryIds.kids && (
+          <TouchableOpacity style={[styles.pillButton, clothesFilter === "kids" && styles.pillButtonActive]} onPress={() => handleClothesFilterChange("kids")}>
+            <Text style={[styles.pillButtonText, clothesFilter === "kids" && styles.pillButtonTextActive]}>Kids'</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   };
@@ -1337,37 +1156,14 @@ export default function CreateNewDesignTab() {
 
       {/* MODIFIED: Ensure coins use correct theme colors */}
       <View style={[styles.coinsContainerFlow, { backgroundColor: theme.text }]}>
-        {/* --- (REPLACEMENT) --- */}
-        <MuseCoin width={24} height={24} style={styles.coinIcon} />
-        {/* --- (END REPLACEMENT) --- */}
+        <Image source={require("@/assets/images/coin-icon.png")} style={styles.coinIcon} />
         <Text style={[styles.coinTextFlow, { color: theme.background }]}>325</Text>
       </View>
     </View>
   );
 
   const renderCurrentView = () => {
-    // --- (MODIFICATION) ---
-    // Show loading indicator for initial category fetch
-    if (loading && !isProcessing) {
-      return (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.tint} />
-          <Text style={styles.loadingText}>Loading Products...</Text>
-        </View>
-      );
-    }
-    // --- (END MODIFICATION) ---
-
-    if (error) {
-      return (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={fetchCategories}>
-            <Text style={styles.retryButtonText}>Try Again</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
+    // ... (Loading and Error states remain the same) ...
     // ... (viewFinalDesign, design, placements, variants, products views remain the same) ...
 
     if (currentView === "viewFinalDesign") {
@@ -1413,11 +1209,9 @@ export default function CreateNewDesignTab() {
               >
                 <Text style={styles.designControlButtonText}>ADD TO STORE</Text>
               </TouchableOpacity>
-              {/* --- (MODIFICATION) --- */}
-              <TouchableOpacity style={[styles.designControlButton, isProcessing && { opacity: 0.7 }]} onPress={handleRemix} disabled={isProcessing}>
+              <TouchableOpacity style={styles.designControlButton} onPress={handleRemix}>
                 <Text style={styles.designControlButtonText}>REMIX</Text>
               </TouchableOpacity>
-              {/* --- (END MODIFICATION) --- */}
             </View>
             <View style={styles.finalDesignButtonRow}>
               <TouchableOpacity style={styles.designControlButton} onPress={handleSaveDesign} disabled={isSaving}>
@@ -1428,14 +1222,12 @@ export default function CreateNewDesignTab() {
               </TouchableOpacity>
             </View>
           </ScrollView>
-          {/* --- (DELETION) --- */}
-          {/* {loading && (
+          {loading && (
             <View style={styles.loadingOverlay}>
-              <LoadingAnimation size={120} />
+              <ActivityIndicator size="large" color={theme.tint} />
               <Text style={styles.loadingText}>Processing...</Text>
             </View>
-          )} */}
-          {/* --- (END DELETION) --- */}
+          )}
         </View>
       );
     }
@@ -1446,92 +1238,69 @@ export default function CreateNewDesignTab() {
         <View style={styles.container}>
           <ProductFlowHeader title="Add Your Inspo" /> {/* Uses default handleGlobalBack */}
           <ProgressBar />
-          {/* --- (MODIFICATION) --- */}
-          <ScrollView ref={designScrollViewRef} style={styles.scrollView} contentContainerStyle={styles.designContent} showsVerticalScrollIndicator={false}>
-            {/* --- (DELETION) ---
-            <View style={styles.uploadButtonsContainer}> ... </View>
-            --- (END DELETION) --- */}
-
-            {/* --- (MODIFICATION) --- */}
-            <Text style={styles.designUploadTitle}>upload up to 2 inspo images</Text>
-            <Text style={styles.designUploadPrompt}>Tap a box to add an image</Text>
-            {/* --- (END MODIFICATION) --- */}
-
-            <View style={styles.imagePreviewContainer}>
-              {/* --- (MODIFICATION) --- */}
-              <View style={styles.imagePreviewWrapper}>
-                <View style={styles.imagePreviewBox}>
-                  {uploadedImages.left ? (
-                    <View style={styles.imageWithDelete}>
-                      <Image source={{ uri: uploadedImages.left }} style={styles.previewImage} />
-                      <TouchableOpacity style={styles.deleteButton} onPress={() => deleteImage("left")}>
-                        <Text style={styles.deleteButtonText}>×</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ) : (
-                    <TouchableOpacity style={styles.emptyImageBox} onPress={() => handleImageAdd("left")}>
-                      <Ionicons name="add-circle-outline" size={width * 0.2} color={theme.text} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-                <Text style={styles.imagePreviewLabel}>image #1</Text>
-              </View>
-
-              <View style={styles.imagePreviewWrapper}>
-                <View style={styles.imagePreviewBox}>
-                  {uploadedImages.right ? (
-                    <View style={styles.imageWithDelete}>
-                      <Image source={{ uri: uploadedImages.right }} style={styles.previewImage} />
-                      <TouchableOpacity style={styles.deleteButton} onPress={() => deleteImage("right")}>
-                        <Text style={styles.deleteButtonText}>×</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ) : (
-                    <TouchableOpacity style={styles.emptyImageBox} onPress={() => handleImageAdd("right")} disabled={!uploadedImages.left}>
-                      <Ionicons name="add-circle-outline" size={width * 0.2} color={!uploadedImages.left ? theme.tabIconDefault : theme.text} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-                <Text style={[styles.imagePreviewLabel, !uploadedImages.left && styles.imagePreviewLabelDisabled]}>image #2</Text>
-              </View>
-              {/* --- (END MODIFICATION) --- */}
-            </View>
-            {/* --- (MODIFICATION) --- */}
-            {generatedImage && (
-              <MotiView from={{ opacity: 0, scale: 0.9, translateY: 20 }} animate={{ opacity: 1, scale: 1, translateY: 0 }} transition={{ type: "timing", duration: 400 }}>
-                <View style={styles.generatedDesignContainer}>
-                  <TouchableOpacity style={styles.deleteGeneratedButton} onPress={deleteGeneratedImage}>
-                    <Text style={styles.deleteGeneratedButtonText}>×</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.generatedDesignTitle}>Generated Design</Text>
-                  <TouchableOpacity onPress={() => handleImageZoom(generatedImage)}>
-                    <Image source={{ uri: generatedImage }} style={styles.generatedDesignImage} />
-                  </TouchableOpacity>
-                  <TextInput style={styles.input} placeholder="Type adjustments for a remix..." placeholderTextColor={theme.secondaryText} value={prompt} onChangeText={setPrompt} />
-                  <View style={styles.designActionRow}>
-                    {/* --- (MODIFICATION) --- */}
-                    <TouchableOpacity style={[styles.designControlButton, isProcessing && { opacity: 0.7 }]} onPress={handleRemix} disabled={isProcessing}>
-                      <Text style={styles.designControlButtonText}>Remix</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[styles.designControlButtonPrimary, isProcessing && { opacity: 0.7 }]} onPress={putImageOnItem} disabled={isProcessing}>
-                      <Text style={styles.designControlButtonPrimaryText}>Apply to Item</Text>
-                    </TouchableOpacity>
-                    {/* --- (END MODIFICATION) --- */}
-                  </View>
-                </View>
-              </MotiView>
-            )}
-            {/* --- (END MODIFICATION) --- */}
-            {!generatedImage && (
-              /* --- (MODIFICATION) --- */
-              <TouchableOpacity
-                onPress={GenerateFinalDesign}
-                style={[styles.finalGenerateButton, isProcessing && { opacity: 0.7 }, !uploadedImages.left && styles.disabledButton]}
-                disabled={isProcessing || !uploadedImages.left}
-              >
-                <Text style={styles.finalGenerateButtonText}>Generate Design</Text>
+          <ScrollView style={styles.scrollView} contentContainerStyle={styles.designContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.uploadButtonsContainer}>
+              <TouchableOpacity style={styles.uploadButton} onPress={takePhoto}>
+                <Text style={styles.uploadButtonText}>📷 Take Photo</Text>
               </TouchableOpacity>
-              /* --- (END MODIFICATION) --- */
+              <TouchableOpacity style={styles.uploadButton} onPress={pickImage}>
+                <Text style={styles.uploadButtonText}>📁 Choose Photo</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.imagePreviewContainer}>
+              <View style={styles.imagePreviewBox}>
+                {uploadedImages.left ? (
+                  <View style={styles.imageWithDelete}>
+                    <Image source={{ uri: uploadedImages.left }} style={styles.previewImage} />
+                    <TouchableOpacity style={styles.deleteButton} onPress={() => deleteImage("left")}>
+                      <Text style={styles.deleteButtonText}>×</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={styles.emptyImageBox}>
+                    <Text style={styles.emptyImageText}>Image 1</Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.imagePreviewBox}>
+                {uploadedImages.right ? (
+                  <View style={styles.imageWithDelete}>
+                    <Image source={{ uri: uploadedImages.right }} style={styles.previewImage} />
+                    <TouchableOpacity style={styles.deleteButton} onPress={() => deleteImage("right")}>
+                      <Text style={styles.deleteButtonText}>×</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={styles.emptyImageBox}>
+                    <Text style={styles.emptyImageText}>Image 2</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+            {generatedImage && (
+              <View style={styles.generatedDesignContainer}>
+                <TouchableOpacity style={styles.deleteGeneratedButton} onPress={deleteGeneratedImage}>
+                  <Text style={styles.deleteGeneratedButtonText}>×</Text>
+                </TouchableOpacity>
+                <Text style={styles.generatedDesignTitle}>Generated Design</Text>
+                <TouchableOpacity onPress={() => handleImageZoom(generatedImage)}>
+                  <Image source={{ uri: generatedImage }} style={styles.generatedDesignImage} />
+                </TouchableOpacity>
+                <TextInput style={styles.input} placeholder="Type adjustments for a remix..." placeholderTextColor={theme.secondaryText} value={prompt} onChangeText={setPrompt} />
+                <View style={styles.designActionRow}>
+                  <TouchableOpacity style={[styles.designControlButton, loading && { opacity: 0.7 }]} onPress={handleRemix} disabled={loading}>
+                    {loading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.designControlButtonText}>Remix</Text>}
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.designControlButtonPrimary} onPress={putImageOnItem}>
+                    <Text style={styles.designControlButtonPrimaryText}>Apply to Item</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+            {!generatedImage && (
+              <TouchableOpacity onPress={GenerateFinalDesign} style={[styles.finalGenerateButton, loading && { opacity: 0.7 }]} disabled={loading}>
+                {loading ? <ActivityIndicator size="small" color={theme.background} /> : <Text style={styles.finalGenerateButtonText}>Generate Design</Text>}
+              </TouchableOpacity>
             )}
           </ScrollView>
         </View>
@@ -1599,18 +1368,8 @@ export default function CreateNewDesignTab() {
         <View style={styles.container}>
           <ProductFlowHeader title={product.title} /> {/* Uses default handleGlobalBack */}
           <ProgressBar />
-          {/* --- (MODIFICATION) --- */}
-          <AnimatedReanimated.ScrollView
-            style={styles.scrollView}
-            showsVerticalScrollIndicator={false}
-            onScroll={variantScrollHandler} // Add scroll handler
-            scrollEventThrottle={16} // Add scroll event throttle
-          >
-            {/* Wrap Image in AnimatedReanimated.View and apply styles */}
-            <AnimatedReanimated.View style={[styles.imageContainerForAnimation, animatedImageStyle]}>
-              <Image source={{ uri: selectedColor ? selectedColor.image : product.image }} style={styles.mainProductImageNew} />
-            </AnimatedReanimated.View>
-            {/* --- (END MODIFICATION) --- */}
+          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+            <Image source={{ uri: selectedColor ? selectedColor.image : product.image }} style={styles.mainProductImageNew} />
             <View style={styles.detailsContainer}>
               <Text style={styles.productTitleNew}>{product.title}</Text>
               <Text style={styles.productPriceNew}>${selectedColor?.price || variants[0].price}</Text>
@@ -1642,7 +1401,7 @@ export default function CreateNewDesignTab() {
                 </View>
               )}
             </View>
-          </AnimatedReanimated.ScrollView>
+          </ScrollView>
           <View style={styles.bottomBar}>
             <TouchableOpacity style={[styles.confirmButton, !selectedVariant && styles.disabledButton]} onPress={() => handleVariantSelect(selectedVariant!)} disabled={!selectedVariant}>
               <Text style={styles.confirmButtonText}>Confirm Selection</Text>
@@ -1664,20 +1423,16 @@ export default function CreateNewDesignTab() {
           {/* REMOVED: Pill selector is no longer here. */}
           <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             <View style={styles.gridContainer}>
-              {/* --- (MODIFICATION) --- */}
-              {filteredProducts.map((product, index) => (
-                <MotiView key={product.id} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "timing", duration: 300, delay: index * 50 }}>
-                  <TouchableOpacity style={styles.productCard} onPress={() => handleProductSelect(product)}>
-                    <Image source={{ uri: product.image }} style={styles.productImage} resizeMode="cover" />
-                    <Text style={styles.productTitle} numberOfLines={2}>
-                      {product.title}
-                    </Text>
-                    <Text style={styles.productBrand}>{product.brand}</Text>
-                    <Text style={styles.productVariants}>{product.variant_count} variants</Text>
-                  </TouchableOpacity>
-                </MotiView>
+              {filteredProducts.map((product) => (
+                <TouchableOpacity key={product.id} style={styles.productCard} onPress={() => handleProductSelect(product)}>
+                  <Image source={{ uri: product.image }} style={styles.productImage} resizeMode="cover" />
+                  <Text style={styles.productTitle} numberOfLines={2}>
+                    {product.title}
+                  </Text>
+                  <Text style={styles.productBrand}>{product.brand}</Text>
+                  <Text style={styles.productVariants}>{product.variant_count} variants</Text>
+                </TouchableOpacity>
               ))}
-              {/* --- (END MODIFICATION) --- */}
             </View>
           </ScrollView>
         </View>
@@ -1719,28 +1474,6 @@ export default function CreateNewDesignTab() {
     // Filter by search *after* determining the list, also exclude All Products from grid
     displayedCategories = displayedCategories.filter((c) => c.title.toLowerCase().includes(searchQuery.toLowerCase()) && c.id !== allProductsCategory?.id);
 
-    // --- (ADDITION) ---
-    // Split "All..." categories from grid categories *only* in the clothes view
-    let allClothingCategories: Category[] = [];
-    let gridCategories: Category[] = [];
-
-    // --- (MODIFICATION) ---
-    // NEW: Specific titles to match
-    const specificTitles = new Set(["all men's clothing", "all women’s clothing", "all kids & youth clothing"]);
-
-    if (isClothesCategoryView) {
-      allClothingCategories = displayedCategories.filter(
-        (c) => specificTitles.has(c.title.toLowerCase()) // Check against the specific set
-      );
-      gridCategories = displayedCategories.filter(
-        (c) => !specificTitles.has(c.title.toLowerCase()) // Check against the specific set
-      );
-    } else {
-      // If not in clothes view, all categories are grid categories
-      gridCategories = displayedCategories;
-    }
-    // --- (END MODIFICATION) ---
-    // --- (END ADDITION) ---
     return (
       <View style={styles.container}>
         {/* MODIFIED: Conditional Header Rendering */}
@@ -1759,52 +1492,25 @@ export default function CreateNewDesignTab() {
               <DesignText height={45} width="100%" fill={theme.text} preserveAspectRatio="xMidYMid meet" style={{ height: 55, width: "100%" }} />
             </View>
             <View style={[styles.coinsContainer, { backgroundColor: theme.text }]}>
-              {/* --- (REPLACEMENT) --- */}
-              <MuseCoin width={24} height={24} style={styles.coinIcon} />
-              {/* --- (END REPLACEMENT) --- */}
+              <Image source={require("@/assets/images/coin-icon.png")} style={styles.coinIcon} />
               <Text style={styles.coinText}>325</Text>
             </View>
           </View>
         )}
 
-        {/* Switch selector renders *after* the header if needed */}
-        {isClothesCategoryView && renderClothesSwitch()}
+        {/* Pill selector renders *after* the header if needed */}
+        {isClothesCategoryView && renderClothesPillSelector()}
 
-        <ScrollView
-          ref={categoryScrollViewRef} // +++ ADD THIS
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* --- (ADDITION) --- */}
-          {/* Render "All..." buttons first */}
-          {allClothingCategories.length > 0 && (
-            <View style={[styles.allProductsButtonContainer, gridCategories.length > 0 && { marginBottom: 20 }] /* Only add margin if grid items follow */}>
-              {allClothingCategories.map((category, index) => (
-                <TouchableOpacity
-                  key={category.id}
-                  style={[styles.allProductsButton, index < allClothingCategories.length - 1 && { marginBottom: 15 }] /* Add margin for multiple buttons */}
-                  onPress={() => handleCategorySelect(category)}
-                >
-                  <Text style={styles.allProductsButtonText}>{category.title}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-          {/* --- (END ADDITION) --- */}
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.gridContainer}>
-            {/* --- (MODIFICATION) --- */}
-            {gridCategories.map((category, index) => (
-              <MotiView key={category.id} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "timing", duration: 300, delay: index * 50 }}>
-                <TouchableOpacity style={styles.categoryCard} onPress={() => handleCategorySelect(category)}>
-                  <Image source={{ uri: category.image_url }} style={styles.categoryImage} resizeMode="cover" />
-                  <Text style={styles.categoryTitle} numberOfLines={2}>
-                    {category.title}
-                  </Text>
-                </TouchableOpacity>
-              </MotiView>
+            {displayedCategories.map((category) => (
+              <TouchableOpacity key={category.id} style={styles.categoryCard} onPress={() => handleCategorySelect(category)}>
+                <Image source={{ uri: category.image_url }} style={styles.categoryImage} resizeMode="cover" />
+                <Text style={styles.categoryTitle} numberOfLines={2}>
+                  {category.title}
+                </Text>
+              </TouchableOpacity>
             ))}
-            {/* --- (END MODIFICATION) --- */}
           </View>
           {/* MODIFIED: Render "All Products" button *after* the ScrollView */}
           {allProductsCategory && !searchQuery && !selectedCategory && (
@@ -1821,10 +1527,6 @@ export default function CreateNewDesignTab() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      {/* --- (ADDITION) --- */}
-      <LoadingModal visible={isProcessing} text={modalLoadingText} />
-      {/* --- (END ADDITION) --- */}
-
       {/* RENDER CURRENT VIEW */}
       {renderCurrentView()}
 
@@ -2030,80 +1732,29 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       elevation: 5,
     },
     generateButtonText: { color: theme.background, fontSize: 16, fontWeight: "bold" },
-    designContent: { paddingHorizontal: 20, paddingBottom: 100 },
-    designUploadTitle: {
-      fontSize: 18,
-      fontWeight: "bold",
-      color: theme.text,
-      textAlign: "center",
-      textTransform: "lowercase",
-      marginBottom: 8,
-    },
-    // --- (END ADDITION) ---
-    designUploadPrompt: {
-      fontSize: 14, // smaller than title
-      color: theme.secondaryText,
-      textAlign: "center",
-      textTransform: "lowercase",
-      marginBottom: 20,
-    },
-    emptyImageSubtext: {
-      color: theme.tabIconDefault,
-      fontSize: 12,
-      fontWeight: "400",
-      marginTop: 4,
-    },
-    // --- (END ADDITION) ---
-    imagePreviewContainer: { flexDirection: "row", justifyContent: "space-between", marginBottom: 30, gap: 15, alignItems: "flex-start" }, // Added alignItems
-    // --- (ADDITION) ---
-    imagePreviewWrapper: {
+    designContent: { paddingHorizontal: 20, paddingBottom: 20 },
+    uploadButtonsContainer: { flexDirection: "row", justifyContent: "space-between", marginBottom: 30, gap: 15 },
+    uploadButton: {
       flex: 1,
+      backgroundColor: theme.card,
+      paddingVertical: 20,
+      paddingHorizontal: 15,
+      borderRadius: 12,
       alignItems: "center",
-      gap: 12, // Gap between box and label
-    },
-    // --- (END ADDITION) ---
-    imagePreviewBox: {
-      width: "100%", // Take full width of wrapper
-      aspectRatio: 1,
-      backgroundColor: "transparent", // As per image
-      borderRadius: 16,
-      borderWidth: 3,
-      borderColor: theme.text, // Solid border
-      borderStyle: "solid", // Not dashed
-      position: "relative",
-      overflow: "hidden",
-      // Add justification for icon
       justifyContent: "center",
-      alignItems: "center",
+      minHeight: 80,
+      borderWidth: 1,
+      borderColor: theme.tabIconDefault,
     },
+    uploadButtonText: { color: theme.text, fontSize: 16, fontWeight: "600", textAlign: "center" }, // Changed to theme.text
+    imagePreviewContainer: { flexDirection: "row", justifyContent: "space-between", marginBottom: 30, gap: 15 },
+    imagePreviewBox: { flex: 1, aspectRatio: 1, backgroundColor: theme.card, borderRadius: 12, borderWidth: 2, borderColor: theme.tabIconDefault, borderStyle: "dashed", position: "relative" },
     imageWithDelete: { width: "100%", height: "100%" },
-    previewImage: { width: "100%", height: "100%", borderRadius: 13 }, // slightly less than box
-    deleteButton: {
-      position: "absolute",
-      top: 8,
-      right: 8,
-      backgroundColor: "rgba(45, 55, 72, 0.7)",
-      borderRadius: 15,
-      width: 30,
-      height: 30,
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 10,
-    },
+    previewImage: { width: "100%", height: "100%", borderRadius: 10 },
+    deleteButton: { position: "absolute", top: 8, right: 8, backgroundColor: "rgba(45, 55, 72, 0.7)", borderRadius: 15, width: 30, height: 30, alignItems: "center", justifyContent: "center" },
     deleteButtonText: { color: "#FFFFFF", fontSize: 18, fontWeight: "bold", lineHeight: 20 },
-    emptyImageBox: { flex: 1, width: "100%", alignItems: "center", justifyContent: "center", gap: 0 }, // remove gap
-    emptyImageText: { color: theme.secondaryText, fontSize: 14, fontWeight: "500" }, // This is no longer used inside the box
-    // --- (ADDITION) ---
-    imagePreviewLabel: {
-      fontSize: 16,
-      fontWeight: "bold",
-      color: theme.text,
-      textTransform: "lowercase",
-    },
-    imagePreviewLabelDisabled: {
-      color: theme.tabIconDefault,
-    },
-    // --- (END ADDITION) ---
+    emptyImageBox: { flex: 1, alignItems: "center", justifyContent: "center" },
+    emptyImageText: { color: theme.secondaryText, fontSize: 14 },
     finalGenerateButton: {
       backgroundColor: theme.text,
       paddingVertical: 16,
@@ -2114,8 +1765,6 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       shadowOpacity: 0.3,
       shadowRadius: 8,
       elevation: 5,
-      minHeight: 50, // Added minHeight to accommodate LoadingAnimation
-      justifyContent: "center", // Center loading animation
     },
     finalGenerateButtonText: { color: theme.background, fontSize: 18, fontWeight: "bold" },
     progressWrapperNew: {
@@ -2210,10 +1859,9 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
       shadowRadius: 4,
-      minHeight: 50, // Added minHeight to accommodate LoadingAnimation
-      justifyContent: "center", // Center loading animation
     },
     designControlButtonText: { color: theme.text, fontSize: 14, fontWeight: "bold" },
+    loadingOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" },
     mockupContainer: { marginBottom: 30, width: "100%" },
     mockupTitle: { fontSize: 18, fontWeight: "600", color: theme.text, textAlign: "center", marginBottom: 15 },
     mockupScrollView: { maxHeight: 300 },
@@ -2265,20 +1913,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     deleteGeneratedButtonText: { color: "#fff", fontSize: 18, fontWeight: "bold", lineHeight: 20 },
     generatedDesignTitle: { fontSize: 18, fontWeight: "600", color: theme.text, marginBottom: 16, textAlign: "center" },
     generatedDesignImage: { width: 260, height: 260, borderRadius: 14, marginBottom: 18, backgroundColor: theme.background, resizeMode: "contain", alignSelf: "center" },
-    // --- (ADDITION) ---
-    imageContainerForAnimation: {
-      width: "100%",
-      aspectRatio: 1,
-      backgroundColor: "#FFFFFF",
-    },
-    // --- (MODIFICATION) ---
-    mainProductImageNew: {
-      width: "100%",
-      height: "100%", // Changed from aspectRatio
-      resizeMode: "contain",
-      // backgroundColor: "#FFFFFF", // Moved to container
-    },
-    // --- (END) ---
+    mainProductImageNew: { width: "100%", aspectRatio: 1, resizeMode: "contain", backgroundColor: "#FFFFFF" },
     detailsContainer: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 150 },
     productTitleNew: { fontSize: 24, fontWeight: "bold", color: theme.text, marginBottom: 4 },
     productPriceNew: { fontSize: 20, fontWeight: "600", color: theme.text, marginBottom: 20 },
@@ -2562,53 +2197,36 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     },
     coinIcon: { width: 24, height: 24, marginRight: 8 },
     coinText: { fontSize: 18, fontWeight: "bold", color: theme.background },
-    // MODIFIED: Styles for the new animated switch
-    clothesSwitchContainer: {
+    pillContainer: {
       flexDirection: "row",
-      height: 38, // Smaller height
-      backgroundColor: theme.card,
-      borderRadius: 19, // Fully rounded ends
-      borderWidth: 1.5,
-      borderColor: theme.tabIconDefault, // Use tab icon default for a more subtle border
-      marginHorizontal: 40, // More margin
-      marginTop: 10,
-      marginBottom: 15,
-      position: "relative",
-    },
-    clothesSwitchThumb: {
-      position: "absolute",
-      top: 0,
-      bottom: 0,
-      height: "100%",
-      borderRadius: 19, // Fully rounded
-      overflow: "hidden", // NEW: Clip the gradient
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.2,
-      shadowRadius: 2,
-      elevation: 3,
-    },
-    gradientThumb: {
-      flex: 1, // NEW: Make gradient fill the thumb
-    },
-    clothesSwitchButton: {
-      flex: 1,
-      alignItems: "center",
       justifyContent: "center",
-      zIndex: 1, // Make sure text is above the thumb
-      backgroundColor: "transparent", // Buttons are transparent
-      height: "100%",
+      alignItems: "center",
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      backgroundColor: theme.background,
+      gap: 10,
     },
-    clothesSwitchText: {
+    pillButton: {
+      paddingVertical: 10,
+      paddingHorizontal: 24,
+      borderRadius: 20,
+      backgroundColor: theme.card,
+      borderWidth: 1.5,
+      borderColor: theme.tabIconDefault,
+    },
+    pillButtonActive: {
+      backgroundColor: theme.text,
+      borderColor: theme.text,
+    },
+    pillButtonText: {
       color: theme.text,
-      fontSize: 13, // Smaller font
+      fontSize: 14,
       fontWeight: "600",
     },
-    clothesSwitchTextActive: {
-      color: theme.background, // Active text color (now on dark gradient)
+    pillButtonTextActive: {
+      color: theme.background,
       fontWeight: "700",
     },
-    // END MODIFIED
     allProductsButtonContainer: {
       paddingHorizontal: 0,
       marginTop: 0,

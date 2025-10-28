@@ -9,12 +9,11 @@ import { Buffer } from "buffer";
 type Ctx = {
   userId: string | null;
   email: string | null;
-  name: string | null;
   printfulApiKey: string | null;
   currentStoreId: string | null;
   selectedMuseId: string | null;
   initializing: boolean; // first boot gate
-  loading: boolean; // later refreshes
+  loading: boolean;      // later refreshes
   setPrintfulApiKey: (k: string | null) => void;
   setCurrentStoreId: (s: string | null) => void;
   setSelectedMuseId: (m: string | null) => void;
@@ -25,7 +24,6 @@ type Ctx = {
 const UserContext = createContext<Ctx>({
   userId: null,
   email: null,
-  name: null, // Added initial value for name
   printfulApiKey: null,
   currentStoreId: null,
   selectedMuseId: null,
@@ -48,7 +46,6 @@ function decodeJwt(idToken: string): any {
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
-  const [name, setName] = useState<string | null>(null); // Added name state
   const [printfulApiKey, setPrintfulApiKey] = useState<string | null>(null);
   const [currentStoreId, setCurrentStoreId] = useState<string | null>(null);
   const [selectedMuseId, setSelectedMuseId] = useState<string | null>(null);
@@ -63,13 +60,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!idToken) {
         setUserId(null);
         setEmail(null);
-        setName(null); // Clear name on token absence
         setPrintfulApiKey(null);
         setCurrentStoreId(null);
         setSelectedMuseId(null);
         return;
       }
-      let decodedSub: string | null = null;
       try {
         const { exp, sub, email: mail } = decodeJwt(idToken);
         const now = Math.floor(Date.now() / 1000);
@@ -77,49 +72,34 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await clearTokens();
           setUserId(null);
           setEmail(null);
-          setName(null); // Clear name on expired token
           setPrintfulApiKey(null);
           setCurrentStoreId(null);
           setSelectedMuseId(null);
           return;
         }
-        decodedSub = sub || null;
-        setUserId(decodedSub); // Set userId here
+        setUserId(sub || null);
         setEmail(mail || null);
       } catch {
         await clearTokens();
         setUserId(null);
         setEmail(null);
-        setName(null); // Clear name on decode error
         setPrintfulApiKey(null);
         setCurrentStoreId(null);
         setSelectedMuseId(null);
         return;
       }
-
-      // Use the decodedSub directly as userId might not be set yet due to async nature
-      if (!decodedSub) return;
+      if (!userId) return;
 
       const out = await ddb.send(
         new GetItemCommand({
           TableName: DDB_TABLE_MUSE_USERS,
-          Key: { userId: { S: decodedSub } }, // Use decodedSub
+          Key: { userId: { S: userId } },
         })
       );
       const item = out.Item || {};
-      setName(item.name?.S ?? null); // Extract and set name
       setPrintfulApiKey(item.printfulApiKey?.S ?? null);
       setCurrentStoreId(item.currentStoreId?.S ?? null);
       setSelectedMuseId(item.selectedMuseId?.S ?? null);
-    } catch (error) {
-      console.error("Error refreshing user data:", error);
-      // Optionally clear state or show error to user
-      setUserId(null);
-      setEmail(null);
-      setName(null);
-      setPrintfulApiKey(null);
-      setCurrentStoreId(null);
-      setSelectedMuseId(null);
     } finally {
       bootstrapped.current = true;
       setInitializing(false);
@@ -130,13 +110,12 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     refreshUser();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount
+  }, [userId == null]); // trigger once at boot; later calls come from UI
 
   const signOutLocal = async () => {
     await clearTokens();
     setUserId(null);
     setEmail(null);
-    setName(null); // Clear name on sign out
     setPrintfulApiKey(null);
     setCurrentStoreId(null);
     setSelectedMuseId(null);
@@ -146,7 +125,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     () => ({
       userId,
       email,
-      name, // Include name in context value
       printfulApiKey,
       currentStoreId,
       selectedMuseId,
@@ -158,8 +136,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       refreshUser,
       signOutLocal,
     }),
-    // Add name to dependency array
-    [userId, email, name, printfulApiKey, currentStoreId, selectedMuseId, initializing, loading]
+    [userId, email, printfulApiKey, currentStoreId, selectedMuseId, initializing, loading]
   );
 
   if (initializing) {

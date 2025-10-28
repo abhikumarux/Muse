@@ -10,7 +10,7 @@ interface LoadingAnimationProps {
 export function LoadingAnimation({ size = 100, style }: LoadingAnimationProps) {
   return (
     <View style={[styles.container, style, { width: size, height: size }]}>
-      <LottieView source={require("@/assets/lottie/loader4.json")} autoPlay loop style={styles.lottie} />
+      <LottieView source={require("@/assets/lottie/loader.json")} autoPlay loop style={styles.lottie} />
     </View>
   );
 }
