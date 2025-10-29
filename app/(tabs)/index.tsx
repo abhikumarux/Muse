@@ -1,4 +1,3 @@
-// app/(tabs)/index.tsx
 import React, { useState, useEffect, useRef } from "react";
 import {
   TextInput,
@@ -9,7 +8,7 @@ import {
   View,
   Text,
   ScrollView,
-  Image, // Keep Image for other uses
+  Image,
   TouchableOpacity,
   StyleSheet,
   Dimensions,
@@ -23,9 +22,7 @@ import { captureRef } from "react-native-view-shot";
 import * as ImagePicker from "expo-image-picker";
 import ImageZoom from "react-native-image-pan-zoom";
 import { MotiView } from "moti";
-// --- (ADDITION) ---
 import AnimatedReanimated, { useSharedValue, useAnimatedStyle, useAnimatedScrollHandler, interpolate, Extrapolate } from "react-native-reanimated";
-// --- (END ADDITION) ---
 import { Colors } from "@/constants/Colors";
 import { useUser } from "../../lib/UserContext";
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
@@ -34,39 +31,23 @@ import { CognitoIdentityClient } from "@aws-sdk/client-cognito-identity";
 import { Buffer } from "buffer";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { LinearGradient } from "expo-linear-gradient";
-import { DynamoDBClient, GetItemCommand, ScanCommand, UpdateItemCommand } from "@aws-sdk/client-dynamodb"; // NEW: Added ScanCommand and UpdateItemCommand for Muses
+import { DynamoDBClient, GetItemCommand, ScanCommand, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { saveDesign } from "../../lib/aws/saveDesign";
-import { v4 as uuidv4 } from "uuid"; // Import uuid
+import { v4 as uuidv4 } from "uuid";
 import { LogBox } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-// --- (DELETION) ---
-// import { LoadingAnimation } from "@/components/ui/LoadingAnimation"; // --- REMOVE THIS IMPORT
-// --- (ADDITION) ---
-import { LoadingModal } from "@/components/ui/LoadingModal"; // +++ ADD THIS IMPORT
-
-// Import constants
+import { LoadingModal } from "@/components/ui/LoadingModal";
 import { GEMINI_API_KEY, AWS_REGION, AWS_S3_BUCKET as BUCKET, AWS_IDENTITY_POOL_ID } from "@/lib/config/constants";
-
-// Import types
-import { Category, Product, Variant, ProductDetails, PrintFilesResponse, CategoriesResponse, ProductsResponse, ProductDetailsResponse, DesignView, Muse } from "@/lib/types/printful"; // NEW: Imported Muse type
-
-// NEW: Import the DesignText icon
+import { Category, Product, Variant, ProductDetails, PrintFilesResponse, CategoriesResponse, ProductsResponse, ProductDetailsResponse, DesignView, Muse } from "@/lib/types/printful";
 import { DesignText } from "@/assets/svg/DesignText";
+import { MuseCoin } from "@/assets/svg/MuseCoin";
 
-// --- (ADDITION) ---
-// Import the MuseCoin component
-import { MuseCoin } from "@/assets/svg/MuseCoin"; //
-// --- (END ADDITION) ---
-
-LogBox.ignoreLogs(["Warning: ..."]); // Ignore log notification by message
-LogBox.ignoreAllLogs(); //Ignore all log notifications
-
-// Interfaces are now imported from @/lib/types/printful.ts
+LogBox.ignoreLogs(["Warning: ..."]);
+LogBox.ignoreAllLogs();
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 60) / 2;
-// NEW: Muse constants
 const MUSE_ITEM_WIDTH = width * 0.7;
 const MUSE_ITEM_SPACING = (width - MUSE_ITEM_WIDTH) / 2;
 const MUSE_CARD_ASPECT_RATIO = 1.25;
@@ -75,15 +56,12 @@ export default function CreateNewDesignTab() {
   const colorScheme = useDeviceColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const styles = getStyles(theme);
-
-  // AWS constants are now imported from @/lib/config/constants.ts
-
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [productDetails, setProductDetails] = useState<ProductDetails | null>(null);
   const [placementFiles, setPlacementFiles] = useState<Record<string, string>>({});
   const [selectedPlacements, setSelectedPlacements] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true); // This state is for the initial category fetch
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<DesignView>("categories");
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
@@ -93,7 +71,7 @@ export default function CreateNewDesignTab() {
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [mockupImages, setMockupImages] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const { userId, printfulApiKey, currentStoreId, selectedMuseId, setSelectedMuseId } = useUser(); // NEW: Destructured selectedMuseId and setSelectedMuseId
+  const { userId, printfulApiKey, currentStoreId, selectedMuseId, setSelectedMuseId } = useUser();
   const [mockupUrls, setMockupUrls] = useState<string[]>([]);
   const API_KEY = printfulApiKey;
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -105,17 +83,12 @@ export default function CreateNewDesignTab() {
   const router = useRouter();
   const params = useLocalSearchParams<{ savedDesignUri?: string }>();
   const [preloadedDesignUri, setPreloadedDesignUri] = useState<string | null>(null);
+  const prevPlacementsLength = useRef(0);
   const [selectedImageUrlForZoom, setSelectedImageUrlForZoom] = useState<string | null>(null);
   const [modalKey, setModalKey] = useState(0);
   const progress = useRef(new Animated.Value(0)).current;
-
-  // --- (ADDITION) ---
-  // New states for the popup loading modal
   const [isProcessing, setIsProcessing] = useState(false);
   const [modalLoadingText, setModalLoadingText] = useState("Loading...");
-  // --- (END ADDITION) ---
-
-  // NEW: State for "Clothes" category consolidation
   const [clothesFilter, setClothesFilter] = useState<"men" | "women" | "kids">("men");
   const [clothesCategoryIds, setClothesCategoryIds] = useState<{
     men: number | null;
@@ -123,24 +96,18 @@ export default function CreateNewDesignTab() {
     kids: number | null;
   }>({ men: null, women: null, kids: null });
 
-  // NEW: State for the switch animation
   const [switchLayout, setSwitchLayout] = useState({ width: 0, height: 0 });
   const switchTranslateX = useRef(new Animated.Value(0)).current;
 
-  // NEW: Muse Selector State
   const [muses, setMuses] = useState<Muse[]>([]);
   const [loadingMuses, setLoadingMuses] = useState(true);
   const [museSelectorVisible, setMuseSelectorVisible] = useState(false);
   const scrollX = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef<ScrollView>(null);
   const categoryScrollViewRef = useRef<ScrollView>(null);
-  // --- (ADDITION) ---
-  // Ref for the design view scroll
+  const placementScrollViewRef = useRef<ScrollView>(null);
   const designScrollViewRef = useRef<ScrollView>(null);
-  // --- (END ADDITION) ---
-
-  // --- (ADDITION) ---
-  // Reanimated values for variant image scroll
+  const variantScrollViewRef = useRef<any>(null);
   const variantScrollY = useSharedValue(0);
   const variantScrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -149,35 +116,16 @@ export default function CreateNewDesignTab() {
   });
 
   const animatedImageStyle = useAnimatedStyle(() => {
-    const scale = interpolate(
-      variantScrollY.value,
-      [-100, 0, width * 0.7], // Animate from pull-down to scrolling 70% of image height
-      [1.05, 1, 0.75], // Scale from 1.05 down to 0.75
-      Extrapolate.CLAMP
-    );
-    const opacity = interpolate(
-      variantScrollY.value,
-      [0, width * 0.5], // Start fading after scrolling 50% of image height
-      [1, 0.8],
-      Extrapolate.CLAMP
-    );
-    const translateY = interpolate(
-      variantScrollY.value,
-      [0, width * 0.7],
-      [0, width * 0.15], // Move image down slightly for parallax
-      Extrapolate.CLAMP
-    );
+    const scale = interpolate(variantScrollY.value, [-100, 0, width * 0.7], [1.05, 1, 0.75], Extrapolate.CLAMP);
+    const opacity = interpolate(variantScrollY.value, [0, width * 0.5], [1, 0.8], Extrapolate.CLAMP);
+    const translateY = interpolate(variantScrollY.value, [0, width * 0.7], [0, width * 0.15], Extrapolate.CLAMP);
 
     return {
       transform: [{ scale }, { translateY }],
       opacity: opacity,
     };
   });
-  // --- (END ADDITION) ---
-
-  // Find the current muse (moved up for earlier access)
   const currentMuse = muses.find((m) => m.museID === selectedMuseId);
-
   const resetFlow = () => {
     setProducts([]);
     setProductDetails(null);
@@ -215,7 +163,6 @@ export default function CreateNewDesignTab() {
   }, [currentStep]);
 
   useEffect(() => {
-    // MODIFIED: Ensure "categories" view is always step 1, even with selection
     if (currentView === "categories" || currentView === "products" || currentView === "variants") {
       setCurrentStep(1);
     } else if (["placements", "design"].includes(currentView)) {
@@ -224,25 +171,24 @@ export default function CreateNewDesignTab() {
       setCurrentStep(3);
     }
   }, [currentView]);
-
+  useEffect(() => {
+    if (currentView === "variants") {
+      variantScrollY.value = 0;
+      variantScrollViewRef.current?.scrollTo({ y: 0, animated: false });
+    }
+  }, [currentView]);
   useEffect(() => {
     fetchCategories();
     requestPermissions();
-    loadMusesAndSelection(); // NEW: Load muses on mount
+    loadMusesAndSelection();
   }, [userId]);
-
-  // --- (ADDITION) ---
-  // Scroll to generated image when it appears
   useEffect(() => {
     if (generatedImage && currentView === "design") {
       setTimeout(() => {
         designScrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100); // Small delay to ensure layout is complete
+      }, 100);
     }
   }, [generatedImage, currentView]);
-  // --- (END ADDITION) ---
-
-  // NEW: Muse selector visible effect
   useEffect(() => {
     if (museSelectorVisible) {
       setTimeout(() => {
@@ -257,7 +203,15 @@ export default function CreateNewDesignTab() {
     }
   }, [museSelectorVisible]);
 
-  // NEW: useEffect for switch animation
+  useEffect(() => {
+    if (currentView === "placements" && selectedPlacements.length === 1 && prevPlacementsLength.current === 0) {
+      setTimeout(() => {
+        placementScrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+    prevPlacementsLength.current = selectedPlacements.length;
+  }, [selectedPlacements, currentView]);
+
   useEffect(() => {
     if (switchLayout.width > 0) {
       let toValue = 0;
@@ -267,7 +221,6 @@ export default function CreateNewDesignTab() {
       if (clothesCategoryIds.kids) filters.push("kids");
 
       const filterIndex = filters.indexOf(clothesFilter);
-      // Ensure division by zero doesn't happen if filters are somehow empty
       const segmentWidth = filters.length > 0 ? switchLayout.width / filters.length : 0;
 
       if (filterIndex !== -1) {
@@ -296,8 +249,6 @@ export default function CreateNewDesignTab() {
     }
   };
 
-  // --- NEW: Muse Selection Functions ---
-
   const fetchSelectedMuseId = async (client: DynamoDBClient) => {
     if (!userId) return null;
     const userResult = await client.send(
@@ -324,7 +275,6 @@ export default function CreateNewDesignTab() {
         }),
       });
 
-      // Scan for all muses
       const scanResult = await client.send(new ScanCommand({ TableName: "Muse" }));
       const musesData: Muse[] = (scanResult.Items || []).map((item) => ({
         museID: item.museID?.S || "",
@@ -334,10 +284,9 @@ export default function CreateNewDesignTab() {
       }));
       setMuses(musesData);
 
-      // Get user's selected muse ID from context or fetch if needed
       const currentMuseId = selectedMuseId || (await fetchSelectedMuseId(client));
       if (!selectedMuseId && currentMuseId) {
-        setSelectedMuseId(currentMuseId); // Update context if it was empty
+        setSelectedMuseId(currentMuseId);
       }
 
       if (currentMuseId && musesData.length > 0) {
@@ -357,11 +306,9 @@ export default function CreateNewDesignTab() {
     if (!userId || !muses[newIndex]) return;
 
     const newMuseId = muses[newIndex].museID;
-
-    // Prevent redundant updates
     if (newMuseId === selectedMuseId) return;
 
-    setSelectedMuseId(newMuseId); // Update context immediately for snappy UI
+    setSelectedMuseId(newMuseId);
 
     try {
       const client = new DynamoDBClient({
@@ -400,8 +347,6 @@ export default function CreateNewDesignTab() {
     setMuseSelectorVisible(true);
   };
 
-  // --- End Muse Selection Functions ---
-
   const fetchCategories = async () => {
     try {
       setLoading(true);
@@ -410,7 +355,7 @@ export default function CreateNewDesignTab() {
       });
       const data: CategoriesResponse = await response.json();
       if (data.code === 200) {
-        let allCategories = data.result.categories; // Use let to allow modification
+        let allCategories = data.result.categories;
         const menCat = allCategories.find((c) => c.title.toLowerCase() === "men's clothing");
         const womenCat = allCategories.find((c) => c.title.toLowerCase() === "women's clothing");
 
@@ -419,40 +364,34 @@ export default function CreateNewDesignTab() {
           return c.parent_id === 0 && (title.includes("kids") || title.includes("youth"));
         });
 
-        // --- VIRTUAL CATEGORY MOVES ---
         const hatsCat = allCategories.find((c) => c.title.toLowerCase() === "hats");
         const accessoriesCat = allCategories.find((c) => c.title.toLowerCase() === "accessories");
         const brandsCat = allCategories.find((c) => c.title.toLowerCase() === "brands");
         const collectionsCat = allCategories.find((c) => c.title.toLowerCase() === "collections");
 
-        // NEW: Find "All Hats" category
         const allHatsCat = allCategories.find((c) => c.title.toLowerCase() === "all hats");
 
         let modifiedCategories = allCategories.map((cat) => {
-          // NEW: Modify "All Hats" category
           if (allHatsCat && accessoriesCat && cat.id === allHatsCat.id) {
             return {
               ...cat,
-              parent_id: accessoriesCat.id, // Move it under Accessories
-              title: "Hats", // Rename it
+              parent_id: accessoriesCat.id,
+              title: "Hats",
             };
           }
 
-          // Move "Brands" into "Collections"
           if (brandsCat && collectionsCat && cat.id === brandsCat.id) {
             return { ...cat, parent_id: collectionsCat.id };
           }
-          return cat; // Return unchanged category otherwise
+          return cat;
         });
 
-        // NEW: Filter out the old "Hats" container category
         allCategories = modifiedCategories.filter((cat) => {
           if (hatsCat && cat.id === hatsCat.id) {
-            return false; // Remove the old "Hats" category
+            return false;
           }
           return true;
         });
-        // --- END NEW ---
 
         setClothesCategoryIds({
           men: menCat?.id || null,
@@ -481,7 +420,6 @@ export default function CreateNewDesignTab() {
       const data: ProductsResponse = await response.json();
       if (data.code === 200) {
         setProducts(data.result);
-        setCurrentView("products");
       } else {
         setError("Failed to fetch products");
       }
@@ -492,28 +430,21 @@ export default function CreateNewDesignTab() {
       setLoading(false);
     }
   };
-
-  // MODIFIED: Corrected logic for category selection
   const handleCategorySelect = (category: Category) => {
     setSelectedCategory(category);
 
-    // NEW: Handle selection of our virtual "Clothes" category
     if (category.id === -1) {
-      // Set default filter, but DO NOT fetch products
-      // The view will re-render to show subcategories for "men"
       setClothesFilter("men");
-      setCurrentView("categories"); // Ensure we stay on this view
+      setCurrentView("categories");
       return;
     }
-    // END NEW
 
     const subcategories = categories.filter((c) => c.parent_id === category.id);
     if (subcategories.length > 0) {
-      setCurrentView("categories"); // Stay on categories view
+      setCurrentView("categories");
       return;
     }
-
-    // Only fetch products if it's a leaf node (like "All Products" or a specific subcategory)
+    setCurrentView("products");
     fetchProducts(category.id);
   };
 
@@ -585,18 +516,13 @@ export default function CreateNewDesignTab() {
   const GenerateFinalDesign = async () => {
     if (!GEMINI_API_KEY) {
       Alert.alert("Error", "Missing API Key. Please configure your .env file.");
-      return; // --- MODIFICATION --- No need to setLoading(false)
+      return;
     }
-    // --- (ADDITION) ---
     setModalLoadingText("Generating Design...");
     setIsProcessing(true);
-    // --- (DELETION) ---
-    // setLoading(true);
     if (!uploadedImages.left) {
       Alert.alert("Missing Images", "Please upload at least one image first.");
-      // --- (MODIFICATION) ---
       setIsProcessing(false);
-      // setLoading(false);
       return;
     }
 
@@ -615,9 +541,7 @@ export default function CreateNewDesignTab() {
 
     if (!localUri1) {
       Alert.alert("Error", "First image is missing or could not be processed.");
-      // --- (MODIFICATION) ---
       setIsProcessing(false);
-      // setLoading(false);
       return;
     }
 
@@ -631,7 +555,6 @@ export default function CreateNewDesignTab() {
     });
 
     try {
-      // NEW: Use selectedMuseId from context/state
       let museString = "";
       if (selectedMuseId) {
         const museResult = await client.send(
@@ -676,10 +599,9 @@ export default function CreateNewDesignTab() {
 
       const body = JSON.stringify({ contents: [{ parts }] });
 
-      // ⬇️ Retry loop logic starts here
       let success = false;
       let attempt = 0;
-      const maxAttempts = 10; // You can increase or remove this if you want infinite retries
+      const maxAttempts = 10;
 
       while (!success && attempt < maxAttempts) {
         try {
@@ -723,7 +645,7 @@ export default function CreateNewDesignTab() {
           console.log("✅ Image generation successful!");
         } catch (error) {
           console.error(`❌ Attempt ${attempt} failed:`, error);
-          await new Promise((res) => setTimeout(res, 2000)); // wait 2 seconds before retry
+          await new Promise((res) => setTimeout(res, 2000));
         }
       }
 
@@ -733,9 +655,7 @@ export default function CreateNewDesignTab() {
     } catch (err: any) {
       console.error("Error generating combined image:", err);
     } finally {
-      // --- (MODIFICATION) ---
       setIsProcessing(false);
-      // setLoading(false);
     }
   };
 
@@ -770,7 +690,7 @@ export default function CreateNewDesignTab() {
   const handleRemix = async () => {
     if (!GEMINI_API_KEY) {
       Alert.alert("Error", "Missing API Key. Please configure your .env file.");
-      return; // --- MODIFICATION ---
+      return;
     }
     if (!generatedImage) {
       Alert.alert("No Design", "Please generate an initial design first.");
@@ -780,10 +700,8 @@ export default function CreateNewDesignTab() {
       Alert.alert("No Prompt", "Please enter a prompt to remix the image.");
       return;
     }
-    // --- (MODIFICATION) ---
     setModalLoadingText("Remixing Design...");
     setIsProcessing(true);
-    // setLoading(true);
 
     try {
       const base64Image = generatedImage.replace(/^data:image\/\w+;base64,/, "");
@@ -800,9 +718,7 @@ export default function CreateNewDesignTab() {
         const errorText = await response.text();
         console.error("Gemini API HTTP error:", response.status, errorText);
         Alert.alert("Error", `Gemini API request failed: ${response.status}`);
-        // --- (MODIFICATION) ---
         setIsProcessing(false);
-        // setLoading(false);
         return;
       }
 
@@ -815,9 +731,7 @@ export default function CreateNewDesignTab() {
       console.error("Error remixing image:", err);
       Alert.alert("Error", "Failed to remix image. " + (err?.message || ""));
     } finally {
-      // --- (MODIFICATION) ---
       setIsProcessing(false);
-      // setLoading(false);
     }
   };
 
@@ -835,7 +749,6 @@ export default function CreateNewDesignTab() {
     }
   };
 
-  // --- (ADDITION) ---
   const handleImageAdd = (position: "left" | "right") => {
     Alert.alert(
       "Add Image",
@@ -843,11 +756,11 @@ export default function CreateNewDesignTab() {
       [
         {
           text: "Take Photo",
-          onPress: () => takePhoto(position), // Pass position
+          onPress: () => takePhoto(position),
         },
         {
           text: "Choose from Library",
-          onPress: () => pickImage(position), // Pass position
+          onPress: () => pickImage(position),
         },
         {
           text: "Cancel",
@@ -857,10 +770,8 @@ export default function CreateNewDesignTab() {
       { cancelable: true }
     );
   };
-  // --- (END ADDITION) ---
 
   const pickImage = async (position: "left" | "right") => {
-    // MODIFIED
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -871,7 +782,6 @@ export default function CreateNewDesignTab() {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         setUploadedImages((prev) => ({
-          // MODIFIED
           ...prev,
           [position]: result.assets[0].uri,
         }));
@@ -883,7 +793,6 @@ export default function CreateNewDesignTab() {
   };
 
   const takePhoto = async (position: "left" | "right") => {
-    // MODIFIED
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== "granted") {
@@ -899,7 +808,6 @@ export default function CreateNewDesignTab() {
 
       if (!result.canceled && result.assets.length > 0) {
         setUploadedImages((prev) => ({
-          // MODIFIED
           ...prev,
           [position]: result.assets[0].uri,
         }));
@@ -927,45 +835,36 @@ export default function CreateNewDesignTab() {
       return a.localeCompare(b);
     });
   };
-
-  // NEW: Helper function to create our virtual "Clothes" category object
-  // (Moved here, before it's used in handleBackToCategories)
   const getFakeClothesCategory = (): Category => {
-    // Use the Men's clothing image as the cover, with fallbacks
     const clothesImage =
       categories.find((c) => c.id === clothesCategoryIds.men)?.image_url ||
       categories.find((c) => c.id === clothesCategoryIds.women)?.image_url ||
       categories.find((c) => c.id === clothesCategoryIds.kids)?.image_url ||
-      ""; // Add a fallback placeholder image if you have one
+      "";
 
     return {
-      id: -1, // Our special ID
+      id: -1,
       parent_id: 0,
       title: "Clothes",
       image_url: clothesImage,
-      size_guides: [], // Not needed for this virtual category
+      size_guides: [],
     };
   };
 
-  // MODIFIED: Corrected back logic for clothes subcategories and standard subcategories
   const handleBackToCategories = () => {
-    // Logic to handle backing out of clothing subcategories
     const clothingParentIds = [clothesCategoryIds.men, clothesCategoryIds.women, clothesCategoryIds.kids].filter(Boolean);
 
     if (selectedCategory && clothingParentIds.includes(selectedCategory.parent_id)) {
-      // We are in a subcategory like "Men's T-shirts". Go back to "Clothes".
       setSelectedCategory(getFakeClothesCategory());
       setCurrentView("categories");
-      setSearchQuery(""); // Clear search when going back up
+      setSearchQuery("");
       return;
     }
 
     if (selectedCategory && selectedCategory.parent_id !== 0) {
-      // Handle backing out of "Clothes" (id -1) or any other subcategory (like Hats within Accessories)
       const parentCategory = categories.find((c) => c.id === selectedCategory.parent_id);
       setSelectedCategory(parentCategory || null);
     } else {
-      // We are at the top level or backing out from a top-level category like Accessories
       setSelectedCategory(null);
     }
 
@@ -973,7 +872,7 @@ export default function CreateNewDesignTab() {
     setProducts([]);
     setProductDetails(null);
     setSelectedProduct(null);
-    setSearchQuery(""); // Clear search when going back up
+    setSearchQuery("");
   };
 
   const handleBackToProducts = () => {
@@ -1003,7 +902,6 @@ export default function CreateNewDesignTab() {
     setGeneratedImage(null);
   };
 
-  // MODIFIED: Global Back Handler uses the refined handleBackToCategories
   const handleGlobalBack = () => {
     if (currentView === "viewFinalDesign") {
       handleBackToDesign();
@@ -1014,11 +912,10 @@ export default function CreateNewDesignTab() {
     } else if (currentView === "variants") {
       handleBackToProducts();
     } else if (currentView === "products") {
-      handleBackToCategories(); // Use the existing logic which handles subcategories
+      handleBackToCategories();
     } else if (currentView === "categories" && selectedCategory) {
-      handleBackToCategories(); // Use the existing logic to go up one level
+      handleBackToCategories();
     }
-    // No action if currentView is 'categories' and no category is selected
   };
 
   const handleColorSelect = (colorVariant: Variant) => {
@@ -1049,10 +946,8 @@ export default function CreateNewDesignTab() {
       return;
     }
 
-    // --- (MODIFICATION) ---
     setModalLoadingText("Applying to Product...");
     setIsProcessing(true);
-    // setLoading(true);
     try {
       let base64Data;
       if (generatedImage.startsWith("data:")) {
@@ -1143,9 +1038,7 @@ export default function CreateNewDesignTab() {
           setMockupUrls(urls);
           setMockupImages(urls);
           setCurrentView("viewFinalDesign");
-          // --- (MODIFICATION) ---
           setIsProcessing(false);
-          // setLoading(false);
           return;
         }
 
@@ -1157,9 +1050,7 @@ export default function CreateNewDesignTab() {
     } catch (err: any) {
       console.error("Error in putImageOnItem:", err);
       Alert.alert("Error", err.message || "Something went wrong.");
-      // --- (MODIFICATION) ---
       setIsProcessing(false);
-      // setLoading(false);
     }
   };
 
@@ -1203,42 +1094,25 @@ export default function CreateNewDesignTab() {
       Alert.alert("Error", err.message || "Something went wrong.");
     }
   };
-
-  // MODIFIED: Simplified handler. Just sets the filter state.
   const handleClothesFilterChange = (filter: "men" | "women" | "kids") => {
-    if (filter === clothesFilter) return; // No change
-
-    // --- (ADDITION) ---
-    // Scroll to top when filter changes
+    if (filter === clothesFilter) return;
     categoryScrollViewRef.current?.scrollTo({ x: 0, y: 0, animated: true });
-    // --- (END ADDITION) ---
-
     setClothesFilter(filter);
-    // The category view will see this change and re-render.
   };
-
-  // MODIFIED: Component to render the new animated switch
   const renderClothesSwitch = () => {
     const filters: { key: "men" | "women" | "kids"; label: string }[] = [];
     if (clothesCategoryIds.men) filters.push({ key: "men", label: "Men's" });
     if (clothesCategoryIds.women) filters.push({ key: "women", label: "Women's" });
     if (clothesCategoryIds.kids) filters.push({ key: "kids", label: "Kids'" });
-
-    // Don't render if only 1 or 0 options
     if (filters.length <= 1) return null;
-
-    // Adjust thumb width based on number of filters
     const thumbWidth = `${100 / filters.length}%`;
-
-    // NEW: Define dynamic gradient colors
     let currentGradient: string[];
     if (clothesFilter === "men") {
-      currentGradient = ["#007AFF", "#00C6FF"]; // Blue gradient
+      currentGradient = ["#007AFF", "#00C6FF"];
     } else if (clothesFilter === "women") {
-      currentGradient = ["#E91E63", "#F48FB1"]; // Pink gradient
+      currentGradient = ["#E91E63", "#F48FB1"];
     } else {
-      // 'kids'
-      currentGradient = ["#4CAF50", "#81C784"]; // Green gradient
+      currentGradient = ["#4CAF50", "#81C784"];
     }
 
     return (
@@ -1253,7 +1127,6 @@ export default function CreateNewDesignTab() {
               },
             ]}
           >
-            {/* NEW: Add the gradient inside the thumb */}
             <LinearGradient colors={currentGradient} style={styles.gradientThumb} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
           </Animated.View>
         )}
@@ -1265,15 +1138,12 @@ export default function CreateNewDesignTab() {
       </View>
     );
   };
-
-  // NEW: Updated ProgressBar component
   const ProgressBar = () => {
     const steps = ["product", "design", "final"];
-    // Using theme.text for the active color and theme.background/tabIconDefault for default/inactive
     const activeFill = theme.text;
     const defaultFill = theme.background;
-    const activeText = theme.background; // Text color inverse of activeFill
-    const defaultText = theme.text; // Text color same as activeFill
+    const activeText = theme.background;
+    const defaultText = theme.text;
 
     const maxStepValue = steps.length - 1;
 
@@ -1285,13 +1155,8 @@ export default function CreateNewDesignTab() {
 
     return (
       <View style={styles.progressWrapperNew}>
-        {/* 1. Static Track */}
         <View style={styles.progressTrackNew} />
-
-        {/* 2. Animated Fill */}
         <Animated.View style={[styles.progressFillNew, { width: progressWidth, backgroundColor: activeFill }]} />
-
-        {/* 3. Steps Overlay */}
         <View style={styles.stepsRowNew}>
           {steps.map((label, index) => {
             const stepNumber = index + 1;
@@ -1318,15 +1183,11 @@ export default function CreateNewDesignTab() {
       </View>
     );
   };
-  // END NEW: Updated ProgressBar component
-
-  // MODIFIED: ProductFlowHeader to accept optional onBackPress
   const ProductFlowHeader = ({ title, onBackPress }: { title: string; onBackPress?: () => void }) => (
     <View style={styles.productFlowHeaderContainer}>
-      {/* MODIFIED: Use passed onBackPress or default to handleGlobalBack */}
       <TouchableOpacity style={styles.backButtonNew} onPress={onBackPress || handleGlobalBack}>
         <View style={[styles.backIconCircle, { borderColor: theme.text }]}>
-          <Ionicons name="arrow-back" size={24} color={theme.text} />{" "}
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
         </View>
         <Text style={[styles.backText, { color: theme.text }]}>back</Text>
       </TouchableOpacity>
@@ -1334,30 +1195,14 @@ export default function CreateNewDesignTab() {
       <Text style={[styles.productFlowTitle, { color: theme.text }]} numberOfLines={1}>
         {title}
       </Text>
-
-      {/* MODIFIED: Ensure coins use correct theme colors */}
       <View style={[styles.coinsContainerFlow, { backgroundColor: theme.text }]}>
-        {/* --- (REPLACEMENT) --- */}
         <MuseCoin width={24} height={24} style={styles.coinIcon} />
-        {/* --- (END REPLACEMENT) --- */}
         <Text style={[styles.coinTextFlow, { color: theme.background }]}>325</Text>
       </View>
     </View>
   );
 
   const renderCurrentView = () => {
-    // --- (MODIFICATION) ---
-    // Show loading indicator for initial category fetch
-    if (loading && !isProcessing) {
-      return (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.tint} />
-          <Text style={styles.loadingText}>Loading Products...</Text>
-        </View>
-      );
-    }
-    // --- (END MODIFICATION) ---
-
     if (error) {
       return (
         <View style={styles.errorContainer}>
@@ -1368,13 +1213,10 @@ export default function CreateNewDesignTab() {
         </View>
       );
     }
-    // ... (viewFinalDesign, design, placements, variants, products views remain the same) ...
-
     if (currentView === "viewFinalDesign") {
-      // ... (existing code)
       return (
         <View style={styles.container}>
-          <ProductFlowHeader title="DESIGN RESULTS" /> {/* Uses default handleGlobalBack */}
+          <ProductFlowHeader title="DESIGN RESULTS" />
           <ProgressBar />
           <ScrollView style={styles.scrollView} contentContainerStyle={styles.finalDesignContent}>
             <Text style={styles.finalDesignProductText}>
@@ -1413,11 +1255,9 @@ export default function CreateNewDesignTab() {
               >
                 <Text style={styles.designControlButtonText}>ADD TO STORE</Text>
               </TouchableOpacity>
-              {/* --- (MODIFICATION) --- */}
               <TouchableOpacity style={[styles.designControlButton, isProcessing && { opacity: 0.7 }]} onPress={handleRemix} disabled={isProcessing}>
                 <Text style={styles.designControlButtonText}>REMIX</Text>
               </TouchableOpacity>
-              {/* --- (END MODIFICATION) --- */}
             </View>
             <View style={styles.finalDesignButtonRow}>
               <TouchableOpacity style={styles.designControlButton} onPress={handleSaveDesign} disabled={isSaving}>
@@ -1428,37 +1268,19 @@ export default function CreateNewDesignTab() {
               </TouchableOpacity>
             </View>
           </ScrollView>
-          {/* --- (DELETION) --- */}
-          {/* {loading && (
-            <View style={styles.loadingOverlay}>
-              <LoadingAnimation size={120} />
-              <Text style={styles.loadingText}>Processing...</Text>
-            </View>
-          )} */}
-          {/* --- (END DELETION) --- */}
         </View>
       );
     }
 
     if (currentView === "design") {
-      // ... (existing code)
       return (
         <View style={styles.container}>
-          <ProductFlowHeader title="Add Your Inspo" /> {/* Uses default handleGlobalBack */}
+          <ProductFlowHeader title="Add Your Inspo" />
           <ProgressBar />
-          {/* --- (MODIFICATION) --- */}
           <ScrollView ref={designScrollViewRef} style={styles.scrollView} contentContainerStyle={styles.designContent} showsVerticalScrollIndicator={false}>
-            {/* --- (DELETION) ---
-            <View style={styles.uploadButtonsContainer}> ... </View>
-            --- (END DELETION) --- */}
-
-            {/* --- (MODIFICATION) --- */}
             <Text style={styles.designUploadTitle}>upload up to 2 inspo images</Text>
-            <Text style={styles.designUploadPrompt}>Tap a box to add an image</Text>
-            {/* --- (END MODIFICATION) --- */}
-
+            <Text style={styles.designUploadPrompt}>Tap the first box to add an image</Text>
             <View style={styles.imagePreviewContainer}>
-              {/* --- (MODIFICATION) --- */}
               <View style={styles.imagePreviewWrapper}>
                 <View style={styles.imagePreviewBox}>
                   {uploadedImages.left ? (
@@ -1470,7 +1292,7 @@ export default function CreateNewDesignTab() {
                     </View>
                   ) : (
                     <TouchableOpacity style={styles.emptyImageBox} onPress={() => handleImageAdd("left")}>
-                      <Ionicons name="add-circle-outline" size={width * 0.2} color={theme.text} />
+                      <Ionicons name="add-circle-outline" size={width * 0.28} color={theme.text} />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -1488,15 +1310,13 @@ export default function CreateNewDesignTab() {
                     </View>
                   ) : (
                     <TouchableOpacity style={styles.emptyImageBox} onPress={() => handleImageAdd("right")} disabled={!uploadedImages.left}>
-                      <Ionicons name="add-circle-outline" size={width * 0.2} color={!uploadedImages.left ? theme.tabIconDefault : theme.text} />
+                      <Ionicons name="add-circle-outline" size={width * 0.28} color={!uploadedImages.left ? theme.tabIconDefault : theme.text} />
                     </TouchableOpacity>
                   )}
                 </View>
                 <Text style={[styles.imagePreviewLabel, !uploadedImages.left && styles.imagePreviewLabelDisabled]}>image #2</Text>
               </View>
-              {/* --- (END MODIFICATION) --- */}
             </View>
-            {/* --- (MODIFICATION) --- */}
             {generatedImage && (
               <MotiView from={{ opacity: 0, scale: 0.9, translateY: 20 }} animate={{ opacity: 1, scale: 1, translateY: 0 }} transition={{ type: "timing", duration: 400 }}>
                 <View style={styles.generatedDesignContainer}>
@@ -1509,21 +1329,17 @@ export default function CreateNewDesignTab() {
                   </TouchableOpacity>
                   <TextInput style={styles.input} placeholder="Type adjustments for a remix..." placeholderTextColor={theme.secondaryText} value={prompt} onChangeText={setPrompt} />
                   <View style={styles.designActionRow}>
-                    {/* --- (MODIFICATION) --- */}
                     <TouchableOpacity style={[styles.designControlButton, isProcessing && { opacity: 0.7 }]} onPress={handleRemix} disabled={isProcessing}>
                       <Text style={styles.designControlButtonText}>Remix</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={[styles.designControlButtonPrimary, isProcessing && { opacity: 0.7 }]} onPress={putImageOnItem} disabled={isProcessing}>
                       <Text style={styles.designControlButtonPrimaryText}>Apply to Item</Text>
                     </TouchableOpacity>
-                    {/* --- (END MODIFICATION) --- */}
                   </View>
                 </View>
               </MotiView>
             )}
-            {/* --- (END MODIFICATION) --- */}
             {!generatedImage && (
-              /* --- (MODIFICATION) --- */
               <TouchableOpacity
                 onPress={GenerateFinalDesign}
                 style={[styles.finalGenerateButton, isProcessing && { opacity: 0.7 }, !uploadedImages.left && styles.disabledButton]}
@@ -1531,7 +1347,6 @@ export default function CreateNewDesignTab() {
               >
                 <Text style={styles.finalGenerateButtonText}>Generate Design</Text>
               </TouchableOpacity>
-              /* --- (END MODIFICATION) --- */
             )}
           </ScrollView>
         </View>
@@ -1539,43 +1354,55 @@ export default function CreateNewDesignTab() {
     }
 
     if (currentView === "placements") {
-      // ... (existing code)
+      const productImageUri = selectedColor?.image || selectedProduct?.image;
       return (
         <View style={styles.container}>
-          <ProductFlowHeader title="Select Placements" /> {/* Uses default handleGlobalBack */}
+          <ProductFlowHeader title="Select Placements" />
           <ProgressBar />
-          <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            <View style={styles.placementsContainer}>
+          <ScrollView style={styles.scrollView} contentContainerStyle={[styles.scrollContent, { paddingBottom: 200 }]} showsVerticalScrollIndicator={false}>
+            {productImageUri && (
+              <View style={styles.placementImageContainer}>
+                <Image source={{ uri: productImageUri }} style={styles.placementProductImage} resizeMode="contain" />
+                <Text style={styles.placementProductTitle}>your product</Text>
+                <Text style={styles.placementProductDescription}>Please Select Your Placements</Text>
+              </View>
+            )}
+            <View style={styles.gridContainer}>
               {placementFiles && Object.keys(placementFiles).length > 0 ? (
-                Object.entries(placementFiles).map(([key, value]) => (
-                  <TouchableOpacity key={key} style={[styles.placementCard, selectedPlacements.includes(key) && styles.placementCardSelected]} onPress={() => handlePlacementToggle(key)}>
-                    <View style={styles.placementHeader}>
-                      <Text style={styles.placementTitle}>{value}</Text>
-                      <View style={[styles.checkbox, selectedPlacements.includes(key) && styles.checkboxSelected]}>{selectedPlacements.includes(key) && <Text style={styles.checkmark}>✓</Text>}</View>
-                    </View>
-                  </TouchableOpacity>
-                ))
+                Object.entries(placementFiles).map(([key, value]) => {
+                  const isSelected = selectedPlacements.includes(key);
+
+                  return (
+                    <TouchableOpacity key={key} style={[styles.placementButton, isSelected && styles.placementButtonSelected]} onPress={() => handlePlacementToggle(key)}>
+                      <Text style={[styles.placementButtonText, isSelected && styles.placementButtonTextSelected]} numberOfLines={1}>
+                        {value.toUpperCase()}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })
               ) : (
                 <Text style={styles.noPlacementsText}>No placement options available</Text>
               )}
             </View>
-            {selectedPlacements.length > 0 && (
-              <View style={styles.selectionSummary}>
-                <Text style={styles.selectionSummaryText}>
-                  {selectedPlacements.length} placement{selectedPlacements.length !== 1 ? "s" : ""} selected
-                </Text>
-                <TouchableOpacity style={styles.generateButton} onPress={handleGenerateDesign}>
-                  <Text style={styles.generateButtonText}>Go to Design</Text>
-                </TouchableOpacity>
-              </View>
-            )}
           </ScrollView>
+          {selectedPlacements.length > 0 && (
+            <View style={styles.bottomBar}>
+              <View style={styles.selectionTextPill}>
+                <Text style={styles.selectionSummaryText}>
+                  {selectedPlacements.length} placement
+                  {selectedPlacements.length !== 1 ? "s" : ""} selected
+                </Text>
+              </View>
+              <TouchableOpacity style={styles.confirmButton} onPress={handleGenerateDesign}>
+                <Text style={styles.confirmButtonText}>Go to Design</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       );
     }
 
     if (currentView === "variants") {
-      // ... (existing code)
       if (!productDetails) {
         return (
           <View style={styles.loadingContainer}>
@@ -1594,23 +1421,15 @@ export default function CreateNewDesignTab() {
       const uniqueColors = Object.values(colors);
       const uniqueSizes = selectedColor ? [...new Set(variants.filter((v) => v.color === selectedColor.color).map((v) => v.size))] : [];
       const availableSizes = sortSizes(uniqueSizes);
-
       return (
         <View style={styles.container}>
-          <ProductFlowHeader title={product.title} /> {/* Uses default handleGlobalBack */}
+          <ProductFlowHeader title={product.title} />
           <ProgressBar />
-          {/* --- (MODIFICATION) --- */}
-          <AnimatedReanimated.ScrollView
-            style={styles.scrollView}
-            showsVerticalScrollIndicator={false}
-            onScroll={variantScrollHandler} // Add scroll handler
-            scrollEventThrottle={16} // Add scroll event throttle
-          >
-            {/* Wrap Image in AnimatedReanimated.View and apply styles */}
+          <AnimatedReanimated.ScrollView ref={variantScrollViewRef} style={styles.scrollView} showsVerticalScrollIndicator={false} onScroll={variantScrollHandler} scrollEventThrottle={16}>
+            {" "}
             <AnimatedReanimated.View style={[styles.imageContainerForAnimation, animatedImageStyle]}>
               <Image source={{ uri: selectedColor ? selectedColor.image : product.image }} style={styles.mainProductImageNew} />
             </AnimatedReanimated.View>
-            {/* --- (END MODIFICATION) --- */}
             <View style={styles.detailsContainer}>
               <Text style={styles.productTitleNew}>{product.title}</Text>
               <Text style={styles.productPriceNew}>${selectedColor?.price || variants[0].price}</Text>
@@ -1643,55 +1462,64 @@ export default function CreateNewDesignTab() {
               )}
             </View>
           </AnimatedReanimated.ScrollView>
-          <View style={styles.bottomBar}>
-            <TouchableOpacity style={[styles.confirmButton, !selectedVariant && styles.disabledButton]} onPress={() => handleVariantSelect(selectedVariant!)} disabled={!selectedVariant}>
-              <Text style={styles.confirmButtonText}>Confirm Selection</Text>
-            </TouchableOpacity>
-          </View>
+          {selectedVariant && (
+            <View style={styles.bottomBar}>
+              <TouchableOpacity style={styles.confirmButton} onPress={() => handleVariantSelect(selectedVariant!)}>
+                <Text style={styles.confirmButtonText}>Confirm Selection</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       );
     }
 
     if (currentView === "products") {
-      // ... (existing code)
       const filteredProducts = products.filter((p) => p.title.toLowerCase().includes(searchQuery.toLowerCase()));
 
       return (
         <View style={styles.container}>
-          {/* MODIFIED: Title is just the selected category's title */}
-          <ProductFlowHeader title={selectedCategory?.title || "Products"} /> {/* Uses default handleGlobalBack */}
+          <ProductFlowHeader title={selectedCategory?.title || "Products"} />
           <ProgressBar />
-          {/* REMOVED: Pill selector is no longer here. */}
-          <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            <View style={styles.gridContainer}>
-              {/* --- (MODIFICATION) --- */}
-              {filteredProducts.map((product, index) => (
-                <MotiView key={product.id} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "timing", duration: 300, delay: index * 50 }}>
-                  <TouchableOpacity style={styles.productCard} onPress={() => handleProductSelect(product)}>
-                    <Image source={{ uri: product.image }} style={styles.productImage} resizeMode="cover" />
-                    <Text style={styles.productTitle} numberOfLines={2}>
-                      {product.title}
-                    </Text>
-                    <Text style={styles.productBrand}>{product.brand}</Text>
-                    <Text style={styles.productVariants}>{product.variant_count} variants</Text>
-                  </TouchableOpacity>
-                </MotiView>
-              ))}
-              {/* --- (END MODIFICATION) --- */}
-            </View>
-          </ScrollView>
+          {loading ? (
+            <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+              <View style={styles.gridContainer}>
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <View key={i} style={styles.productCard}>
+                    <View style={[styles.productImage, { backgroundColor: theme.tabIconDefault }]} />
+                    <View style={{ padding: 12, gap: 8 }}>
+                      <View style={{ height: 16, width: "80%", backgroundColor: theme.tabIconDefault, borderRadius: 4 }} />
+                      <View style={{ height: 12, width: "50%", backgroundColor: theme.tabIconDefault, borderRadius: 4 }} />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </ScrollView>
+          ) : (
+            <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+              <View style={styles.gridContainer}>
+                {filteredProducts.map((product, index) => (
+                  <MotiView key={product.id} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "timing", duration: 300, delay: index * 50 }}>
+                    <TouchableOpacity style={styles.productCard} onPress={() => handleProductSelect(product)}>
+                      <Image source={{ uri: product.image }} style={styles.productImage} resizeMode="cover" />
+                      <Text style={styles.productTitle} numberOfLines={2}>
+                        {product.title}
+                      </Text>
+                      <Text style={styles.productBrand}>{product.brand}</Text>
+                      <Text style={styles.productVariants}>{product.variant_count} variants</Text>
+                    </TouchableOpacity>
+                  </MotiView>
+                ))}
+              </View>
+            </ScrollView>
+          )}
         </View>
       );
     }
-
-    // Default: Categories view
     let displayedCategories: Category[] = [];
     const isClothesCategoryView = selectedCategory?.id === -1;
-    // NEW: Find "All Products" category *before* filtering
     const allProductsCategory = categories.find((c) => c.title === "All products");
 
     if (isClothesCategoryView) {
-      // ... (logic remains the same)
       let activeParentId: number | null = null;
       if (clothesFilter === "men") activeParentId = clothesCategoryIds.men;
       else if (clothesFilter === "women") activeParentId = clothesCategoryIds.women;
@@ -1701,99 +1529,56 @@ export default function CreateNewDesignTab() {
         displayedCategories = categories.filter((c) => c.parent_id === activeParentId);
       }
     } else if (selectedCategory) {
-      // ... (logic remains the same)
       displayedCategories = categories.filter((c) => c.parent_id === selectedCategory.id);
     } else {
-      // ... (logic remains the same)
       const clothingCatIds = [clothesCategoryIds.men, clothesCategoryIds.women, clothesCategoryIds.kids].filter(Boolean) as number[];
-      // MODIFIED: Also filter out "All products" here if it exists at the top level
-      const parentCategories = categories.filter(
-        (c) => c.parent_id === 0 && !clothingCatIds.includes(c.id) && c.id !== allProductsCategory?.id // Exclude "All products"
-      );
+      const parentCategories = categories.filter((c) => c.parent_id === 0 && !clothingCatIds.includes(c.id) && c.id !== allProductsCategory?.id);
       displayedCategories = parentCategories;
       if (clothingCatIds.length > 0) {
         displayedCategories.unshift(getFakeClothesCategory());
       }
     }
-
-    // Filter by search *after* determining the list, also exclude All Products from grid
     displayedCategories = displayedCategories.filter((c) => c.title.toLowerCase().includes(searchQuery.toLowerCase()) && c.id !== allProductsCategory?.id);
-
-    // --- (ADDITION) ---
-    // Split "All..." categories from grid categories *only* in the clothes view
     let allClothingCategories: Category[] = [];
     let gridCategories: Category[] = [];
-
-    // --- (MODIFICATION) ---
-    // NEW: Specific titles to match
     const specificTitles = new Set(["all men's clothing", "all women’s clothing", "all kids & youth clothing"]);
 
     if (isClothesCategoryView) {
-      allClothingCategories = displayedCategories.filter(
-        (c) => specificTitles.has(c.title.toLowerCase()) // Check against the specific set
-      );
-      gridCategories = displayedCategories.filter(
-        (c) => !specificTitles.has(c.title.toLowerCase()) // Check against the specific set
-      );
+      allClothingCategories = displayedCategories.filter((c) => specificTitles.has(c.title.toLowerCase()));
+      gridCategories = displayedCategories.filter((c) => !specificTitles.has(c.title.toLowerCase()));
     } else {
-      // If not in clothes view, all categories are grid categories
       gridCategories = displayedCategories;
     }
-    // --- (END MODIFICATION) ---
-    // --- (END ADDITION) ---
     return (
       <View style={styles.container}>
-        {/* MODIFIED: Conditional Header Rendering */}
         {selectedCategory ? (
-          // Use ProductFlowHeader when a category is selected (provides title, back, coins)
-          // Pass specific back handler for category view
           <ProductFlowHeader title={selectedCategory.title} onBackPress={handleBackToCategories} />
         ) : (
-          // Use the original topBarContainer for the top-level view
           <View style={styles.topBarContainer}>
             <TouchableOpacity style={styles.museSelectorButton} onPress={openMuseSelector}>
-              {/* MODIFIED: Show Muse image or fallback text */}
               {currentMuse ? <Image source={{ uri: currentMuse.S3Location }} style={styles.museSelectorImage} /> : <Text style={styles.museSelectorText}>Choose Muse</Text>}
             </TouchableOpacity>
             <View style={styles.titleImageContainer}>
               <DesignText height={45} width="100%" fill={theme.text} preserveAspectRatio="xMidYMid meet" style={{ height: 55, width: "100%" }} />
             </View>
             <View style={[styles.coinsContainer, { backgroundColor: theme.text }]}>
-              {/* --- (REPLACEMENT) --- */}
               <MuseCoin width={24} height={24} style={styles.coinIcon} />
-              {/* --- (END REPLACEMENT) --- */}
               <Text style={styles.coinText}>325</Text>
             </View>
           </View>
         )}
-
-        {/* Switch selector renders *after* the header if needed */}
         {isClothesCategoryView && renderClothesSwitch()}
-
-        <ScrollView
-          ref={categoryScrollViewRef} // +++ ADD THIS
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* --- (ADDITION) --- */}
-          {/* Render "All..." buttons first */}
+        <ScrollView ref={categoryScrollViewRef} style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {allClothingCategories.length > 0 && (
-            <View style={[styles.allProductsButtonContainer, gridCategories.length > 0 && { marginBottom: 20 }] /* Only add margin if grid items follow */}>
+            <View style={[styles.allProductsButtonContainer, gridCategories.length > 0 && { marginBottom: 20 }]}>
               {allClothingCategories.map((category, index) => (
-                <TouchableOpacity
-                  key={category.id}
-                  style={[styles.allProductsButton, index < allClothingCategories.length - 1 && { marginBottom: 15 }] /* Add margin for multiple buttons */}
-                  onPress={() => handleCategorySelect(category)}
-                >
+                <TouchableOpacity key={category.id} style={[styles.allProductsButton, index < allClothingCategories.length - 1 && { marginBottom: 15 }]} onPress={() => handleCategorySelect(category)}>
                   <Text style={styles.allProductsButtonText}>{category.title}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           )}
-          {/* --- (END ADDITION) --- */}
           <View style={styles.gridContainer}>
-            {/* --- (MODIFICATION) --- */}
             {gridCategories.map((category, index) => (
               <MotiView key={category.id} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "timing", duration: 300, delay: index * 50 }}>
                 <TouchableOpacity style={styles.categoryCard} onPress={() => handleCategorySelect(category)}>
@@ -1804,13 +1589,11 @@ export default function CreateNewDesignTab() {
                 </TouchableOpacity>
               </MotiView>
             ))}
-            {/* --- (END MODIFICATION) --- */}
           </View>
-          {/* MODIFIED: Render "All Products" button *after* the ScrollView */}
           {allProductsCategory && !searchQuery && !selectedCategory && (
             <View style={styles.allProductsButtonContainer}>
               <TouchableOpacity style={styles.allProductsButton} onPress={() => handleCategorySelect(allProductsCategory)}>
-                <Text style={styles.allProductsButtonText}>View all Products</Text>{" "}
+                <Text style={styles.allProductsButtonText}>View all Products</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -1818,17 +1601,10 @@ export default function CreateNewDesignTab() {
       </View>
     );
   };
-
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      {/* --- (ADDITION) --- */}
       <LoadingModal visible={isProcessing} text={modalLoadingText} />
-      {/* --- (END ADDITION) --- */}
-
-      {/* RENDER CURRENT VIEW */}
       {renderCurrentView()}
-
-      {/* Zoom Modal */}
       <Modal transparent={true} visible={!!selectedImageUrlForZoom} onRequestClose={() => setSelectedImageUrlForZoom(null)}>
         <View style={styles.modalContainer}>
           {selectedImageUrlForZoom && (
@@ -1881,7 +1657,6 @@ export default function CreateNewDesignTab() {
                 <Text style={styles.museModalCloseButtonText}>Done</Text>
               </TouchableOpacity>
             </View>
-
             {loadingMuses ? (
               <View style={[styles.museLoadingCard, { height: MUSE_ITEM_WIDTH * MUSE_CARD_ASPECT_RATIO }]}>
                 <ActivityIndicator size="large" color={theme.tint} />
@@ -1964,12 +1739,11 @@ export default function CreateNewDesignTab() {
     </SafeAreaView>
   );
 }
-
 const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
     scrollView: { flex: 1 },
-    scrollContent: { padding: 20, paddingTop: 10, paddingBottom: 80 }, // Adjusted paddingBottom slightly
+    scrollContent: { padding: 20, paddingTop: 10, paddingBottom: 80 },
     variantHeader: {
       flexDirection: "row",
       alignItems: "center",
@@ -2015,9 +1789,59 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     checkbox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: theme.tabIconDefault, justifyContent: "center", alignItems: "center" },
     checkboxSelected: { backgroundColor: theme.tint, borderColor: theme.tint },
     checkmark: { color: theme.background, fontSize: 14, fontWeight: "bold" },
+    placementImageContainer: {
+      alignItems: "center",
+      marginBottom: 30,
+      backgroundColor: theme.card,
+      borderRadius: 16,
+      padding: 20,
+      borderWidth: 1,
+      borderColor: theme.tabIconDefault,
+    },
+    placementProductTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: theme.text,
+      textAlign: "center",
+      marginTop: 15,
+    },
+    placementProductDescription: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: theme.text,
+      textAlign: "center",
+      marginTop: 15,
+    },
+    placementProductImage: {
+      width: width * 0.7,
+      height: width * 0.7,
+      backgroundColor: "#FFFFFF",
+      borderRadius: 8,
+    },
+    placementButton: {
+      width: CARD_WIDTH,
+      paddingVertical: 18,
+      borderWidth: 2,
+      borderColor: theme.text,
+      borderRadius: 12,
+      alignItems: "center",
+      marginBottom: 15,
+      backgroundColor: theme.background,
+    },
+    placementButtonSelected: {
+      backgroundColor: theme.text,
+    },
+    placementButtonText: {
+      color: theme.text,
+      fontSize: 13,
+      fontWeight: "700",
+    },
+    placementButtonTextSelected: {
+      color: theme.background,
+    },
     noPlacementsText: { fontSize: 16, color: theme.secondaryText, textAlign: "center", marginTop: 40 },
     selectionSummary: { padding: 16, marginTop: 10 },
-    selectionSummaryText: { color: theme.text, fontSize: 16, fontWeight: "600", textAlign: "center", marginBottom: 16 },
+    selectionSummaryText: { color: "#FFFF", fontSize: 16, fontWeight: "600", textAlign: "center", marginBottom: 0 },
     generateButton: {
       backgroundColor: theme.text,
       paddingVertical: 16,
@@ -2039,9 +1863,8 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       textTransform: "lowercase",
       marginBottom: 8,
     },
-    // --- (END ADDITION) ---
     designUploadPrompt: {
-      fontSize: 14, // smaller than title
+      fontSize: 14,
       color: theme.secondaryText,
       textAlign: "center",
       textTransform: "lowercase",
@@ -2053,31 +1876,27 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       fontWeight: "400",
       marginTop: 4,
     },
-    // --- (END ADDITION) ---
-    imagePreviewContainer: { flexDirection: "row", justifyContent: "space-between", marginBottom: 30, gap: 15, alignItems: "flex-start" }, // Added alignItems
-    // --- (ADDITION) ---
+    imagePreviewContainer: { flexDirection: "row", justifyContent: "space-between", marginBottom: 30, gap: 15, alignItems: "flex-start" },
     imagePreviewWrapper: {
       flex: 1,
       alignItems: "center",
-      gap: 12, // Gap between box and label
+      gap: 12,
     },
-    // --- (END ADDITION) ---
     imagePreviewBox: {
-      width: "100%", // Take full width of wrapper
+      width: "100%",
       aspectRatio: 1,
-      backgroundColor: "transparent", // As per image
+      backgroundColor: "transparent",
       borderRadius: 16,
       borderWidth: 3,
-      borderColor: theme.text, // Solid border
-      borderStyle: "solid", // Not dashed
+      borderColor: theme.text,
+      borderStyle: "solid",
       position: "relative",
       overflow: "hidden",
-      // Add justification for icon
       justifyContent: "center",
       alignItems: "center",
     },
     imageWithDelete: { width: "100%", height: "100%" },
-    previewImage: { width: "100%", height: "100%", borderRadius: 13 }, // slightly less than box
+    previewImage: { width: "100%", height: "100%", borderRadius: 13 },
     deleteButton: {
       position: "absolute",
       top: 8,
@@ -2091,9 +1910,8 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       zIndex: 10,
     },
     deleteButtonText: { color: "#FFFFFF", fontSize: 18, fontWeight: "bold", lineHeight: 20 },
-    emptyImageBox: { flex: 1, width: "100%", alignItems: "center", justifyContent: "center", gap: 0 }, // remove gap
-    emptyImageText: { color: theme.secondaryText, fontSize: 14, fontWeight: "500" }, // This is no longer used inside the box
-    // --- (ADDITION) ---
+    emptyImageBox: { flex: 1, width: "100%", alignItems: "center", justifyContent: "center", gap: 0 },
+    emptyImageText: { color: theme.secondaryText, fontSize: 14, fontWeight: "500" },
     imagePreviewLabel: {
       fontSize: 16,
       fontWeight: "bold",
@@ -2103,7 +1921,6 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     imagePreviewLabelDisabled: {
       color: theme.tabIconDefault,
     },
-    // --- (END ADDITION) ---
     finalGenerateButton: {
       backgroundColor: theme.text,
       paddingVertical: 16,
@@ -2114,8 +1931,8 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       shadowOpacity: 0.3,
       shadowRadius: 8,
       elevation: 5,
-      minHeight: 50, // Added minHeight to accommodate LoadingAnimation
-      justifyContent: "center", // Center loading animation
+      minHeight: 50,
+      justifyContent: "center",
     },
     finalGenerateButtonText: { color: theme.background, fontSize: 18, fontWeight: "bold" },
     progressWrapperNew: {
@@ -2210,8 +2027,8 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
       shadowRadius: 4,
-      minHeight: 50, // Added minHeight to accommodate LoadingAnimation
-      justifyContent: "center", // Center loading animation
+      minHeight: 50,
+      justifyContent: "center",
     },
     designControlButtonText: { color: theme.text, fontSize: 14, fontWeight: "bold" },
     mockupContainer: { marginBottom: 30, width: "100%" },
@@ -2265,20 +2082,19 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     deleteGeneratedButtonText: { color: "#fff", fontSize: 18, fontWeight: "bold", lineHeight: 20 },
     generatedDesignTitle: { fontSize: 18, fontWeight: "600", color: theme.text, marginBottom: 16, textAlign: "center" },
     generatedDesignImage: { width: 260, height: 260, borderRadius: 14, marginBottom: 18, backgroundColor: theme.background, resizeMode: "contain", alignSelf: "center" },
-    // --- (ADDITION) ---
     imageContainerForAnimation: {
       width: "100%",
       aspectRatio: 1,
       backgroundColor: "#FFFFFF",
+      borderBottomLeftRadius: 20,
+      borderBottomRightRadius: 20,
+      overflow: "hidden",
     },
-    // --- (MODIFICATION) ---
     mainProductImageNew: {
       width: "100%",
-      height: "100%", // Changed from aspectRatio
+      height: "100%",
       resizeMode: "contain",
-      // backgroundColor: "#FFFFFF", // Moved to container
     },
-    // --- (END) ---
     detailsContainer: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 150 },
     productTitleNew: { fontSize: 24, fontWeight: "bold", color: theme.text, marginBottom: 4 },
     productPriceNew: { fontSize: 20, fontWeight: "600", color: theme.text, marginBottom: 20 },
@@ -2307,7 +2123,22 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     sizeButtonTextNew: { fontSize: 16, fontWeight: "600", color: theme.text },
     sizeButtonTextNewSelected: { color: theme.background },
     bottomBar: { position: "absolute", bottom: 105, left: 0, right: 0, paddingHorizontal: 20, paddingTop: 10, backgroundColor: "transparent" },
-    confirmButton: { backgroundColor: theme.text, paddingVertical: 16, borderRadius: 12, alignItems: "center" }, // Changed to theme.text
+    selectionTextPill: {
+      backgroundColor: "#000000aa",
+      borderWidth: 1,
+      borderColor: theme.tabIconDefault,
+      borderRadius: 20,
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      alignSelf: "center",
+      marginBottom: 12,
+      shadowColor: theme.text,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    confirmButton: { backgroundColor: theme.text, paddingVertical: 16, borderRadius: 12, alignItems: "center" },
     confirmButtonText: { color: theme.background, fontSize: 18, fontWeight: "bold" },
     disabledButton: { backgroundColor: theme.tabIconDefault },
     modalContainer: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.9)", justifyContent: "center", alignItems: "center" },
@@ -2562,15 +2393,14 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     },
     coinIcon: { width: 24, height: 24, marginRight: 8 },
     coinText: { fontSize: 18, fontWeight: "bold", color: theme.background },
-    // MODIFIED: Styles for the new animated switch
     clothesSwitchContainer: {
       flexDirection: "row",
-      height: 38, // Smaller height
+      height: 38,
       backgroundColor: theme.card,
-      borderRadius: 19, // Fully rounded ends
+      borderRadius: 19,
       borderWidth: 1.5,
-      borderColor: theme.tabIconDefault, // Use tab icon default for a more subtle border
-      marginHorizontal: 40, // More margin
+      borderColor: theme.tabIconDefault,
+      marginHorizontal: 40,
       marginTop: 10,
       marginBottom: 15,
       position: "relative",
@@ -2580,8 +2410,8 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       top: 0,
       bottom: 0,
       height: "100%",
-      borderRadius: 19, // Fully rounded
-      overflow: "hidden", // NEW: Clip the gradient
+      borderRadius: 19,
+      overflow: "hidden",
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.2,
@@ -2589,26 +2419,25 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       elevation: 3,
     },
     gradientThumb: {
-      flex: 1, // NEW: Make gradient fill the thumb
+      flex: 1,
     },
     clothesSwitchButton: {
       flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      zIndex: 1, // Make sure text is above the thumb
-      backgroundColor: "transparent", // Buttons are transparent
+      zIndex: 1,
+      backgroundColor: "transparent",
       height: "100%",
     },
     clothesSwitchText: {
       color: theme.text,
-      fontSize: 13, // Smaller font
+      fontSize: 13,
       fontWeight: "600",
     },
     clothesSwitchTextActive: {
-      color: theme.background, // Active text color (now on dark gradient)
+      color: theme.background,
       fontWeight: "700",
     },
-    // END MODIFIED
     allProductsButtonContainer: {
       paddingHorizontal: 0,
       marginTop: 0,
