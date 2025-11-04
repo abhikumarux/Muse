@@ -4,11 +4,12 @@
 expo-env.d.ts
 
 # Dependencies
-node_modules
+node_modules/
+.expo/
 
 # iOS and Android
-/ios
-/android
+ios/
+android/
 
 # Environment variables
 .env

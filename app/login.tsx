@@ -1,3 +1,4 @@
+import { SocialButtons } from "@/components/ui/SocialButtons";
 import React, { useEffect, useState } from "react";
 import {
   View, Text, TextInput, ActivityIndicator, Alert, TouchableOpacity,
@@ -176,16 +177,10 @@ export default function LoginScreen() {
               </TouchableOpacity>
 
 
-              <Text style={styles.orText}>Or Continue with</Text>
-
-              <View style={styles.socialContainer}>
-                <TouchableOpacity style={styles.socialButton} disabled={loading}>
-                  <FontAwesome name="google" size={24} color="#fc6e6eff" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.socialButton} disabled={loading}>
-                  <FontAwesome name="apple" size={24} color={themeColors.text} />
-                </TouchableOpacity>
-              </View>
+              {}
+              <SocialButtons />
+              {}
+              
 
               <View style={styles.registerContainer}>
                 <Text style={styles.registerText}>Don&apos;t have an account? </Text>
@@ -205,13 +200,11 @@ export default function LoginScreen() {
 
 const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
   StyleSheet.create({
-    // Keep keyboardAvoidingContainer
     keyboardAvoidingContainer: {
       flex: 1,
     },
     container: { flex: 1, backgroundColor: themeColors.loginBackground },
     gridImageStyle: { opacity: 0.5 },
-    // Keep scrollContentContainer
     scrollContentContainer: {
       flexGrow: 1,
       justifyContent: 'center',
@@ -257,19 +250,8 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       backgroundColor: themeColors.inputBorder,
       opacity: 0.7,
     },
-    orText: { color: themeColors.text, textAlign: "center", marginVertical: 20, fontSize: 16 },
-    socialContainer: { flexDirection: "row", justifyContent: "space-around", marginBottom: 30 },
-    socialButton: {
-      flex: 1,
-      marginHorizontal: 10,
-      paddingVertical: 10,
-      backgroundColor: themeColors.inputBackground,
-      borderRadius: 12,
-      alignItems: "center",
-      height: 50,
-      justifyContent: "center",
-    },
-    registerContainer: { flexDirection: "row", justifyContent: "center" },
+
+    registerContainer: { flexDirection: "row", justifyContent: "center", marginTop: 15 },
     registerText: { color: themeColors.text, fontSize: 18 },
     registerLink: { color: themeColors.subHeader, fontSize: 18, fontWeight: "bold" },
   });

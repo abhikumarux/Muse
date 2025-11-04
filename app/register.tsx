@@ -1,3 +1,4 @@
+import { SocialButtons } from "@/components/ui/SocialButtons";
 import React, { useState, useRef } from "react";
 import {
   View, Text, TextInput, ActivityIndicator, Alert, TouchableOpacity,
@@ -239,16 +240,9 @@ export default function RegisterScreen() {
                 </TouchableOpacity>
               )}
 
-              <Text style={styles.orText}>Or Continue with</Text>
-
-              <View style={styles.socialContainer}>
-                <TouchableOpacity style={styles.socialButton}>
-                  <FontAwesome name="google" size={24} color="#fc6e6eff" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.socialButton}>
-                  <FontAwesome name="apple" size={24} color={themeColors.text} />
-                </TouchableOpacity>
-              </View>
+              {}
+              <SocialButtons />
+              {}
 
               <View style={styles.registerContainer}>
                 <Text style={styles.registerText}>Already have an account? </Text>
@@ -309,7 +303,7 @@ export default function RegisterScreen() {
               </View>
             </Pressable>
           </Modal>
-          {}
+          {/* End Verification */}
         </View>
       </Pressable>
     </KeyboardAvoidingView>
@@ -352,7 +346,7 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
     },
     header: { fontSize: 28, fontWeight: "bold", color: themeColors.text, marginBottom: 5, textAlign: "left" },
     subheader: { fontSize: 28, fontWeight: "bold", color: themeColors.buttonBackground },
-    label: { color: themeColors.text, fontSize: 15, marginTop: 15, marginBottom: 6 }, // Updated style names
+    label: { color: themeColors.text, fontSize: 15, marginTop: 15, marginBottom: 6 },
     input: {
       backgroundColor: themeColors.inputBackground,
       color: themeColors.text,
@@ -365,13 +359,7 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
     loginButtonContainer: { marginTop: 30, marginBottom: 10, borderRadius: 12, overflow: "hidden", height: 50 },
     loginGradient: { flex: 1, justifyContent: "center", alignItems: "center" },
     loginButtonText: { color: themeColors.text, fontSize: 18, fontWeight: "bold" },
-    orText: { color: themeColors.text, textAlign: "center", marginVertical: 15, fontSize: 15 },
-    socialContainer: { flexDirection: "row", justifyContent: "space-around", marginBottom: 25 },
-    socialButton: {
-      flex: 1, marginHorizontal: 8, paddingVertical: 10,
-      backgroundColor: themeColors.inputBackground, borderRadius: 10,
-      alignItems: "center", height: 50, justifyContent: "center",
-    },
+
     registerContainer: { flexDirection: "row", justifyContent: "center", marginTop: 10 },
     registerText: { color: themeColors.text, fontSize: 17 },
     registerLink: { color: themeColors.buttonBackground, fontSize: 17, fontWeight: "bold" },
