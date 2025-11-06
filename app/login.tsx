@@ -207,7 +207,7 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
     gridImageStyle: { opacity: 0.5 },
     scrollContentContainer: {
       flexGrow: 1,
-      justifyContent: 'center',
+      justifyContent: "center",
       paddingTop: 60,
       paddingBottom: 40,
     },
@@ -226,9 +226,27 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       shadowRadius: 5.46,
       elevation: 9,
     },
-    header: { fontSize: 30, fontWeight: "bold", color: themeColors.text, marginBottom: 5, textAlign: "left" },
-    subheader: { fontSize: 30, fontWeight: "bold", color: themeColors.subHeader, marginBottom: 5, textAlign: "left" },
-    label: { color: themeColors.text, fontSize: 16, marginTop: 20, marginBottom: 8 },
+    header: {
+      fontSize: 30,
+      color: themeColors.text,
+      marginBottom: 5,
+      textAlign: "left",
+      fontFamily: "Inter-ExtraBold", // Updated
+    },
+    subheader: {
+      fontSize: 30,
+      color: themeColors.subHeader,
+      marginBottom: 5,
+      textAlign: "left",
+      fontFamily: "Inter-ExtraBold", // Updated
+    },
+    label: {
+      color: themeColors.text,
+      fontSize: 16,
+      marginTop: 20,
+      marginBottom: 8,
+      fontFamily: "Inter-ExtraBold", // Updated
+    },
     input: {
       backgroundColor: themeColors.inputBackground,
       color: themeColors.text,
@@ -237,21 +255,42 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       fontSize: 18,
       borderWidth: 1,
       borderColor: themeColors.inputBorder,
+      fontFamily: "Inter-ExtraBold", // Updated
     },
     optionsRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 10, marginBottom: 30 },
     rememberMeContainer: { flexDirection: "row", alignItems: "center" },
     rememberMeIcon: { marginRight: 8 },
-    rememberMeText: { color: themeColors.text, fontSize: 16 },
-    forgotPasswordText: { color: themeColors.text, fontSize: 16 },
+    rememberMeText: {
+      color: themeColors.text,
+      fontSize: 16,
+      fontFamily: "Inter-ExtraBold", // Updated
+    },
+    forgotPasswordText: {
+      color: themeColors.text,
+      fontSize: 16,
+      fontFamily: "Inter-ExtraBold", // Updated
+    },
     loginButtonContainer: { marginTop: 10, borderRadius: 12, height: 50, justifyContent: "center", alignItems: "center", backgroundColor: themeColors.buttonBackground },
-    loginButtonText: { color: themeColors.text, fontSize: 18, fontWeight: "bold" },
-    
+    loginButtonText: {
+      color: themeColors.text,
+      fontSize: 18,
+      fontFamily: "Inter-ExtraBold", // Updated
+    },
+
     disabledButton: {
       backgroundColor: themeColors.inputBorder,
       opacity: 0.7,
     },
 
     registerContainer: { flexDirection: "row", justifyContent: "center", marginTop: 15 },
-    registerText: { color: themeColors.text, fontSize: 18 },
-    registerLink: { color: themeColors.subHeader, fontSize: 18, fontWeight: "bold" },
+    registerText: {
+      color: themeColors.text,
+      fontSize: 18,
+      fontFamily: "Inter-ExtraBold", // Updated
+    },
+    registerLink: {
+      color: themeColors.subHeader,
+      fontSize: 18,
+      fontFamily: "Inter-ExtraBold", // Updated
+    },
   });

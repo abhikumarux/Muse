@@ -42,6 +42,9 @@ import { GEMINI_API_KEY, AWS_REGION, AWS_S3_BUCKET as BUCKET, AWS_IDENTITY_POOL_
 import { Category, Product, Variant, ProductDetails, PrintFilesResponse, CategoriesResponse, ProductsResponse, ProductDetailsResponse, DesignView, Muse } from "@/lib/types/printful";
 import { DesignText } from "@/assets/svg/DesignText";
 import { MuseCoin } from "@/assets/svg/MuseCoin";
+import tshirtPlaceholder from "@/assets/images/tshirt-placeholder.png";
+import hoodiePlaceholder from "@/assets/images/hoodie-placeholder.png";
+import { Asset } from "expo-asset";
 
 LogBox.ignoreLogs(["Warning: ..."]);
 LogBox.ignoreAllLogs();
@@ -145,6 +148,18 @@ export default function CreateNewDesignTab() {
     setCurrentStep(1);
     setPrompt("");
   };
+
+  useEffect(() => {
+    const preloadAssets = async () => {
+      try {
+        await Asset.loadAsync([require("@/assets/images/tshirt-placeholder.png"), require("@/assets/images/hoodie-placeholder.png")]);
+        console.log("✅ Placeholder images preloaded");
+      } catch (err) {
+        console.warn("⚠️ Error preloading images:", err);
+      }
+    };
+    preloadAssets();
+  }, []);
 
   useEffect(() => {
     if (params.savedDesignUri) {
@@ -1582,7 +1597,14 @@ export default function CreateNewDesignTab() {
             {gridCategories.map((category, index) => (
               <MotiView key={category.id} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "timing", duration: 300, delay: index * 50 }}>
                 <TouchableOpacity style={styles.categoryCard} onPress={() => handleCategorySelect(category)}>
-                  <Image source={{ uri: category.image_url }} style={styles.categoryImage} resizeMode="cover" />
+                  <Image
+                    source={
+                      category.title.toLowerCase().includes("all shirts") ? tshirtPlaceholder : category.title.toLowerCase().includes("all hoodies") ? hoodiePlaceholder : { uri: category.image_url }
+                    }
+                    style={[styles.categoryImage, { opacity: 0.95 }]}
+                    resizeMode="cover"
+                  />
+
                   <Text style={styles.categoryTitle} numberOfLines={2}>
                     {category.title}
                   </Text>
@@ -1754,21 +1776,21 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       borderBottomWidth: 1,
       borderColor: theme.tabIconDefault,
     },
-    backButtonText: { fontSize: 18, color: theme.tint, fontWeight: "600" },
-    headerText: { fontSize: 22, fontWeight: "bold", color: theme.text, flex: 1, textAlign: "center", marginRight: 40 },
+    backButtonText: { fontSize: 18, color: theme.tint, fontFamily: "Inter-ExtraBold" },
+    headerText: { fontSize: 22, color: theme.text, flex: 1, textAlign: "center", marginRight: 40, fontFamily: "Inter-ExtraBold" },
     gridContainer: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
     categoryCard: {
       width: CARD_WIDTH,
       height: CARD_WIDTH * 1.4,
-      backgroundColor: theme.card,
+      backgroundColor: theme.background,
       borderRadius: 16,
       marginBottom: 20,
       borderWidth: 2,
       borderColor: theme.text,
       paddingBottom: 12,
     },
-    categoryImage: { width: "100%", height: CARD_WIDTH * 1, borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: theme.tabIconDefault },
-    categoryTitle: { fontSize: 16, fontWeight: "600", color: theme.text, textAlign: "center", paddingTop: 20 },
+    categoryImage: { width: "100%", height: CARD_WIDTH * 1, borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: theme.background },
+    categoryTitle: { fontSize: 16, color: theme.text, textAlign: "center", paddingTop: 20, fontFamily: "Inter-ExtraBold" },
     productCard: {
       width: CARD_WIDTH,
       backgroundColor: theme.card,
@@ -1779,16 +1801,16 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       paddingBottom: 12,
     },
     productImage: { width: "100%", height: CARD_WIDTH * 0.8, borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: theme.tabIconDefault },
-    productTitle: { fontSize: 14, fontWeight: "600", color: theme.text, paddingHorizontal: 12, paddingTop: 12 },
-    productBrand: { fontSize: 12, color: theme.secondaryText, paddingHorizontal: 12, paddingTop: 4 },
-    productVariants: { fontSize: 11, color: theme.secondaryText, paddingHorizontal: 12, paddingTop: 2 },
+    productTitle: { fontSize: 14, color: theme.text, paddingHorizontal: 12, paddingTop: 12, fontFamily: "Inter-ExtraBold" },
+    productBrand: { fontSize: 12, color: theme.secondaryText, paddingHorizontal: 12, paddingTop: 4, fontFamily: "Inter-ExtraBold" },
+    productVariants: { fontSize: 11, color: theme.secondaryText, paddingHorizontal: 12, paddingTop: 2, fontFamily: "Inter-ExtraBold" },
     placementCard: { backgroundColor: theme.card, borderRadius: 12, marginBottom: 15, padding: 16, borderWidth: 2, borderColor: theme.tabIconDefault },
     placementCardSelected: { borderColor: theme.tint, backgroundColor: theme.headerChip },
     placementHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-    placementTitle: { fontSize: 16, fontWeight: "600", color: theme.text },
+    placementTitle: { fontSize: 16, color: theme.text, fontFamily: "Inter-ExtraBold" },
     checkbox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: theme.tabIconDefault, justifyContent: "center", alignItems: "center" },
     checkboxSelected: { backgroundColor: theme.tint, borderColor: theme.tint },
-    checkmark: { color: theme.background, fontSize: 14, fontWeight: "bold" },
+    checkmark: { color: theme.background, fontSize: 14, fontFamily: "Inter-ExtraBold" },
     placementImageContainer: {
       alignItems: "center",
       marginBottom: 30,
@@ -1800,17 +1822,17 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     },
     placementProductTitle: {
       fontSize: 16,
-      fontWeight: "600",
       color: theme.text,
       textAlign: "center",
       marginTop: 15,
+      fontFamily: "Inter-ExtraBold",
     },
     placementProductDescription: {
       fontSize: 18,
-      fontWeight: "600",
       color: theme.text,
       textAlign: "center",
       marginTop: 15,
+      fontFamily: "Inter-ExtraBold",
     },
     placementProductImage: {
       width: width * 0.7,
@@ -1834,14 +1856,15 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     placementButtonText: {
       color: theme.text,
       fontSize: 13,
-      fontWeight: "700",
+      fontFamily: "Inter-ExtraBold",
     },
     placementButtonTextSelected: {
       color: theme.background,
+      fontFamily: "Inter-ExtraBold",
     },
-    noPlacementsText: { fontSize: 16, color: theme.secondaryText, textAlign: "center", marginTop: 40 },
+    noPlacementsText: { fontSize: 16, color: theme.secondaryText, textAlign: "center", marginTop: 40, fontFamily: "Inter-ExtraBold" },
     selectionSummary: { padding: 16, marginTop: 10 },
-    selectionSummaryText: { color: "#FFFF", fontSize: 16, fontWeight: "600", textAlign: "center", marginBottom: 0 },
+    selectionSummaryText: { color: "#FFFF", fontSize: 16, textAlign: "center", marginBottom: 0, fontFamily: "Inter-ExtraBold" },
     generateButton: {
       backgroundColor: theme.text,
       paddingVertical: 16,
@@ -1853,15 +1876,15 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       shadowRadius: 8,
       elevation: 5,
     },
-    generateButtonText: { color: theme.background, fontSize: 16, fontWeight: "bold" },
+    generateButtonText: { color: theme.background, fontSize: 16, fontFamily: "Inter-ExtraBold" },
     designContent: { paddingHorizontal: 20, paddingBottom: 100 },
     designUploadTitle: {
       fontSize: 18,
-      fontWeight: "bold",
       color: theme.text,
       textAlign: "center",
       textTransform: "lowercase",
       marginBottom: 8,
+      fontFamily: "Inter-ExtraBold",
     },
     designUploadPrompt: {
       fontSize: 14,
@@ -1869,12 +1892,13 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       textAlign: "center",
       textTransform: "lowercase",
       marginBottom: 20,
+      fontFamily: "Inter-ExtraBold",
     },
     emptyImageSubtext: {
       color: theme.tabIconDefault,
       fontSize: 12,
-      fontWeight: "400",
       marginTop: 4,
+      fontFamily: "Inter-ExtraBold",
     },
     imagePreviewContainer: { flexDirection: "row", justifyContent: "space-between", marginBottom: 30, gap: 15, alignItems: "flex-start" },
     imagePreviewWrapper: {
@@ -1909,14 +1933,14 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       justifyContent: "center",
       zIndex: 10,
     },
-    deleteButtonText: { color: "#FFFFFF", fontSize: 18, fontWeight: "bold", lineHeight: 20 },
+    deleteButtonText: { color: "#FFFFFF", fontSize: 18, lineHeight: 20, fontFamily: "Inter-ExtraBold" },
     emptyImageBox: { flex: 1, width: "100%", alignItems: "center", justifyContent: "center", gap: 0 },
-    emptyImageText: { color: theme.secondaryText, fontSize: 14, fontWeight: "500" },
+    emptyImageText: { color: theme.secondaryText, fontSize: 14, fontFamily: "Inter-ExtraBold" },
     imagePreviewLabel: {
       fontSize: 16,
-      fontWeight: "bold",
       color: theme.text,
       textTransform: "lowercase",
+      fontFamily: "Inter-ExtraBold",
     },
     imagePreviewLabelDisabled: {
       color: theme.tabIconDefault,
@@ -1934,7 +1958,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       minHeight: 50,
       justifyContent: "center",
     },
-    finalGenerateButtonText: { color: theme.background, fontSize: 18, fontWeight: "bold" },
+    finalGenerateButtonText: { color: theme.background, fontSize: 18, fontFamily: "Inter-ExtraBold" },
     progressWrapperNew: {
       marginHorizontal: 5,
       marginVertical: 15,
@@ -1989,30 +2013,40 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       elevation: 5,
     },
     stepTextNew: {
-      fontWeight: "800",
       fontSize: 16,
       color: theme.text,
+      fontFamily: "Inter-ExtraBold",
     },
     stepLabelNew: {
       marginTop: 8,
       fontSize: 14,
-      fontWeight: "600",
       textAlign: "center",
       color: theme.secondaryText,
+      fontFamily: "Inter-ExtraBold",
     },
     stepLabelActiveNew: {
-      fontWeight: "bold",
       color: theme.text,
+      fontFamily: "Inter-ExtraBold",
     },
     loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.background },
-    loadingText: { marginTop: 10, fontSize: 16, color: theme.secondaryText },
+    loadingText: { marginTop: 10, fontSize: 16, color: theme.secondaryText, fontFamily: "Inter-ExtraBold" },
     errorContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.background, paddingHorizontal: 20 },
-    errorText: { fontSize: 16, color: "#F44336", textAlign: "center", marginBottom: 20 },
+    errorText: { fontSize: 16, color: "#F44336", textAlign: "center", marginBottom: 20, fontFamily: "Inter-ExtraBold" },
     retryButton: { backgroundColor: theme.text, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
-    retryButtonText: { color: theme.background, fontSize: 16, fontWeight: "600" },
+    retryButtonText: { color: theme.background, fontSize: 16, fontFamily: "Inter-ExtraBold" },
     finalDesignContent: { alignItems: "center", padding: 20, paddingBottom: 40 },
-    finalDesignProductText: { fontSize: 16, color: theme.secondaryText, marginBottom: 20, textAlign: "center" },
-    input: { backgroundColor: theme.card, width: "100%", padding: 15, borderRadius: 12, marginBottom: 20, color: theme.text, borderWidth: 1, borderColor: theme.tabIconDefault },
+    finalDesignProductText: { fontSize: 16, color: theme.secondaryText, marginBottom: 20, textAlign: "center", fontFamily: "Inter-ExtraBold" },
+    input: {
+      backgroundColor: theme.card,
+      width: "100%",
+      padding: 15,
+      borderRadius: 12,
+      marginBottom: 20,
+      color: theme.text,
+      borderWidth: 1,
+      borderColor: theme.tabIconDefault,
+      fontFamily: "Inter-ExtraBold",
+    },
     finalDesignButtonRow: { flexDirection: "row", width: "100%", justifyContent: "space-between", marginBottom: 15 },
     designControlButton: {
       flex: 1,
@@ -2030,9 +2064,9 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       minHeight: 50,
       justifyContent: "center",
     },
-    designControlButtonText: { color: theme.text, fontSize: 14, fontWeight: "bold" },
+    designControlButtonText: { color: theme.text, fontSize: 14, fontFamily: "Inter-ExtraBold" },
     mockupContainer: { marginBottom: 30, width: "100%" },
-    mockupTitle: { fontSize: 18, fontWeight: "600", color: theme.text, textAlign: "center", marginBottom: 15 },
+    mockupTitle: { fontSize: 18, color: theme.text, textAlign: "center", marginBottom: 15, fontFamily: "Inter-ExtraBold" },
     mockupScrollView: { maxHeight: 300 },
     mockupScrollContent: { paddingHorizontal: 10, alignItems: "center" },
     mockupImageContainer: {
@@ -2048,9 +2082,9 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       minWidth: 200,
     },
     mockupImage: { width: 180, height: 200, borderRadius: 8, backgroundColor: theme.background },
-    mockupImageLabel: { fontSize: 12, color: theme.secondaryText, marginTop: 8, textAlign: "center" },
+    mockupImageLabel: { fontSize: 12, color: theme.secondaryText, marginTop: 8, textAlign: "center", fontFamily: "Inter-ExtraBold" },
     noMockupContainer: { alignItems: "center", padding: 20, backgroundColor: theme.card, borderRadius: 12, marginBottom: 20 },
-    noMockupText: { fontSize: 16, color: theme.secondaryText, textAlign: "center" },
+    noMockupText: { fontSize: 16, color: theme.secondaryText, textAlign: "center", fontFamily: "Inter-ExtraBold" },
     generatedDesignContainer: {
       marginTop: 30,
       marginBottom: 30,
@@ -2079,8 +2113,8 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       justifyContent: "center",
       zIndex: 2,
     },
-    deleteGeneratedButtonText: { color: "#fff", fontSize: 18, fontWeight: "bold", lineHeight: 20 },
-    generatedDesignTitle: { fontSize: 18, fontWeight: "600", color: theme.text, marginBottom: 16, textAlign: "center" },
+    deleteGeneratedButtonText: { color: "#fff", fontSize: 18, lineHeight: 20, fontFamily: "Inter-ExtraBold" },
+    generatedDesignTitle: { fontSize: 18, color: theme.text, marginBottom: 16, textAlign: "center", fontFamily: "Inter-ExtraBold" },
     generatedDesignImage: { width: 260, height: 260, borderRadius: 14, marginBottom: 18, backgroundColor: theme.background, resizeMode: "contain", alignSelf: "center" },
     imageContainerForAnimation: {
       width: "100%",
@@ -2096,17 +2130,17 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       resizeMode: "contain",
     },
     detailsContainer: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 150 },
-    productTitleNew: { fontSize: 24, fontWeight: "bold", color: theme.text, marginBottom: 4 },
-    productPriceNew: { fontSize: 20, fontWeight: "600", color: theme.text, marginBottom: 20 },
+    productTitleNew: { fontSize: 24, color: theme.text, marginBottom: 4, fontFamily: "Inter-ExtraBold" },
+    productPriceNew: { fontSize: 20, color: theme.text, marginBottom: 20, fontFamily: "Inter-ExtraBold" },
     colorScrollView: { marginBottom: 25 },
     colorThumbnail: { width: 64, height: 64, borderRadius: 8, borderWidth: 2, borderColor: "transparent", overflow: "hidden" },
     colorThumbnailSelected: { borderColor: theme.tint },
     colorThumbnailImage: { width: "100%", height: "100%" },
     colorSelectorContainer: { alignItems: "center", marginRight: 12 },
-    colorNameText: { marginTop: 6, fontSize: 12, fontWeight: "500", color: theme.secondaryText, maxWidth: 64, textAlign: "center" },
+    colorNameText: { marginTop: 6, fontSize: 12, color: theme.secondaryText, maxWidth: 64, textAlign: "center", fontFamily: "Inter-ExtraBold" },
     sizeHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 15 },
-    selectionTitle: { fontSize: 18, fontWeight: "600", color: theme.text, marginBottom: 12 },
-    sizeGuideLink: { fontSize: 16, color: theme.secondaryText },
+    selectionTitle: { fontSize: 18, color: theme.text, marginBottom: 12, fontFamily: "Inter-ExtraBold" },
+    sizeGuideLink: { fontSize: 16, color: theme.secondaryText, fontFamily: "Inter-ExtraBold" },
     sizeButtonContainer: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
     sizeButtonNew: {
       paddingVertical: 12,
@@ -2120,8 +2154,8 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       marginBottom: 10,
     },
     sizeButtonNewSelected: { backgroundColor: theme.text, borderColor: theme.text },
-    sizeButtonTextNew: { fontSize: 16, fontWeight: "600", color: theme.text },
-    sizeButtonTextNewSelected: { color: theme.background },
+    sizeButtonTextNew: { fontSize: 16, color: theme.text, fontFamily: "Inter-ExtraBold" },
+    sizeButtonTextNewSelected: { color: theme.background, fontFamily: "Inter-ExtraBold" },
     bottomBar: { position: "absolute", bottom: 105, left: 0, right: 0, paddingHorizontal: 20, paddingTop: 10, backgroundColor: "transparent" },
     selectionTextPill: {
       backgroundColor: "#000000aa",
@@ -2139,7 +2173,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       elevation: 3,
     },
     confirmButton: { backgroundColor: theme.text, paddingVertical: 16, borderRadius: 12, alignItems: "center" },
-    confirmButtonText: { color: theme.background, fontSize: 18, fontWeight: "bold" },
+    confirmButtonText: { color: theme.background, fontSize: 18, fontFamily: "Inter-ExtraBold" },
     disabledButton: { backgroundColor: theme.tabIconDefault },
     modalContainer: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.9)", justifyContent: "center", alignItems: "center" },
     modalCloseButton: {
@@ -2154,7 +2188,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       alignItems: "center",
       zIndex: 10,
     },
-    modalCloseButtonText: { color: "white", fontSize: 28, lineHeight: 30 },
+    modalCloseButtonText: { color: "white", fontSize: 28, lineHeight: 30, fontFamily: "Inter-ExtraBold" },
     designActionRow: { flexDirection: "row", width: "100%", justifyContent: "space-between", marginTop: 10 },
     designControlButtonPrimary: {
       flex: 1,
@@ -2169,7 +2203,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       shadowRadius: 8,
       elevation: 5,
     },
-    designControlButtonPrimaryText: { color: theme.background, fontSize: 14, fontWeight: "bold" },
+    designControlButtonPrimaryText: { color: theme.background, fontSize: 14, fontFamily: "Inter-ExtraBold" },
     productFlowHeaderContainer: {
       flexDirection: "row",
       justifyContent: "space-between",
@@ -2197,22 +2231,22 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     },
     backIcon: {
       fontSize: 24,
-      fontWeight: "bold",
       color: theme.text,
+      fontFamily: "Inter-ExtraBold",
     },
     backText: {
       fontSize: 12,
-      fontWeight: "600",
       marginTop: 2,
       color: theme.text,
+      fontFamily: "Inter-ExtraBold",
     },
     productFlowTitle: {
       flex: 1,
       fontSize: 28,
-      fontWeight: "bold",
       textAlign: "center",
       color: theme.text,
       marginHorizontal: 10,
+      fontFamily: "Inter-ExtraBold",
     },
     coinsContainerFlow: {
       flexDirection: "row",
@@ -2223,12 +2257,12 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       minWidth: 70,
       backgroundColor: theme.text,
     },
-    coinTextFlow: { fontSize: 18, fontWeight: "bold", color: theme.background },
+    coinTextFlow: { fontSize: 18, color: theme.background, fontFamily: "Inter-ExtraBold" },
     coinIconPlaceholder: {
       fontSize: 18,
-      fontWeight: "bold",
       color: theme.background,
       marginRight: 8,
+      fontFamily: "Inter-ExtraBold",
     },
     museSelectorButton: {
       alignItems: "center",
@@ -2256,14 +2290,14 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     },
     museSelectorText: {
       color: theme.text,
-      fontWeight: "600",
       fontSize: 12,
       textAlign: "center",
+      fontFamily: "Inter-ExtraBold",
     },
     titleImagePlaceholder: {
       fontSize: 40,
-      fontWeight: "900",
       textAlign: "center",
+      fontFamily: "Inter-ExtraBold",
     },
     titleImageContainer: {
       flex: 1,
@@ -2312,10 +2346,10 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     },
     museModalTitle: {
       fontSize: 20,
-      fontWeight: "bold",
       flex: 1,
       textAlign: "center",
       marginHorizontal: 10,
+      fontFamily: "Inter-ExtraBold",
     },
     museModalSeeAllButton: {
       backgroundColor: "rgba(0,0,0,0.6)",
@@ -2325,8 +2359,8 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     },
     museModalSeeAllText: {
       color: "white",
-      fontWeight: "bold",
       fontSize: 16,
+      fontFamily: "Inter-ExtraBold",
     },
     museModalCloseButton: {
       backgroundColor: "rgba(0,0,0,0.6)",
@@ -2336,8 +2370,8 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     },
     museModalCloseButtonText: {
       color: "white",
-      fontWeight: "bold",
       fontSize: 16,
+      fontFamily: "Inter-ExtraBold",
     },
     museLoadingCard: {
       justifyContent: "center",
@@ -2374,9 +2408,9 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     },
     museTitleOverlay: {
       fontSize: 24,
-      fontWeight: "bold",
       color: "#fff",
       textAlign: "center",
+      fontFamily: "Inter-ExtraBold",
     },
     museSelectedCheckmarkContainer: {
       position: "absolute",
@@ -2392,7 +2426,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       elevation: 5,
     },
     coinIcon: { width: 24, height: 24, marginRight: 8 },
-    coinText: { fontSize: 18, fontWeight: "bold", color: theme.background },
+    coinText: { fontSize: 18, color: theme.background, fontFamily: "Inter-ExtraBold" },
     clothesSwitchContainer: {
       flexDirection: "row",
       height: 38,
@@ -2432,11 +2466,11 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     clothesSwitchText: {
       color: theme.text,
       fontSize: 13,
-      fontWeight: "600",
+      fontFamily: "Inter-ExtraBold",
     },
     clothesSwitchTextActive: {
       color: theme.background,
-      fontWeight: "700",
+      fontFamily: "Inter-ExtraBold",
     },
     allProductsButtonContainer: {
       paddingHorizontal: 0,
@@ -2460,6 +2494,6 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     allProductsButtonText: {
       color: theme.text,
       fontSize: 16,
-      fontWeight: "600",
+      fontFamily: "Inter-ExtraBold",
     },
   });

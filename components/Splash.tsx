@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     fontSize: 22,
     color: "#fff",
-    fontWeight: "600",
+    fontFamily: "Inter-ExtraBold",
     textShadowColor: "#00f0ff",
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 10,
@@ -124,5 +124,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#ccc",
     fontStyle: "italic",
+    fontFamily: "Inter-ExtraBold",
   },
 });

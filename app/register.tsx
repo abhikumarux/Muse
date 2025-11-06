@@ -316,16 +316,16 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       flex: 1,
     },
     outerPressable: {
-       flex: 1,
+      flex: 1,
     },
     container: {
       flex: 1,
-      backgroundColor: themeColors.loginBackground
+      backgroundColor: themeColors.loginBackground,
     },
     gridImageStyle: { opacity: 0.5 },
     scrollContentContainer: {
       flexGrow: 1,
-      justifyContent: 'center',
+      justifyContent: "center",
       paddingTop: 60,
       paddingBottom: 40,
     },
@@ -344,9 +344,25 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       shadowRadius: 5.46,
       elevation: 9,
     },
-    header: { fontSize: 28, fontWeight: "bold", color: themeColors.text, marginBottom: 5, textAlign: "left" },
-    subheader: { fontSize: 28, fontWeight: "bold", color: themeColors.buttonBackground },
-    label: { color: themeColors.text, fontSize: 15, marginTop: 15, marginBottom: 6 },
+    header: {
+      fontSize: 28,
+      color: themeColors.text,
+      marginBottom: 5,
+      textAlign: "left",
+      fontFamily: "Inter-ExtraBold", // Updated
+    },
+    subheader: {
+      fontSize: 28,
+      color: themeColors.buttonBackground,
+      fontFamily: "Inter-ExtraBold", // Updated
+    },
+    label: {
+      color: themeColors.text,
+      fontSize: 15,
+      marginTop: 15,
+      marginBottom: 6,
+      fontFamily: "Inter-ExtraBold", // Updated
+    },
     input: {
       backgroundColor: themeColors.inputBackground,
       color: themeColors.text,
@@ -355,58 +371,72 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       fontSize: 17,
       borderWidth: 1,
       borderColor: themeColors.inputBorder,
+      fontFamily: "Inter-ExtraBold", // Updated
     },
     loginButtonContainer: { marginTop: 30, marginBottom: 10, borderRadius: 12, overflow: "hidden", height: 50 },
     loginGradient: { flex: 1, justifyContent: "center", alignItems: "center" },
-    loginButtonText: { color: themeColors.text, fontSize: 18, fontWeight: "bold" },
+    loginButtonText: {
+      color: themeColors.text,
+      fontSize: 18,
+      fontFamily: "Inter-ExtraBold", // Updated
+    },
 
     registerContainer: { flexDirection: "row", justifyContent: "center", marginTop: 10 },
-    registerText: { color: themeColors.text, fontSize: 17 },
-    registerLink: { color: themeColors.buttonBackground, fontSize: 17, fontWeight: "bold" },
+    registerText: {
+      color: themeColors.text,
+      fontSize: 17,
+      fontFamily: "Inter-ExtraBold", // Updated
+    },
+    registerLink: {
+      color: themeColors.buttonBackground,
+      fontSize: 17,
+      fontFamily: "Inter-ExtraBold", // Updated
+    },
 
     modalOverlay: {
       flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: "rgba(0, 0, 0, 0.6)",
     },
     modalContent: {
-      width: '90%',
+      width: "90%",
       backgroundColor: themeColors.cardBackground,
       borderRadius: 20,
       padding: 25,
-      alignItems: 'center',
-      shadowColor: '#000',
+      alignItems: "center",
+      shadowColor: "#000",
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.25,
       shadowRadius: 4,
       elevation: 5,
-      position: 'relative',
+      position: "relative",
     },
     closeModalButton: {
-      position: 'absolute',
+      position: "absolute",
       top: 10,
       right: 10,
       padding: 5,
     },
     modalTitle: {
       fontSize: 22,
-      fontWeight: 'bold',
       color: themeColors.text,
       marginBottom: 10,
-      textAlign: 'center',
+      textAlign: "center",
+      fontFamily: "Inter-ExtraBold", // Updated
     },
     modalMessage: {
       fontSize: 15,
       color: themeColors.secondaryText,
-      textAlign: 'center',
+      textAlign: "center",
       marginBottom: 25,
       lineHeight: 21,
+      fontFamily: "Inter-ExtraBold", // Updated
     },
     codeInputContainer: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      width: '100%',
+      flexDirection: "row",
+      justifyContent: "space-between",
+      width: "100%",
       marginBottom: 20,
       paddingHorizontal: 5,
     },
@@ -416,29 +446,30 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       borderWidth: 1.5,
       borderColor: themeColors.inputBorder,
       borderRadius: 10,
-      textAlign: 'center',
+      textAlign: "center",
       fontSize: 22,
-      fontWeight: 'bold',
       color: themeColors.text,
       backgroundColor: themeColors.inputBackground,
+      fontFamily: "Inter-ExtraBold", // Updated
     },
     verifyButton: {
       backgroundColor: themeColors.buttonBackground,
       paddingVertical: 14,
       paddingHorizontal: 40,
       borderRadius: 12,
-      width: '80%',
-      alignItems: 'center',
+      width: "80%",
+      alignItems: "center",
       marginTop: 10,
     },
     verifyButtonText: {
       color: themeColors.text,
       fontSize: 18,
-      fontWeight: 'bold',
+      fontFamily: "Inter-ExtraBold", // Updated
     },
     resendText: {
-        color: themeColors.tint,
-        fontSize: 15,
-        marginTop: 5,
+      color: themeColors.tint,
+      fontSize: 15,
+      marginTop: 5,
+      fontFamily: "Inter-ExtraBold", // Updated
     },
   });

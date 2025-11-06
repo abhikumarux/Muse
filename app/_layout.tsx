@@ -1,17 +1,18 @@
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ThemeProvider, DarkTheme, DefaultTheme } from "@react-navigation/native";
 import { useColorScheme } from "@/hooks/useColorScheme";
-import { useFonts } from "expo-font";
+import { useFonts, Inter_800ExtraBold } from "@expo-google-fonts/inter";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { UserProvider } from "../lib/UserContext";
 import { Colors } from "@/constants/Colors";
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme() ?? 'light';
+  const colorScheme = useColorScheme() ?? "light";
   const theme = Colors[colorScheme];
   const [fontsLoaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
+    "Inter-ExtraBold": Inter_800ExtraBold,
   });
 
   if (!fontsLoaded) return null;
@@ -35,6 +36,7 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: "fade", animationDuration: 250 }} />
             <Stack.Screen name="product-detail" options={{ presentation: "modal", headerShown: false }} />
             <Stack.Screen name="muses" options={{ presentation: "modal", headerShown: false }} />
+            <Stack.Screen name="saved-designs" options={{ presentation: "modal", headerShown: false }} />
             {}
             <Stack.Screen
               name="forgot-password"

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react"; // Added useRef
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -35,12 +35,10 @@ import { WebView } from "react-native-webview";
 import { listDesignsForCurrentUser } from "@/lib/aws/saveDesign";
 import { getPrintfulStoreProducts } from "@/lib/aws/printful";
 
-// New import for color wheel picker & async storage
 import ColorPicker from "react-native-wheel-color-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width, height } = Dimensions.get("window");
-// Keep sheet height reasonable but tall enough
 const SHEET_HEIGHT = Math.round(Math.min(height * 0.5, 720));
 const STORAGE_KEY = "profile_ui_colors_v1";
 
@@ -48,15 +46,12 @@ export default function AnimatedProfile() {
   const colorScheme = useColorScheme() ?? "light";
   const theme = Colors[colorScheme];
   const router = useRouter();
-  // Destructure name from useUser
   const { name: userName, printfulApiKey, currentStoreId, signOutLocal } = useUser();
 
-  // State for counts
   const [designCount, setDesignCount] = useState(0);
   const [productCount, setProductCount] = useState(0);
   const [loadingCounts, setLoadingCounts] = useState(false);
 
-  // Modals
   const [modalVisible, setModalVisible] = useState(false);
   const [storeModalVisible, setStoreModalVisible] = useState(false);
 
@@ -65,22 +60,17 @@ export default function AnimatedProfile() {
   const [loadingStores, setLoadingStores] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // NEW: theme color state & picker modal state (two colors)
   const defaultPrimary = theme.tint ?? "#6e45e2";
   const defaultSecondary = "#6e45e2";
   const [themeColor1, setThemeColor1] = useState<string>(defaultPrimary);
   const [themeColor2, setThemeColor2] = useState<string>(defaultSecondary);
   const [colorPickerVisible, setColorPickerVisible] = useState<boolean>(false);
-  // which color index is being edited (1 or 2)
   const [editingIndex, setEditingIndex] = useState<1 | 2>(1);
 
-  // keep a ref for original (saved) colors so Reset/Cancel work easily
   const originalColorRef = useRef<{ c1: string; c2: string }>({ c1: defaultPrimary, c2: defaultSecondary });
 
-  // Animated sheet shared value (translateY). When hidden -> SHEET_HEIGHT, visible -> 0
   const sheetTranslateY = useSharedValue(SHEET_HEIGHT);
 
-  // 🌈 NEW: Scroll animation setup
   const scrollY = useSharedValue(0);
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -88,7 +78,6 @@ export default function AnimatedProfile() {
     },
   });
 
-  // Load saved colors from AsyncStorage on mount
   useEffect(() => {
     (async () => {
       try {
@@ -101,7 +90,6 @@ export default function AnimatedProfile() {
             originalColorRef.current = { c1: parsed.c1, c2: parsed.c2 };
           }
         } else {
-          // initialize ref with defaults
           originalColorRef.current = { c1: defaultPrimary, c2: defaultSecondary };
         }
       } catch (e) {
@@ -110,18 +98,14 @@ export default function AnimatedProfile() {
     })();
   }, []);
 
-  // Helper: open sheet (modal visible + animate up)
   const openColorSheet = useCallback(() => {
     setColorPickerVisible(true);
-    // start sheet off-screen and animate up
     sheetTranslateY.value = SHEET_HEIGHT;
     sheetTranslateY.value = withTiming(0, { duration: 350, easing: Easing.out(Easing.cubic) });
   }, []);
 
-  // Helper: close sheet (animate down and hide)
   const closeColorSheet = useCallback(
     async (shouldSave = true) => {
-      // animate down
       sheetTranslateY.value = withTiming(SHEET_HEIGHT, { duration: 300, easing: Easing.in(Easing.cubic) }, (finished) => {
         if (finished) {
           runOnJS(setColorPickerVisible)(false);
@@ -304,7 +288,7 @@ export default function AnimatedProfile() {
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Quick Actions</Text>
           <View style={styles.actionsGrid}>
             {[
-              { icon: "brush", label: "Saved Designs", route: "/(tabs)/products" },
+              { icon: "brush", label: "Saved Designs", route: "/saved-designs" },
               { icon: "bag", label: "Orders", route: "/(tabs)/orders" },
               {
                 icon: "storefront",
@@ -680,29 +664,29 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   avatar: { width: 90, height: 90, borderRadius: 45, borderWidth: 3, borderColor: "#fff", marginBottom: 10 },
-  name: { color: "#fff", fontSize: 22, fontWeight: "700" },
-  subtitle: { color: "#f0f0f0", fontSize: 14, marginBottom: 10 },
+  name: { color: "#fff", fontSize: 22, fontFamily: "Inter-ExtraBold" },
+  subtitle: { color: "#f0f0f0", fontSize: 14, marginBottom: 10, fontFamily: "Inter-ExtraBold" },
   statsRow: { flexDirection: "row", justifyContent: "space-evenly", width: "100%", marginTop: 10 },
   statCard: { alignItems: "center", minWidth: 60 }, // Added minWidth
-  statValue: { color: "#fff", fontSize: 20, fontWeight: "700", minHeight: 24 }, // Added minHeight
-  statLabel: { color: "#f0f0f0", fontSize: 12 },
+  statValue: { color: "#fff", fontSize: 20, minHeight: 24, fontFamily: "Inter-ExtraBold" }, // Added minHeight
+  statLabel: { color: "#f0f0f0", fontSize: 12, fontFamily: "Inter-ExtraBold" },
   section: { marginBottom: 20 },
-  sectionTitle: { fontSize: 18, fontWeight: "700", marginBottom: 10 },
+  sectionTitle: { fontSize: 18, marginBottom: 10, fontFamily: "Inter-ExtraBold" },
   actionsGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
   actionCard: {
-    width: width * 0.43, // Adjust width if needed based on screen size
+    width: width * 0.43,
     borderRadius: 16,
     paddingVertical: 18,
     alignItems: "center",
     borderWidth: 1.5,
-    borderColor: "#6e45e2", // will be overridden inline by themeColor
+    borderColor: "#6e45e2",
     marginBottom: 12,
     shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowRadius: 5,
     elevation: 2, // for Android
   },
-  actionLabel: { marginTop: 6, fontWeight: "500" },
+  actionLabel: { marginTop: 6, fontFamily: "Inter-ExtraBold" },
   card: {
     borderRadius: 16,
     padding: 18,
@@ -717,13 +701,13 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   row: { flexDirection: "row", alignItems: "center", marginVertical: 6, gap: 8 },
-  infoText: { fontSize: 15, fontWeight: "500" },
+  infoText: { fontSize: 15, fontFamily: "Inter-ExtraBold" },
   primaryBtn: { paddingVertical: 12, borderRadius: 10, alignItems: "center" },
-  primaryText: { fontWeight: "600", fontSize: 16 }, // Removed color: '#fff'
+  primaryText: { fontSize: 16, fontFamily: "Inter-ExtraBold" }, // Removed color: '#fff'
   secondaryBtn: { paddingVertical: 12, borderRadius: 10, alignItems: "center", backgroundColor: "#ff3b3010" },
-  secondaryText: { color: "#ff3b30", fontWeight: "600", fontSize: 16 },
+  secondaryText: { color: "#ff3b30", fontSize: 16, fontFamily: "Inter-ExtraBold" },
   settingRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginVertical: 8 },
-  settingLabel: { fontSize: 16, fontWeight: "500" },
+  settingLabel: { fontSize: 16, fontFamily: "Inter-ExtraBold" },
   logoutBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -734,30 +718,29 @@ const styles = StyleSheet.create({
     marginTop: 10,
     gap: 8,
   },
-  logoutText: { color: "#fff", fontWeight: "600", fontSize: 16 },
-  footer: { textAlign: "center", marginTop: 24, color: "#888", fontSize: 12 },
-  // Modal Styles
+  logoutText: { color: "#fff", fontSize: 16, fontFamily: "Inter-ExtraBold" },
+  footer: { textAlign: "center", marginTop: 24, color: "#888", fontSize: 12, fontFamily: "Inter-ExtraBold" },
   overlay: { flex: 1, justifyContent: "center", alignItems: "center" },
-  keyboardWrapper: { width: "90%", maxHeight: "80%" }, // Added maxHeight
-  popup: { borderRadius: 16, padding: 20, alignItems: "center", width: "100%" }, // Ensure width
-  popupTitle: { fontSize: 20, fontWeight: "700", marginBottom: 15 },
+  keyboardWrapper: { width: "90%", maxHeight: "80%" },
+  popup: { borderRadius: 16, padding: 20, alignItems: "center", width: "100%" },
+  popupTitle: { fontSize: 20, marginBottom: 15, fontFamily: "Inter-ExtraBold" },
   input: {
     borderWidth: 1,
     borderRadius: 8,
     width: "100%",
-    padding: 12, // Increased padding
-    marginBottom: 15, // Increased margin
-    fontSize: 16, // Ensure readability
+    padding: 12,
+    marginBottom: 15,
+    fontSize: 16,
+    fontFamily: "Inter-ExtraBold",
   },
   fetchButton: { paddingVertical: 12, borderRadius: 8, width: "100%", alignItems: "center", marginBottom: 10 }, // Added marginBottom
-  fetchText: { fontWeight: "600", fontSize: 16 },
-  errorText: { color: "#ff3b30", marginTop: 6, fontSize: 13, textAlign: "center" },
-  storeName: { fontWeight: "600", fontSize: 15 },
-  storeUrl: { fontSize: 12 },
-  closeButton: { marginTop: 15, padding: 5 }, // Increased marginTop
-  closeText: { fontWeight: "600", fontSize: 16 },
+  fetchText: { fontSize: 16, fontFamily: "Inter-ExtraBold" },
+  errorText: { color: "#ff3b30", marginTop: 6, fontSize: 13, textAlign: "center", fontFamily: "Inter-ExtraBold" },
+  storeName: { fontSize: 15, fontFamily: "Inter-ExtraBold" },
+  storeUrl: { fontSize: 12, fontFamily: "Inter-ExtraBold" },
+  closeButton: { marginTop: 15, padding: 5 },
+  closeText: { fontSize: 16, fontFamily: "Inter-ExtraBold" },
 
-  // WebView Modal
   webviewContainer: { flex: 1 },
   webviewHeader: {
     paddingHorizontal: 16,
@@ -773,10 +756,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.8)", // Or use theme background with opacity
+    backgroundColor: "rgba(255,255,255,0.8)",
   },
 
-  // New styles for color picker edit icon & sheet
   colorPickerIcon: {
     position: "absolute",
     top: 12,
@@ -787,7 +769,6 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
 
-  // full-screen dim overlay for sheet modal (above)
   colorModalOverlay: {
     position: "absolute",
     top: 0,
@@ -797,7 +778,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.5)",
   },
 
-  // sheet container
   sheetContainer: {
     position: "absolute",
     bottom: 0,
@@ -829,6 +809,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     width: "80%",
     marginTop: 10,
+    alignItems: "center",
   },
   previewGradient: {
     width: 90,
@@ -852,11 +833,11 @@ const styles = StyleSheet.create({
   },
   colorModalButtonText: {
     color: "#fff",
-    fontWeight: "700",
+    fontFamily: "Inter-ExtraBold",
   },
   colorModalTitle: {
     fontSize: 16,
-    fontWeight: "700",
+    fontFamily: "Inter-ExtraBold",
   },
   removeSection: {
     marginTop: 20,
@@ -880,9 +861,9 @@ const styles = StyleSheet.create({
   },
   removeText: {
     color: "#ff3b30",
-    fontWeight: "600",
     fontSize: 16,
     marginLeft: 6,
+    fontFamily: "Inter-ExtraBold",
   },
   manageHeader: {
     flexDirection: "row",
@@ -910,8 +891,8 @@ const styles = StyleSheet.create({
   },
   statusText: {
     marginLeft: 6,
-    fontWeight: "600",
     fontSize: 15,
+    fontFamily: "Inter-ExtraBold",
   },
   storeItem: {
     flexDirection: "row",

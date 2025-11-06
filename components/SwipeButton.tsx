@@ -145,10 +145,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#000000ff",
   },
-  buttonText: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
+  buttonText: { fontSize: 18, fontFamily: "Inter-ExtraBold" },
   swipeHandle: {
     height: BUTTON_HEIGHT - 10,
     width: BUTTON_HEIGHT - 10,

@@ -175,83 +175,101 @@ export default function ProductDetailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: "Inter-ExtraBold", // Updated
   },
   closeButton: { padding: 8 },
-  closeButtonText: { fontSize: 18, fontWeight: '600' },
+  closeButtonText: {
+    fontSize: 18,
+    fontFamily: "Inter-ExtraBold", // Updated
+  },
   scrollContainer: { paddingBottom: 50 },
   imageContainer: {
-      width: width,
-      height: width * 1.1,
-      alignItems: 'center',
-      justifyContent: 'center',
+    width: width,
+    height: width * 1.1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   mainImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'contain',
+    width: "100%",
+    height: "100%",
+    resizeMode: "contain",
   },
-  productTitle: { 
-    fontSize: 28, 
-    fontWeight: 'bold', 
-    marginHorizontal: 20, 
+  productTitle: {
+    fontSize: 28,
+    marginHorizontal: 20,
     marginVertical: 24,
-    textAlign: 'left',
+    textAlign: "left",
+    fontFamily: "Inter-ExtraBold", // Updated
   },
   detailsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginHorizontal: 20,
     paddingVertical: 20,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     marginBottom: 24,
   },
   price: {
-      fontSize: 24,
-      fontWeight: 'bold',
+    fontSize: 24,
+    fontFamily: "Inter-ExtraBold", // Updated
   },
   specsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   spec: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginLeft: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: 16,
   },
   specLabel: {
     fontSize: 16,
     marginRight: 8,
+    fontFamily: "Inter-ExtraBold", // Updated
   },
   specValue: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: "Inter-ExtraBold", // Updated
   },
-  button: { marginHorizontal: 16, padding: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
-  buttonText: { fontSize: 16, fontWeight: 'bold' },
-  deleteButton: { backgroundColor: '#ff3b3020' },
-  deleteButtonText: { color: '#ff3b30' },
-  errorText: { textAlign: 'center', marginTop: 50, fontSize: 18 },
-  backButton: { position: 'absolute', top: 60, left: 20 },
-  backButtonText: { fontSize: 18, fontWeight: '600' },
-  webviewContainer: { 
+  button: { marginHorizontal: 16, padding: 16, borderRadius: 12, alignItems: "center", justifyContent: "center", marginTop: 8 },
+  buttonText: {
+    fontSize: 16,
+    fontFamily: "Inter-ExtraBold", // Updated
+  },
+  deleteButton: { backgroundColor: "#ff3b3020" },
+  deleteButtonText: {
+    color: "#ff3b30",
+    fontFamily: "Inter-ExtraBold", // Updated
+  },
+  errorText: {
+    textAlign: "center",
+    marginTop: 50,
+    fontSize: 18,
+    fontFamily: "Inter-ExtraBold", // Updated
+  },
+  backButton: { position: "absolute", top: 60, left: 20 },
+  backButtonText: {
+    fontSize: 18,
+    fontFamily: "Inter-ExtraBold", // Updated
+  },
+  webviewContainer: {
     flex: 1,
   },
   webviewHeader: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
 });

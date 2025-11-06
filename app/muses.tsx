@@ -147,23 +147,33 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     headerTitle: {
       flex: 1,
       fontSize: 28,
-      fontWeight: "bold",
       textAlign: "center",
       color: theme.text,
       marginHorizontal: 10,
+      fontFamily: "Inter-ExtraBold", // Updated
     },
     addButtonContainer: { paddingHorizontal: 20, paddingVertical: 12, alignItems: "flex-end" },
     addButton: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20 },
     addButtonText: {
       color: theme.background,
       fontSize: 14,
-      fontWeight: "600",
+      fontFamily: "Inter-ExtraBold", // Updated
     },
     scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
     emptyState: { marginTop: 60, alignItems: "center" },
-    emptyText: { fontSize: 16, textAlign: "center", color: theme.secondaryText }, // Added theme color
+    emptyText: {
+      fontSize: 16,
+      textAlign: "center",
+      color: theme.secondaryText,
+      fontFamily: "Inter-ExtraBold", // Updated
+    },
     loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", paddingTop: 100 },
-    loadingText: { fontSize: 16, marginTop: 16, color: theme.secondaryText }, // Added theme color
+    loadingText: {
+      fontSize: 16,
+      marginTop: 16,
+      color: theme.secondaryText,
+      fontFamily: "Inter-ExtraBold", // Updated
+    },
     musesGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
     museCard: {
       width: "48%",
@@ -179,10 +189,10 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     museImage: { width: "100%", height: 200, resizeMode: "cover" },
     museName: {
       fontSize: 16,
-      fontWeight: "600",
       textAlign: "center",
       padding: 12,
       color: theme.text,
+      fontFamily: "Inter-ExtraBold", // Updated
     },
     backButtonNew: {
       alignItems: "center",
@@ -202,8 +212,8 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     },
     backText: {
       fontSize: 12,
-      fontWeight: "600",
       marginTop: 2,
       color: theme.text,
+      fontFamily: "Inter-ExtraBold", // Updated
     },
   });
