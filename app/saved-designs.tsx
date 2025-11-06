@@ -1,10 +1,10 @@
 import React, { useState, useCallback } from "react";
-import { View, Text, StyleSheet, Image, TouchableOpacity, Alert, useColorScheme as useDeviceColorScheme, Dimensions, FlatList, Modal, Pressable } from "react-native";
+import { View, Text, StyleSheet, Image, TouchableOpacity, Alert, useColorScheme as useDeviceColorScheme, Dimensions, FlatList, Modal, Pressable, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import { listDesignsForCurrentUser, deleteDesign, MuseDesignRow } from "@/lib/aws/saveDesign";
 import { Colors } from "@/constants/Colors";
-import { LoadingModal } from "@/components/ui/LoadingModal";
+import { Ionicons } from "@expo/vector-icons";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
@@ -63,6 +63,9 @@ export default function SavedDesignsScreen() {
       Alert.alert("Error", "Image location is missing for this design.");
       return;
     }
+    // First, close this modal
+    router.back();
+    // Then, navigate to the create tab with the image URI
     router.push({
       pathname: "/(tabs)",
       params: { savedDesignUri: design.s3Location },
@@ -75,13 +78,27 @@ export default function SavedDesignsScreen() {
   };
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top", "left", "right"]}>
-      <LoadingModal visible={loading} text="Loading Designs..." />
-      <Text style={[styles.header, { color: theme.text }]}>My Saved Designs</Text>
-      {designs.length === 0 && !loading ? (
+      {/* HEADER with DONE button */}
+      <View style={[styles.modalHeader, { borderBottomColor: theme.tabIconDefault }]}>
+        <Text style={[styles.header, { color: theme.text }]}>My Saved Designs</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.doneButton}>
+          <Text style={[styles.doneButtonText, { color: theme.tint }]}>Done</Text>
+        </TouchableOpacity>
+      </View>
+
+      {loading ? (
+        // Show this spinner while loading
+        <View style={styles.emptyContainer}>
+          <ActivityIndicator size="large" color={theme.tint} />
+          <Text style={[styles.messageText, { color: theme.secondaryText, marginTop: 10 }]}>Loading Designs...</Text>
+        </View>
+      ) : designs.length === 0 ? (
+        // Show this message if not loading and no designs
         <View style={styles.emptyContainer}>
           <Text style={[styles.messageText, { color: theme.secondaryText }]}>You haven't saved any designs yet.</Text>
         </View>
       ) : (
+        // Show the designs list
         <FlatList
           data={designs}
           keyExtractor={(item) => item.designId}
@@ -120,14 +137,33 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
   header: {
-    fontSize: 28,
-    fontWeight: "bold",
-    margin: 16,
+    fontSize: 24,
     textAlign: "center",
+    flex: 1,
+    fontFamily: "Inter-ExtraBold", // Updated
+  },
+  doneButton: {
+    position: "absolute",
+    right: 16,
+    top: 12,
+    padding: 8,
+  },
+  doneButtonText: {
+    fontSize: 18,
+    fontFamily: "Inter-ExtraBold", // Updated
   },
   grid: {
     paddingHorizontal: 16,
+    paddingTop: 16, // Added padding top
     paddingBottom: 100,
   },
   card: {
@@ -158,16 +194,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   buttonText: {
-    fontWeight: "600",
     fontSize: 14,
+    fontFamily: "Inter-ExtraBold", // Updated
   },
   removeButton: {
     backgroundColor: "#ff3b3020",
   },
   removeButtonText: {
     color: "#ff3b30",
-    fontWeight: "600",
     fontSize: 14,
+    fontFamily: "Inter-ExtraBold", // Updated
   },
   emptyContainer: {
     flex: 1,
@@ -176,6 +212,7 @@ const styles = StyleSheet.create({
   },
   messageText: {
     fontSize: 16,
+    fontFamily: "Inter-ExtraBold", // Updated
   },
   modalContainer: {
     flex: 1,

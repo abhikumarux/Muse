@@ -163,7 +163,12 @@ export default function OrdersScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { fontSize: 28, fontWeight: "bold", margin: 16, textAlign: "center" },
+  header: {
+    fontSize: 28,
+    margin: 16,
+    textAlign: "center",
+    fontFamily: "Inter-ExtraBold", // Updated
+  },
   grid: { paddingHorizontal: 16, paddingBottom: 100 },
   card: {
     width: "100%",
@@ -187,9 +192,9 @@ const styles = StyleSheet.create({
   },
   productName: {
     fontSize: 16,
-    fontWeight: "600",
     flexShrink: 1,
     marginBottom: 8,
+    fontFamily: "Inter-ExtraBold", // Updated
   },
   detailsRow: {
     flexDirection: "row",
@@ -202,10 +207,11 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 14,
+    fontFamily: "Inter-ExtraBold", // Updated
   },
   detailValue: {
     fontSize: 14,
-    fontWeight: "500",
+    fontFamily: "Inter-ExtraBold", // Updated
   },
   priceContainer: {
     flex: 1,
@@ -213,10 +219,14 @@ const styles = StyleSheet.create({
   },
   priceText: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontFamily: "Inter-ExtraBold", // Updated
   },
   messageContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
-  messageText: { fontSize: 16, textAlign: "center" },
+  messageText: {
+    fontSize: 16,
+    textAlign: "center",
+    fontFamily: "Inter-ExtraBold", // Updated
+  },
   deleteButtonContainer: {
     justifyContent: "center",
     alignItems: "center",
@@ -233,7 +243,7 @@ const styles = StyleSheet.create({
   },
   deleteButtonText: {
     color: "white",
-    fontWeight: "bold",
     fontSize: 16,
+    fontFamily: "Inter-ExtraBold", // Updated
   },
 });

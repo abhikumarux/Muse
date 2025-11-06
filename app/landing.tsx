@@ -143,6 +143,16 @@ const styles = StyleSheet.create({
   cardImage: { width: "100%", height: "100%", resizeMode: "contain" },
   textSection: { alignItems: "center" },
   textContainer: { alignItems: "center", marginBottom: 30 },
-  mainTitle: { fontSize: 32, fontWeight: "bold", textAlign: "center", lineHeight: 38 },
-  tagline: { fontSize: 18, textAlign: "center", marginTop: 15 },
+  mainTitle: {
+    fontSize: 32,
+    textAlign: "center",
+    lineHeight: 38,
+    fontFamily: "Inter-ExtraBold", // Updated
+  },
+  tagline: {
+    fontSize: 18,
+    textAlign: "center",
+    marginTop: 15,
+    fontFamily: "Inter-ExtraBold", // Updated
+  },
 });

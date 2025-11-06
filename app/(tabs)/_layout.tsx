@@ -60,9 +60,9 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
-        name="products"
+        name="photoshoot"
         options={{
-          title: "Designs",
+          title: "photoshoot",
           tabBarIcon: ({ color }) => <ContentIcon width={38} height={38} fill={color} />,
         }}
       />

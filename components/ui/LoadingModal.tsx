@@ -46,9 +46,5 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 5,
   },
-  text: {
-    marginTop: 15,
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  text: { marginTop: 15, fontSize: 16, fontFamily: "Inter-ExtraBold" },
 });

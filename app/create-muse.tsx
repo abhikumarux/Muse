@@ -335,11 +335,11 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 24,
-    fontWeight: "bold",
+    fontFamily: "Inter-ExtraBold", // Updated
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: "bold",
+    fontFamily: "Inter-ExtraBold", // Updated
   },
   content: {
     paddingHorizontal: 20,
@@ -348,13 +348,14 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 20,
-    fontWeight: "600",
     marginBottom: 8,
+    fontFamily: "Inter-ExtraBold", // Updated
   },
   subtitle: {
     fontSize: 14,
     marginBottom: 24,
     lineHeight: 20,
+    fontFamily: "Inter-ExtraBold", // Updated
   },
   nameInput: {
     borderWidth: 1,
@@ -362,6 +363,7 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 16,
     marginBottom: 8,
+    fontFamily: "Inter-ExtraBold", // Updated
   },
   input: {
     borderWidth: 1,
@@ -370,6 +372,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     minHeight: 120,
     marginBottom: 32,
+    fontFamily: "Inter-ExtraBold", // Updated
   },
   createButton: {
     padding: 16,
@@ -379,7 +382,7 @@ const styles = StyleSheet.create({
   createButtonText: {
     color: "#fff",
     fontSize: 18,
-    fontWeight: "bold",
+    fontFamily: "Inter-ExtraBold", // Updated
   },
   loadingContainer: {
     flexDirection: "row",
@@ -414,15 +417,16 @@ const styles = StyleSheet.create({
   },
   successTitle: {
     fontSize: 28,
-    fontWeight: "bold",
     marginBottom: 12,
     textAlign: "center",
+    fontFamily: "Inter-ExtraBold", // Updated
   },
   successMessage: {
     fontSize: 16,
     textAlign: "center",
     lineHeight: 22,
     paddingHorizontal: 20,
+    fontFamily: "Inter-ExtraBold", // Updated
   },
   saveButton: {
     width: "100%",

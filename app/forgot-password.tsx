@@ -275,7 +275,7 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
     gridImageStyle: { opacity: 0.5 },
     scrollContentContainer: {
       flexGrow: 1,
-      justifyContent: 'center',
+      justifyContent: "center",
       paddingBottom: 40,
     },
     formContainer: {
@@ -295,10 +295,10 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
     },
     header: {
       fontSize: 28,
-      fontWeight: "bold",
       color: themeColors.text,
       marginBottom: 15,
       textAlign: "center",
+      fontFamily: "Inter-ExtraBold", // Updated
     },
     instructions: {
       fontSize: 16,
@@ -306,6 +306,7 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       textAlign: "center",
       marginBottom: 30,
       lineHeight: 22,
+      fontFamily: "Inter-ExtraBold", // Updated
     },
     input: {
       backgroundColor: themeColors.inputBackground,
@@ -316,9 +317,10 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       borderWidth: 1,
       borderColor: themeColors.inputBorder,
       marginBottom: 20,
+      fontFamily: "Inter-ExtraBold", // Updated
     },
     disabledInput: {
-      backgroundColor: themeColors.inputBackground + '80',
+      backgroundColor: themeColors.inputBackground + "80",
       opacity: 0.7,
     },
     buttonContainer: {
@@ -330,57 +332,58 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       backgroundColor: themeColors.buttonBackground,
     },
     disabledButton: {
-        opacity: 0.7,
+      opacity: 0.7,
     },
     buttonText: {
       color: themeColors.text,
       fontSize: 18,
-      fontWeight: "bold",
+      fontFamily: "Inter-ExtraBold", // Updated
     },
-    
-     modalOverlay: {
+
+    modalOverlay: {
       flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: "rgba(0, 0, 0, 0.6)",
     },
     modalContent: {
-      width: '90%',
+      width: "90%",
       backgroundColor: themeColors.cardBackground,
       borderRadius: 20,
       padding: 25,
-      alignItems: 'center',
-      shadowColor: '#000',
+      alignItems: "center",
+      shadowColor: "#000",
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.25,
       shadowRadius: 4,
       elevation: 5,
-      position: 'relative',
+      position: "relative",
     },
     closeModalButton: {
-      position: 'absolute',
+      position: "absolute",
       top: 10,
       right: 10,
       padding: 5,
     },
     modalTitle: {
       fontSize: 22,
-      fontWeight: 'bold',
       color: themeColors.text,
       marginBottom: 10,
-      textAlign: 'center',
+      textAlign: "center",
+      fontFamily: "Inter-ExtraBold", // Updated
     },
     modalMessage: {
       fontSize: 15,
       color: themeColors.secondaryText,
-      textAlign: 'center',
+      textAlign: "center",
       marginBottom: 25,
       lineHeight: 21,
+      fontFamily: "Inter-ExtraBold", // Updated
     },
     codeInputContainer: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      width: '100%',
+      flexDirection: "row",
+      justifyContent: "space-between",
+      width: "100%",
       marginBottom: 20,
       paddingHorizontal: 5,
     },
@@ -390,29 +393,30 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       borderWidth: 1.5,
       borderColor: themeColors.inputBorder,
       borderRadius: 10,
-      textAlign: 'center',
+      textAlign: "center",
       fontSize: 22,
-      fontWeight: 'bold',
       color: themeColors.text,
       backgroundColor: themeColors.inputBackground,
+      fontFamily: "Inter-ExtraBold", // Updated
     },
     verifyButton: {
       backgroundColor: themeColors.buttonBackground,
       paddingVertical: 14,
       paddingHorizontal: 40,
       borderRadius: 12,
-      width: '80%',
-      alignItems: 'center',
+      width: "80%",
+      alignItems: "center",
       marginTop: 10,
     },
     verifyButtonText: {
       color: themeColors.text,
       fontSize: 18,
-      fontWeight: 'bold',
+      fontFamily: "Inter-ExtraBold", // Updated
     },
-     resendText: { 
-        color: themeColors.tint,
-        fontSize: 15,
-        marginTop: 5,
+    resendText: {
+      color: themeColors.tint,
+      fontSize: 15,
+      marginTop: 5,
+      fontFamily: "Inter-ExtraBold", // Updated
     },
   });
