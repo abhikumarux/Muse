@@ -38,10 +38,13 @@ import { listPhotoshootsForCurrentUser } from "@/lib/aws/savePhotoshoot";
 
 import ColorPicker from "react-native-wheel-color-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImagePicker from "expo-image-picker";
 
 const { width, height } = Dimensions.get("window");
 const SHEET_HEIGHT = Math.round(Math.min(height * 0.5, 720));
 const STORAGE_KEY = "profile_ui_colors_v1";
+const AVATAR_STORAGE_KEY = "profile_avatar_uri_v1";
+const DEFAULT_AVATAR = "https://i.pravatar.cc/300";
 
 export default function AnimatedProfile() {
   const colorScheme = useColorScheme() ?? "light";
@@ -69,6 +72,8 @@ export default function AnimatedProfile() {
   const [colorPickerVisible, setColorPickerVisible] = useState<boolean>(false);
   const [editingIndex, setEditingIndex] = useState<1 | 2>(1);
 
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+
   const originalColorRef = useRef<{ c1: string; c2: string }>({ c1: defaultPrimary, c2: defaultSecondary });
 
   const sheetTranslateY = useSharedValue(SHEET_HEIGHT);
@@ -94,8 +99,13 @@ export default function AnimatedProfile() {
         } else {
           originalColorRef.current = { c1: defaultPrimary, c2: defaultSecondary };
         }
+
+        const savedAvatar = await AsyncStorage.getItem(AVATAR_STORAGE_KEY);
+        if (savedAvatar) {
+          setAvatarUri(savedAvatar);
+        }
       } catch (e) {
-        console.warn("Failed to load saved theme colors", e);
+        console.warn("Failed to load saved theme colors or avatar", e);
       }
     })();
   }, []);
@@ -129,6 +139,31 @@ export default function AnimatedProfile() {
     },
     [themeColor1, themeColor2]
   );
+
+  const handlePickAvatar = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission denied", "Sorry, we need camera roll permissions to make this work!");
+      return;
+    }
+
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const newUri = result.assets[0].uri;
+      setAvatarUri(newUri);
+      try {
+        await AsyncStorage.setItem(AVATAR_STORAGE_KEY, newUri);
+      } catch (e) {
+        console.warn("Failed to save avatar image", e);
+      }
+    }
+  };
 
   const fetchCounts = useCallback(async () => {
     setLoadingCounts(true);
@@ -256,7 +291,16 @@ export default function AnimatedProfile() {
               <TouchableOpacity style={styles.colorPickerIcon} onPress={openColorSheet}>
                 <Ionicons name="color-palette-outline" size={20} color="#fff" />
               </TouchableOpacity>
-              <Image source={{ uri: "https://i.pravatar.cc/300" }} style={styles.avatar} />
+
+              {/* === AVATAR START === */}
+              <TouchableOpacity onPress={handlePickAvatar} style={styles.avatarContainer}>
+                <Image source={{ uri: avatarUri ?? DEFAULT_AVATAR }} style={styles.avatar} />
+                <View style={styles.avatarEditIcon}>
+                  <Ionicons name="pencil" size={12} color="#333" />
+                </View>
+              </TouchableOpacity>
+              {/* === AVATAR END === */}
+
               <Text style={styles.name}>{userName || "Muse User"}</Text>
               <View style={styles.statsRow}>
                 {[
@@ -646,7 +690,21 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginBottom: 20,
   },
-  avatar: { width: 90, height: 90, borderRadius: 45, borderWidth: 3, borderColor: "#fff", marginBottom: 10 },
+  avatar: { width: 90, height: 90, borderRadius: 45, borderWidth: 3, borderColor: "#fff" },
+  avatarContainer: {
+    marginBottom: 10,
+    position: "relative",
+  },
+  avatarEditIcon: {
+    position: "absolute",
+    bottom: 10,
+    right: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    padding: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#eee",
+  },
   name: { color: "#fff", fontSize: 22, fontFamily: "Inter-ExtraBold" },
   subtitle: { color: "#f0f0f0", fontSize: 14, marginBottom: 10, fontFamily: "Inter-ExtraBold" },
   statsRow: { flexDirection: "row", justifyContent: "space-evenly", width: "100%", marginTop: 10 },

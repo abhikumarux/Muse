@@ -1,16 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Image,
-  Alert,
-  Dimensions,
-  Modal,
-  TextInput,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert, Dimensions, Modal, TextInput } from "react-native";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Colors } from "@/constants/Colors";
 import { photoshootScenarios, type PhotoshootScenario } from "@/lib/config/photoshootScenarios";
@@ -21,6 +10,9 @@ import * as FileSystem from "expo-file-system/legacy";
 import { Ionicons } from "@expo/vector-icons";
 import { savePhotoshoot } from "@/lib/aws/savePhotoshoot";
 import * as ImagePicker from "expo-image-picker";
+
+// New loader
+import PhotoshootLoader from "@/assets/lottie/photoshoot-loader.json";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = SCREEN_WIDTH * 0.82;
@@ -117,10 +109,7 @@ export default function PhotoshootScreen() {
       setIsLoading(true);
 
       const base64 = await toBase64(designImageUri);
-      const parts: any[] = [
-        { inline_data: { mime_type: "image/png", data: base64 } },
-        { text: scenario.prompt },
-      ];
+      const parts: any[] = [{ inline_data: { mime_type: "image/png", data: base64 } }, { text: scenario.prompt }];
 
       const response = await fetch(GEMINI_ENDPOINT, {
         method: "POST",
@@ -147,7 +136,10 @@ export default function PhotoshootScreen() {
       });
 
       if (!imageData) {
-        const textResponse = candidate?.content?.parts?.map((p: any) => p?.text).filter(Boolean).join("\n");
+        const textResponse = candidate?.content?.parts
+          ?.map((p: any) => p?.text)
+          .filter(Boolean)
+          .join("\n");
         throw new Error(textResponse || "Gemini did not return image data.");
       }
 
@@ -233,7 +225,10 @@ export default function PhotoshootScreen() {
       });
 
       if (!imageData) {
-        const textResponse = candidate?.content?.parts?.map((p: any) => p?.text).filter(Boolean).join("\n");
+        const textResponse = candidate?.content?.parts
+          ?.map((p: any) => p?.text)
+          .filter(Boolean)
+          .join("\n");
         throw new Error(textResponse || "Gemini did not return image data.");
       }
 
@@ -264,13 +259,18 @@ export default function PhotoshootScreen() {
   const renderScenarioCard = (scenario: PhotoshootScenario) => {
     const isActive = activeScenario?.id === scenario.id && !viewingSaved;
     return (
-      <TouchableOpacity key={scenario.id} style={[styles.card, { backgroundColor: theme.card, borderColor: isActive ? theme.tint : "transparent" }]} onPress={() => handleScenarioPress(scenario)} disabled={isLoading}>
+      <TouchableOpacity
+        key={scenario.id}
+        style={[styles.card, { backgroundColor: theme.card, borderColor: isActive ? theme.tint : "transparent" }]}
+        onPress={() => handleScenarioPress(scenario)}
+        disabled={isLoading}
+      >
         {scenario.image && <Image source={scenario.image} style={styles.cardImage} resizeMode="cover" />}
         <View style={styles.cardBody}>
           <Text style={[styles.cardTitle, { color: theme.text }]}>{scenario.title}</Text>
           <Text style={[styles.cardSummary, { color: theme.secondaryText }]}>{scenario.summary}</Text>
         </View>
-        <View style={[styles.cardAction, { backgroundColor: theme.tint }]}> 
+        <View style={[styles.cardAction, { backgroundColor: theme.tint }]}>
           <Text style={[styles.cardActionText, { color: theme.background }]}>Run</Text>
         </View>
       </TouchableOpacity>
@@ -280,8 +280,7 @@ export default function PhotoshootScreen() {
   const showSaveButton = !viewingSaved;
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}> 
-
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color={theme.text} />
@@ -298,7 +297,7 @@ export default function PhotoshootScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={[styles.previewBlock, { backgroundColor: theme.card }]}> 
+          <View style={[styles.previewBlock, { backgroundColor: theme.card }]}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Base Image</Text>
             <Image source={{ uri: designImageUri }} style={styles.previewImage} resizeMode="cover" />
           </View>
@@ -311,7 +310,7 @@ export default function PhotoshootScreen() {
 
       <Modal visible={resultModalVisible && !!resultImage && !isLoading} transparent animationType="fade" onRequestClose={closeModal}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: theme.card }]}> 
+          <View style={[styles.modalCard, { backgroundColor: theme.card }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: theme.text }]}>{activeScenario?.title}</Text>
               <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
@@ -359,7 +358,8 @@ export default function PhotoshootScreen() {
         </View>
       </Modal>
 
-      <LoadingModal visible={isLoading} text={loadingText} />
+      {/* Pass the imported loader AND the new style prop */}
+      <LoadingModal visible={isLoading} text={loadingText} lottieSource={PhotoshootLoader} lottieStyle={{ width: 175, height: 175 }} />
     </View>
   );
 }

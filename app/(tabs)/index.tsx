@@ -1293,7 +1293,16 @@ export default function CreateNewDesignTab() {
               </TouchableOpacity>
               {/* ------------------------------- */}
             </View>
+
+            {/* === BUTTON MOVED OUT OF SCROLLVIEW === */}
           </ScrollView>
+
+          {/* === NEW FLOATING CONTAINER FOR THE BUTTON === */}
+          <View style={styles.startOverContainer}>
+            <TouchableOpacity style={styles.startOverButton} onPress={resetFlow}>
+              <Text style={styles.startOverButtonText}>START NEW DESIGN</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       );
     }
@@ -2045,14 +2054,18 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     errorText: { fontSize: 16, color: "#F44336", textAlign: "center", marginBottom: 20, fontFamily: "Inter-ExtraBold" },
     retryButton: { backgroundColor: theme.text, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
     retryButtonText: { color: theme.background, fontSize: 16, fontFamily: "Inter-ExtraBold" },
-    finalDesignContent: { alignItems: "center", padding: 20, paddingBottom: 40 },
-    finalDesignProductText: { fontSize: 16, color: theme.secondaryText, marginBottom: 20, textAlign: "center", fontFamily: "Inter-ExtraBold" },
+    finalDesignContent: {
+      alignItems: "center",
+      padding: 20,
+      paddingBottom: 120,
+    },
+    finalDesignProductText: { fontSize: 16, color: theme.secondaryText, marginBottom: 10, textAlign: "center", fontFamily: "Inter-ExtraBold" },
     input: {
       backgroundColor: theme.card,
       width: "100%",
       padding: 15,
       borderRadius: 12,
-      marginBottom: 20,
+      marginBottom: 15,
       color: theme.text,
       borderWidth: 1,
       borderColor: theme.tabIconDefault,
@@ -2076,7 +2089,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       justifyContent: "center",
     },
     designControlButtonText: { color: theme.text, fontSize: 14, fontFamily: "Inter-ExtraBold" },
-    mockupContainer: { marginBottom: 30, width: "100%" },
+    mockupContainer: { marginBottom: 20, width: "100%" },
     mockupTitle: { fontSize: 18, color: theme.text, textAlign: "center", marginBottom: 15, fontFamily: "Inter-ExtraBold" },
     mockupScrollView: { maxHeight: 300 },
     mockupScrollContent: { paddingHorizontal: 10, alignItems: "center" },
@@ -2505,6 +2518,35 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     allProductsButtonText: {
       color: theme.text,
       fontSize: 16,
+      fontFamily: "Inter-ExtraBold",
+    },
+
+    startOverContainer: {
+      position: "absolute",
+      bottom: 105,
+      left: 20,
+      right: 20,
+      paddingTop: 10,
+      backgroundColor: "transparent",
+    },
+    startOverButton: {
+      paddingVertical: 16,
+      borderRadius: 12,
+      alignItems: "center",
+      backgroundColor: theme.background,
+      borderWidth: 1.5,
+      borderColor: theme.text,
+      minHeight: 50,
+      justifyContent: "center",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    startOverButtonText: {
+      color: theme.text,
+      fontSize: 14,
       fontFamily: "Inter-ExtraBold",
     },
   });
