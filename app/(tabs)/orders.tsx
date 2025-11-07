@@ -31,10 +31,8 @@ export default function OrdersScreen() {
     }
     setLoading(true);
     try {
-      // Get the basic list of product IDs first
       const basicProductList = await getPrintfulStoreProducts(printfulApiKey, currentStoreId);
 
-      // Then, fetch detailed info for each product in parallel
       const detailedProducts = await Promise.all(basicProductList.map((p) => getPrintfulProductDetails(printfulApiKey, String(p.id), currentStoreId)));
 
       setProducts(detailedProducts);
@@ -167,7 +165,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     margin: 16,
     textAlign: "center",
-    fontFamily: "Inter-ExtraBold", // Updated
+    fontFamily: "Inter-ExtraBold",
   },
   grid: { paddingHorizontal: 16, paddingBottom: 100 },
   card: {
@@ -194,7 +192,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     flexShrink: 1,
     marginBottom: 8,
-    fontFamily: "Inter-ExtraBold", // Updated
+    fontFamily: "Inter-ExtraBold",
   },
   detailsRow: {
     flexDirection: "row",
@@ -207,11 +205,11 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 14,
-    fontFamily: "Inter-ExtraBold", // Updated
+    fontFamily: "Inter-ExtraBold",
   },
   detailValue: {
     fontSize: 14,
-    fontFamily: "Inter-ExtraBold", // Updated
+    fontFamily: "Inter-ExtraBold",
   },
   priceContainer: {
     flex: 1,
@@ -219,13 +217,13 @@ const styles = StyleSheet.create({
   },
   priceText: {
     fontSize: 18,
-    fontFamily: "Inter-ExtraBold", // Updated
+    fontFamily: "Inter-ExtraBold",
   },
   messageContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
   messageText: {
     fontSize: 16,
     textAlign: "center",
-    fontFamily: "Inter-ExtraBold", // Updated
+    fontFamily: "Inter-ExtraBold",
   },
   deleteButtonContainer: {
     justifyContent: "center",
@@ -237,13 +235,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     width: 80,
-    height: "90%", // Adjust height to match card minus margins
+    height: "90%",
     borderRadius: 16,
     marginVertical: 8,
   },
   deleteButtonText: {
     color: "white",
     fontSize: 16,
-    fontFamily: "Inter-ExtraBold", // Updated
+    fontFamily: "Inter-ExtraBold",
   },
 });

@@ -4,7 +4,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import { listDesignsForCurrentUser, deleteDesign, MuseDesignRow } from "@/lib/aws/saveDesign";
 import { Colors } from "@/constants/Colors";
-import { Ionicons } from "@expo/vector-icons";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
@@ -35,7 +34,7 @@ export default function SavedDesignsScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchDesigns();
-    }, [])
+    }, [fetchDesigns])
   );
 
   const handleRemove = (designId: string) => {
@@ -63,9 +62,7 @@ export default function SavedDesignsScreen() {
       Alert.alert("Error", "Image location is missing for this design.");
       return;
     }
-    // First, close this modal
     router.back();
-    // Then, navigate to the create tab with the image URI
     router.push({
       pathname: "/(tabs)",
       params: { savedDesignUri: design.s3Location },
@@ -76,9 +73,11 @@ export default function SavedDesignsScreen() {
     setSelectedImage(imageUrl);
     setModalVisible(true);
   };
+
+  const designsIsEmpty = !loading && designs.length === 0;
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top", "left", "right"]}>
-      {/* HEADER with DONE button */}
       <View style={[styles.modalHeader, { borderBottomColor: theme.tabIconDefault }]}>
         <Text style={[styles.header, { color: theme.text }]}>My Saved Designs</Text>
         <TouchableOpacity onPress={() => router.back()} style={styles.doneButton}>
@@ -87,18 +86,15 @@ export default function SavedDesignsScreen() {
       </View>
 
       {loading ? (
-        // Show this spinner while loading
         <View style={styles.emptyContainer}>
           <ActivityIndicator size="large" color={theme.tint} />
           <Text style={[styles.messageText, { color: theme.secondaryText, marginTop: 10 }]}>Loading Designs...</Text>
         </View>
-      ) : designs.length === 0 ? (
-        // Show this message if not loading and no designs
+      ) : designsIsEmpty ? (
         <View style={styles.emptyContainer}>
           <Text style={[styles.messageText, { color: theme.secondaryText }]}>You haven't saved any designs yet.</Text>
         </View>
       ) : (
-        // Show the designs list
         <FlatList
           data={designs}
           keyExtractor={(item) => item.designId}
@@ -149,7 +145,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     textAlign: "center",
     flex: 1,
-    fontFamily: "Inter-ExtraBold", // Updated
+    fontFamily: "Inter-ExtraBold",
   },
   doneButton: {
     position: "absolute",
@@ -159,18 +155,18 @@ const styles = StyleSheet.create({
   },
   doneButtonText: {
     fontSize: 18,
-    fontFamily: "Inter-ExtraBold", // Updated
+    fontFamily: "Inter-ExtraBold",
   },
   grid: {
     paddingHorizontal: 16,
-    paddingTop: 16, // Added padding top
+    paddingTop: 16,
     paddingBottom: 100,
   },
   card: {
     width: CARD_WIDTH,
     borderRadius: 16,
     marginBottom: 16,
-    marginHorizontal: 8,
+    marginHorizontal: 4,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -195,7 +191,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 14,
-    fontFamily: "Inter-ExtraBold", // Updated
+    fontFamily: "Inter-ExtraBold",
   },
   removeButton: {
     backgroundColor: "#ff3b3020",
@@ -203,7 +199,7 @@ const styles = StyleSheet.create({
   removeButtonText: {
     color: "#ff3b30",
     fontSize: 14,
-    fontFamily: "Inter-ExtraBold", // Updated
+    fontFamily: "Inter-ExtraBold",
   },
   emptyContainer: {
     flex: 1,
@@ -212,7 +208,7 @@ const styles = StyleSheet.create({
   },
   messageText: {
     fontSize: 16,
-    fontFamily: "Inter-ExtraBold", // Updated
+    fontFamily: "Inter-ExtraBold",
   },
   modalContainer: {
     flex: 1,
@@ -223,5 +219,6 @@ const styles = StyleSheet.create({
   fullscreenImage: {
     width: "90%",
     height: "90%",
+    resizeMode: "contain",
   },
 });

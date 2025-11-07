@@ -34,6 +34,7 @@ import { savePrintfulKeyAndStore, clearPrintfulKeyAndStore } from "../../lib/aws
 import { WebView } from "react-native-webview";
 import { listDesignsForCurrentUser } from "@/lib/aws/saveDesign";
 import { getPrintfulStoreProducts } from "@/lib/aws/printful";
+import { listPhotoshootsForCurrentUser } from "@/lib/aws/savePhotoshoot";
 
 import ColorPicker from "react-native-wheel-color-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -49,6 +50,7 @@ export default function AnimatedProfile() {
   const { name: userName, printfulApiKey, currentStoreId, signOutLocal } = useUser();
 
   const [designCount, setDesignCount] = useState(0);
+  const [photoshootCount, setPhotoshootCount] = useState(0);
   const [productCount, setProductCount] = useState(0);
   const [loadingCounts, setLoadingCounts] = useState(false);
 
@@ -121,7 +123,6 @@ export default function AnimatedProfile() {
           console.warn("Failed to save theme colors", e);
         }
       } else {
-        // reset to original colors if cancel
         setThemeColor1(originalColorRef.current.c1);
         setThemeColor2(originalColorRef.current.c2);
       }
@@ -129,28 +130,25 @@ export default function AnimatedProfile() {
     [themeColor1, themeColor2]
   );
 
-  // Fetch counts when the screen focuses or dependencies change
   const fetchCounts = useCallback(async () => {
     setLoadingCounts(true);
     try {
-      // Fetch Designs
-      const designs = await listDesignsForCurrentUser();
+      const [designs, photoshoots] = await Promise.all([listDesignsForCurrentUser(), listPhotoshootsForCurrentUser()]);
       setDesignCount(designs.length);
+      setPhotoshootCount(photoshoots.length);
 
-      // Fetch Printful Products if connected
       if (printfulApiKey && currentStoreId) {
         const products = await getPrintfulStoreProducts(printfulApiKey, currentStoreId);
         setProductCount(products.length);
       } else {
-        setProductCount(0); // Reset if not connected
+        setProductCount(0);
       }
     } catch (err) {
       console.error("Error fetching profile counts:", err);
-      // Optionally show an error to the user
     } finally {
       setLoadingCounts(false);
     }
-  }, [printfulApiKey, currentStoreId]); // Dependencies
+  }, [printfulApiKey, currentStoreId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -177,7 +175,6 @@ export default function AnimatedProfile() {
     ]);
   };
 
-  // Fetch Printful stores
   async function fetchStores() {
     try {
       if (!apiKey) {
@@ -207,7 +204,7 @@ export default function AnimatedProfile() {
       await savePrintfulKeyAndStore(idToken, apiKey.trim(), String(store.id));
       Alert.alert("Saved", `Connected to store: ${store.name}`);
       setModalVisible(false);
-      fetchCounts(); // Re-fetch counts after saving
+      fetchCounts();
     } catch (err: any) {
       Alert.alert("Error", err.message);
     }
@@ -224,9 +221,9 @@ export default function AnimatedProfile() {
             const idToken = await getIdTokenFromStorage();
             if (!idToken) return Alert.alert("Not signed in");
             await clearPrintfulKeyAndStore(idToken);
-            setApiKey(""); // Clear local state
-            setStores([]); // Clear stores
-            setProductCount(0); // Reset product count
+            setApiKey("");
+            setStores([]);
+            setProductCount(0);
             Alert.alert("Removed", "Printful connection cleared.");
           } catch (e: any) {
             Alert.alert("Error", e.message);
@@ -238,16 +235,13 @@ export default function AnimatedProfile() {
 
   const printfulStoreUrl = "https://www.printful.com/dashboard/store";
 
-  // animated style for sheet translateY
   const sheetAnimatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ translateY: sheetTranslateY.value }],
     };
   });
 
-  // 🌈 Header animation based on scroll
   const headerAnimatedStyle = useAnimatedStyle(() => {
-    // scale slightly when pulling down (negative scroll) and widen slightly when scrolling down a bit
     const scale = interpolate(scrollY.value, [-100, 0, 150], [1.06, 1, 1.06], Extrapolate.CLAMP);
     const borderRadius = interpolate(scrollY.value, [0, 150], [20, 8], Extrapolate.CLAMP);
     return { transform: [{ scale }], borderRadius };
@@ -256,25 +250,19 @@ export default function AnimatedProfile() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]}>
       <Animated.ScrollView onScroll={scrollHandler} scrollEventThrottle={16} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* HEADER */}
         <Animated.View style={[styles.animatedHeader, headerAnimatedStyle]}>
-          {/* Use selected themeColor in gradient */}
           <LinearGradient colors={[themeColor1, themeColor2]} style={styles.headerGradient}>
             <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: 100 }} style={styles.headerContent}>
-              {/* EDIT ICON TOP-RIGHT (opens color picker) */}
               <TouchableOpacity style={styles.colorPickerIcon} onPress={openColorSheet}>
                 <Ionicons name="color-palette-outline" size={20} color="#fff" />
               </TouchableOpacity>
-
               <Image source={{ uri: "https://i.pravatar.cc/300" }} style={styles.avatar} />
-              {/* Use userName from context */}
               <Text style={styles.name}>{userName || "Muse User"}</Text>
               <View style={styles.statsRow}>
-                {/* Use state variables for counts */}
                 {[
                   { label: "Designs", value: designCount },
+                  { label: "Shoots", value: photoshootCount },
                   { label: "Products", value: productCount },
-                  { label: "Orders", value: 0 }, // Placeholder for Orders
                 ].map((stat, i) => (
                   <AnimatedCounter key={i} label={stat.label} value={stat.value} delay={i * 200} isLoading={loadingCounts} />
                 ))}
@@ -289,6 +277,7 @@ export default function AnimatedProfile() {
           <View style={styles.actionsGrid}>
             {[
               { icon: "brush", label: "Saved Designs", route: "/saved-designs" },
+              { icon: "camera", label: "Photoshoots", route: "/saved-photoshoots" },
               { icon: "bag", label: "Orders", route: "/(tabs)/orders" },
               {
                 icon: "storefront",
@@ -420,7 +409,7 @@ export default function AnimatedProfile() {
                           color: theme.text,
                           textAlign: "center",
                           flex: 1,
-                          marginRight: 24, // gives space for the X
+                          marginRight: 24,
                         },
                       ]}
                     >
@@ -545,10 +534,7 @@ export default function AnimatedProfile() {
             style={[
               styles.sheetBody,
               {
-                backgroundColor:
-                  colorScheme === "dark"
-                    ? "rgba(28,28,30,0.98)" // deep, rich dark tone
-                    : "#ffffff", // solid white for light mode
+                backgroundColor: colorScheme === "dark" ? "rgba(28,28,30,0.98)" : "#ffffff",
               },
             ]}
           >
@@ -617,16 +603,13 @@ export default function AnimatedProfile() {
   );
 }
 
-// === Animated Counter Component (Rise Up Animation — no loading spinner) ===
 const AnimatedCounter = ({ value, label, delay, isLoading }: { value: number; label: string; delay?: number; isLoading?: boolean }) => {
   const animatedValue = useSharedValue(0);
 
   useEffect(() => {
-    // Animate from 0 up to the actual value
     animatedValue.value = withTiming(value, { duration: 1000 });
   }, [value]);
 
-  // Animated style for rising up + fade-in
   const animatedStyle = useAnimatedStyle(() => {
     const translateY = interpolate(animatedValue.value, [0, value], [10, 0], Extrapolate.CLAMP);
     const opacity = interpolate(animatedValue.value, [0, value * 0.3], [0, 1], Extrapolate.CLAMP);
@@ -667,8 +650,8 @@ const styles = StyleSheet.create({
   name: { color: "#fff", fontSize: 22, fontFamily: "Inter-ExtraBold" },
   subtitle: { color: "#f0f0f0", fontSize: 14, marginBottom: 10, fontFamily: "Inter-ExtraBold" },
   statsRow: { flexDirection: "row", justifyContent: "space-evenly", width: "100%", marginTop: 10 },
-  statCard: { alignItems: "center", minWidth: 60 }, // Added minWidth
-  statValue: { color: "#fff", fontSize: 20, minHeight: 24, fontFamily: "Inter-ExtraBold" }, // Added minHeight
+  statCard: { alignItems: "center", minWidth: 60 },
+  statValue: { color: "#fff", fontSize: 20, minHeight: 24, fontFamily: "Inter-ExtraBold" },
   statLabel: { color: "#f0f0f0", fontSize: 12, fontFamily: "Inter-ExtraBold" },
   section: { marginBottom: 20 },
   sectionTitle: { fontSize: 18, marginBottom: 10, fontFamily: "Inter-ExtraBold" },
@@ -684,7 +667,7 @@ const styles = StyleSheet.create({
     shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowRadius: 5,
-    elevation: 2, // for Android
+    elevation: 2,
   },
   actionLabel: { marginTop: 6, fontFamily: "Inter-ExtraBold" },
   card: {
@@ -692,9 +675,9 @@ const styles = StyleSheet.create({
     padding: 18,
     marginBottom: 20,
     overflow: "hidden",
-    backgroundColor: "rgba(255,255,255,0.12)", // added
+    backgroundColor: "rgba(255,255,255,0.12)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)", // subtle glass border
+    borderColor: "rgba(255,255,255,0.2)",
     shadowColor: "#000",
     shadowOpacity: 0.1,
     shadowRadius: 6,
@@ -703,7 +686,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", marginVertical: 6, gap: 8 },
   infoText: { fontSize: 15, fontFamily: "Inter-ExtraBold" },
   primaryBtn: { paddingVertical: 12, borderRadius: 10, alignItems: "center" },
-  primaryText: { fontSize: 16, fontFamily: "Inter-ExtraBold" }, // Removed color: '#fff'
+  primaryText: { fontSize: 16, fontFamily: "Inter-ExtraBold" },
   secondaryBtn: { paddingVertical: 12, borderRadius: 10, alignItems: "center", backgroundColor: "#ff3b3010" },
   secondaryText: { color: "#ff3b30", fontSize: 16, fontFamily: "Inter-ExtraBold" },
   settingRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginVertical: 8 },
@@ -733,7 +716,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Inter-ExtraBold",
   },
-  fetchButton: { paddingVertical: 12, borderRadius: 8, width: "100%", alignItems: "center", marginBottom: 10 }, // Added marginBottom
+  fetchButton: { paddingVertical: 12, borderRadius: 8, width: "100%", alignItems: "center", marginBottom: 10 },
   fetchText: { fontSize: 16, fontFamily: "Inter-ExtraBold" },
   errorText: { color: "#ff3b30", marginTop: 6, fontSize: 13, textAlign: "center", fontFamily: "Inter-ExtraBold" },
   storeName: { fontSize: 15, fontFamily: "Inter-ExtraBold" },

@@ -37,6 +37,8 @@ export default function RootLayout() {
             <Stack.Screen name="product-detail" options={{ presentation: "modal", headerShown: false }} />
             <Stack.Screen name="muses" options={{ presentation: "modal", headerShown: false }} />
             <Stack.Screen name="saved-designs" options={{ presentation: "modal", headerShown: false }} />
+            <Stack.Screen name="saved-photoshoots" options={{ presentation: "modal", headerShown: false }} />
+            <Stack.Screen name="create-photoshoot" options={{ presentation: "modal", headerShown: false }} />
             {}
             <Stack.Screen
               name="forgot-password"
