@@ -735,6 +735,15 @@ export default function CreateNewDesignTab() {
     }
   };
 
+  const handlePhotoshootPress = () => {
+    if (!mockupImages.length) {
+      Alert.alert("No Mockup", "Generate and apply your design to a product before launching a photoshoot.");
+      return;
+    }
+    const primaryMockup = mockupImages[0];
+    router.push({ pathname: "/photoshoot", params: { designUri: encodeURIComponent(primaryMockup) } });
+  };
+
   const handleGenerateDesign = () => {
     if (selectedPlacements.length === 0) {
       Alert.alert("No Placements Selected", "Please select at least one placement.");
@@ -1263,7 +1272,7 @@ export default function CreateNewDesignTab() {
               <TouchableOpacity style={styles.designControlButton} onPress={handleSaveDesign} disabled={isSaving}>
                 {isSaving ? <ActivityIndicator color={theme.text} /> : <Text style={styles.designControlButtonText}>SAVE DESIGN</Text>}
               </TouchableOpacity>
-              <TouchableOpacity style={styles.designControlButton} onPress={() => Alert.alert("Action", "Photoshoot coming soon...")}>
+              <TouchableOpacity style={styles.designControlButton} onPress={handlePhotoshootPress}>
                 <Text style={styles.designControlButtonText}>PHOTOSHOOT</Text>
               </TouchableOpacity>
             </View>

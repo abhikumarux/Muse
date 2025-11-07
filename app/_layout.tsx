@@ -35,6 +35,7 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: "fade", animationDuration: 250 }} />
             <Stack.Screen name="product-detail" options={{ presentation: "modal", headerShown: false }} />
             <Stack.Screen name="muses" options={{ presentation: "modal", headerShown: false }} />
+            <Stack.Screen name="photoshoot" options={{ presentation: "modal", headerShown: false }} />
             {}
             <Stack.Screen
               name="forgot-password"

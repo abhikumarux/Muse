@@ -7,6 +7,7 @@ export const USER_POOL_ID = "us-east-2_cwcNYd3n6";
 // DynamoDB
 export const DDB_TABLE_MUSE_USERS = "MuseUsers";
 export const DDB_TABLE_MUSE_DESIGNS = "MuseDesigns";
+export const DDB_TABLE_MUSE_PHOTOSHOOTS = "MusePhotoshoots";
 
 // S3
 export const S3_UPLOAD_BUCKET = "muse-app-uploads";
