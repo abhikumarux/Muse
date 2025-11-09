@@ -285,38 +285,42 @@ export default function AnimatedProfile() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]}>
       <Animated.ScrollView onScroll={scrollHandler} scrollEventThrottle={16} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <Animated.View style={[styles.animatedHeader, headerAnimatedStyle]}>
-          <LinearGradient colors={[themeColor1, themeColor2]} style={styles.headerGradient}>
-            <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: 100 }} style={styles.headerContent}>
-              <TouchableOpacity style={styles.colorPickerIcon} onPress={openColorSheet}>
-                <Ionicons name="color-palette-outline" size={20} color="#fff" />
-              </TouchableOpacity>
+        {/* FIX: New MotiView wrapper for the main header block */}
+        <MotiView from={{ opacity: 0, translateY: -20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: "timing", duration: 300 }}>
+          <Animated.View style={[styles.animatedHeader, headerAnimatedStyle]}>
+            <LinearGradient colors={[themeColor1, themeColor2]} style={styles.headerGradient}>
+              {/* Adjusted inner MotiView: removed delay, reduced duration slightly */}
+              <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: "timing", duration: 200 }} style={styles.headerContent}>
+                <TouchableOpacity style={styles.colorPickerIcon} onPress={openColorSheet}>
+                  <Ionicons name="color-palette-outline" size={20} color="#fff" />
+                </TouchableOpacity>
 
-              {/* === AVATAR START === */}
-              <TouchableOpacity onPress={handlePickAvatar} style={styles.avatarContainer}>
-                <Image source={{ uri: avatarUri ?? DEFAULT_AVATAR }} style={styles.avatar} />
-                <View style={styles.avatarEditIcon}>
-                  <Ionicons name="pencil" size={12} color="#333" />
+                {/* === AVATAR START === */}
+                <TouchableOpacity onPress={handlePickAvatar} style={styles.avatarContainer}>
+                  <Image source={{ uri: avatarUri ?? DEFAULT_AVATAR }} style={styles.avatar} />
+                  <View style={styles.avatarEditIcon}>
+                    <Ionicons name="pencil" size={12} color="#333" />
+                  </View>
+                </TouchableOpacity>
+                {/* === AVATAR END === */}
+
+                <Text style={styles.name}>{userName || "Muse User"}</Text>
+                <View style={styles.statsRow}>
+                  {[
+                    { label: "Designs", value: designCount },
+                    { label: "Shoots", value: photoshootCount },
+                    { label: "Products", value: productCount },
+                  ].map((stat, i) => (
+                    <AnimatedCounter key={i} label={stat.label} value={stat.value} delay={i * 200} isLoading={loadingCounts} />
+                  ))}
                 </View>
-              </TouchableOpacity>
-              {/* === AVATAR END === */}
+              </MotiView>
+            </LinearGradient>
+          </Animated.View>
+        </MotiView>
 
-              <Text style={styles.name}>{userName || "Muse User"}</Text>
-              <View style={styles.statsRow}>
-                {[
-                  { label: "Designs", value: designCount },
-                  { label: "Shoots", value: photoshootCount },
-                  { label: "Products", value: productCount },
-                ].map((stat, i) => (
-                  <AnimatedCounter key={i} label={stat.label} value={stat.value} delay={i * 200} isLoading={loadingCounts} />
-                ))}
-              </View>
-            </MotiView>
-          </LinearGradient>
-        </Animated.View>
-
-        {/* QUICK ACTIONS */}
-        <MotiView from={{ opacity: 0, translateY: 30 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: 300 }} style={styles.section}>
+        {/* QUICK ACTIONS - Delay adjusted from 300 to 200 */}
+        <MotiView from={{ opacity: 0, translateY: 30 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: 200 }} style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Quick Actions</Text>
           <View style={styles.actionsGrid}>
             {[
@@ -329,7 +333,7 @@ export default function AnimatedProfile() {
                 action: () => setStoreModalVisible(true),
               },
             ].map((item, i) => (
-              <MotiView key={i} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 400 + i * 100 }}>
+              <MotiView key={i} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 300 + i * 100 }}>
                 {/* Apply dynamic borderColor from themeColor1 */}
                 <TouchableOpacity style={[styles.actionCard, { backgroundColor: theme.card, borderColor: theme.text }]} onPress={item.action ?? (() => router.push(item.route as any))}>
                   <Ionicons name={item.icon as any} size={28} color={theme.text} />
@@ -416,14 +420,14 @@ export default function AnimatedProfile() {
         </MotiView>
 
         {/* LOGOUT */}
-        <MotiView from={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 800 }}>
-          <MotiView from={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 800 }}>
+        <MotiView from={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 650 }}>
+          <MotiView from={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 650 }}>
             <TouchableOpacity style={styles.logoutBtn} onPress={handleSignOut}>
               <Ionicons name="log-out-outline" size={20} color="#fff" />
               <Text style={styles.logoutText}>Sign Out</Text>
             </TouchableOpacity>
           </MotiView>
-          <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1000 }}>
+          <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 800 }}>
             <Text style={styles.footer}>v1.0.0 • Made with ❤️</Text>
           </MotiView>
         </MotiView>

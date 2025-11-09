@@ -62,11 +62,23 @@ export default function SavedDesignsScreen() {
       Alert.alert("Error", "Image location is missing for this design.");
       return;
     }
-    router.back();
-    router.push({
-      pathname: "/(tabs)",
-      params: { savedDesignUri: design.s3Location },
-    });
+    Alert.alert(
+      "Design Selected",
+      "This design has been applied! Go back to the create tab and select a product to see it.", // Message
+      [
+        {
+          text: "OK",
+          onPress: () => {
+            router.back();
+            router.navigate({
+              pathname: "/(tabs)",
+              params: { savedDesignUri: design.s3Location },
+            });
+          },
+        },
+      ],
+      { cancelable: false }
+    );
   };
 
   const openImageModal = (imageUrl: string) => {

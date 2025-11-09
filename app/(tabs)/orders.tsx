@@ -9,7 +9,7 @@ import { Swipeable } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import ColorSwatch from "@/components/ColorSwatch";
 import { LoadingModal } from "@/components/ui/LoadingModal";
-
+import { MotiView } from "moti";
 const { width } = Dimensions.get("window");
 
 export default function OrdersScreen() {
@@ -153,7 +153,9 @@ export default function OrdersScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top", "left", "right"]}>
       <LoadingModal visible={loading} text="Loading Products..." />
 
-      <Text style={[styles.header, { color: theme.text }]}>My Store Products</Text>
+      <MotiView from={{ opacity: 0, translateY: -10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: 100, type: "timing", duration: 300 }}>
+        <Text style={[styles.header, { color: theme.text }]}>My Store Products</Text>
+      </MotiView>
       {renderContent()}
     </SafeAreaView>
   );
