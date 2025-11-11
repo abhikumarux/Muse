@@ -39,13 +39,13 @@ export default function RegisterScreen() {
 
   // Verification
   const [verificationModalVisible, setVerificationModalVisible] = useState(false);
-  const [verificationCode, setVerificationCode] = useState<string[]>(Array(6).fill(''));
+  const [verificationCode, setVerificationCode] = useState<string[]>(Array(6).fill(""));
   const [isConfirming, setIsConfirming] = useState(false);
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
   const handleRegister = async () => {
     Keyboard.dismiss();
-    
+
     // Name validation and make it required
     if (name.trim().length === 0) {
       Alert.alert("Missing Name", "Please enter your full name.");
@@ -57,10 +57,7 @@ export default function RegisterScreen() {
       return;
     }
     if (!isStrongPassword(password)) {
-      Alert.alert(
-        "Weak password",
-        "Password must be at least 8 characters and include upper, lower, number, and special."
-      );
+      Alert.alert("Weak password", "Password must be at least 8 characters and include upper, lower, number, and special.");
       return;
     }
 
@@ -68,21 +65,19 @@ export default function RegisterScreen() {
     try {
       // Pass name.trim() directly
       await signUpEmailPassword(email.trim(), password, name.trim());
-      
+
       console.log("Sign up successful, showing modal.");
       setVerificationModalVisible(true);
       setTimeout(() => inputRefs.current[0]?.focus(), 100);
-
     } catch (err: any) {
       console.log("Sign up failed:", err.name, err.message);
-      if (err.name === 'UsernameExistsException') {
+      if (err.name === "UsernameExistsException") {
         console.log("User exists. Attempting to resend code.");
         try {
           await resendConfirmationCode(email.trim());
           setVerificationModalVisible(true);
           setTimeout(() => inputRefs.current[0]?.focus(), 100);
           Alert.alert("Verification Needed", "This email is already registered but unconfirmed. We've resent the verification code.");
-        
         } catch (resendErr: any) {
           console.error("Resend code failed:", resendErr);
           Alert.alert("Error", resendErr?.message || "Could not resend code. Please try signing in.");
@@ -98,7 +93,7 @@ export default function RegisterScreen() {
   // Verification code input handlers
   const handleCodeChange = (text: string, index: number) => {
     const newCode = [...verificationCode];
-    const digit = text.replace(/[^0-9]/g, '');
+    const digit = text.replace(/[^0-9]/g, "");
     newCode[index] = digit;
     setVerificationCode(newCode);
 
@@ -108,13 +103,13 @@ export default function RegisterScreen() {
   };
 
   const handleBackspace = (event: any, index: number) => {
-    if (event.nativeEvent.key === 'Backspace') {
+    if (event.nativeEvent.key === "Backspace") {
       const newCode = [...verificationCode];
       if (!newCode[index] && index > 0) {
-        newCode[index - 1] = '';
+        newCode[index - 1] = "";
         inputRefs.current[index - 1]?.focus();
       } else {
-        newCode[index] = '';
+        newCode[index] = "";
       }
       setVerificationCode(newCode);
     }
@@ -122,7 +117,7 @@ export default function RegisterScreen() {
 
   // Confirmation handler
   const handleConfirm = async () => {
-    const code = verificationCode.join('');
+    const code = verificationCode.join("");
     if (code.length !== 6) {
       Alert.alert("Incomplete Code", "Please enter the full 6-digit code.");
       return;
@@ -140,13 +135,13 @@ export default function RegisterScreen() {
 
       // Extract first name and personalize alert
       const fullName = name.trim();
-      const firstName = fullName.split(' ')[0] || fullName; // Get first part, or full name if no space
+      const firstName = fullName.split(" ")[0] || fullName; // Get first part, or full name if no space
 
       setVerificationModalVisible(false);
-      setVerificationCode(Array(6).fill(''));
-      
+      setVerificationCode(Array(6).fill(""));
+
       Alert.alert(`Welcome, ${firstName}!`, "Your account is confirmed.");
-      
+
       router.replace("/(tabs)");
     } catch (err: any) {
       Alert.alert("Error", err?.message || "Confirmation failed");
@@ -165,25 +160,12 @@ export default function RegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.keyboardAvoidingContainer}
-    >
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardAvoidingContainer}>
       <Pressable onPress={Keyboard.dismiss} style={styles.outerPressable}>
         <View style={styles.container}>
-          <ImageBackground
-            source={require("../assets/images/grid.png")}
-            style={StyleSheet.absoluteFill}
-            imageStyle={styles.gridImageStyle}
-            resizeMode="repeat"
-          />
           <BlurView intensity={4} tint={colorScheme} style={StyleSheet.absoluteFill} />
 
-          <ScrollView
-            contentContainerStyle={styles.scrollContentContainer}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
+          <ScrollView contentContainerStyle={styles.scrollContentContainer} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <BlurView intensity={80} tint={colorScheme} style={styles.formContainer}>
               <View style={styles.logoContainer}>
                 <Image source={require("../assets/images/logo.png")} style={styles.logo} resizeMode="contain" />
@@ -194,7 +176,10 @@ export default function RegisterScreen() {
               </Text>
 
               {/* Name first */}
-              <Text style={styles.label}>Enter Name</Text>
+              <View style={styles.labelContainer}>
+                <FontAwesome name="user-o" size={16} color={themeColors.text} style={styles.labelIcon} />
+                <Text style={styles.label}>Enter Name</Text>
+              </View>
               <TextInput
                 value={name}
                 onChangeText={setName}
@@ -206,7 +191,10 @@ export default function RegisterScreen() {
               />
 
               {/* Email second */}
-              <Text style={styles.label}>Enter Email</Text>
+              <View style={styles.labelContainer}>
+                <FontAwesome name="envelope-o" size={16} color={themeColors.text} style={styles.labelIcon} />
+                <Text style={styles.label}>Enter Email</Text>
+              </View>
               <TextInput
                 value={email}
                 onChangeText={setEmail}
@@ -219,7 +207,10 @@ export default function RegisterScreen() {
               />
 
               {/* Password third */}
-              <Text style={styles.label}>Enter Password</Text>
+              <View style={styles.labelContainer}>
+                <FontAwesome name="lock" size={18} color={themeColors.text} style={styles.labelIcon} />
+                <Text style={styles.label}>Enter Password</Text>
+              </View>
               <TextInput
                 value={password}
                 onChangeText={setPassword}
@@ -260,13 +251,13 @@ export default function RegisterScreen() {
             visible={verificationModalVisible}
             onRequestClose={() => {
               setVerificationModalVisible(false);
-              setVerificationCode(Array(6).fill(''));
+              setVerificationCode(Array(6).fill(""));
             }}
           >
             <Pressable style={styles.modalOverlay} onPress={Keyboard.dismiss}>
               <View style={styles.modalContent}>
                 <TouchableOpacity style={styles.closeModalButton} onPress={() => setVerificationModalVisible(false)}>
-                   <Ionicons name="close-circle" size={28} color={themeColors.secondaryText} />
+                  <Ionicons name="close-circle" size={28} color={themeColors.secondaryText} />
                 </TouchableOpacity>
                 <Text style={styles.modalTitle}>Verify your email</Text>
                 <Text style={styles.modalMessage}>We sent you a 6-digit code. Enter it below to confirm.</Text>
@@ -275,7 +266,9 @@ export default function RegisterScreen() {
                   {verificationCode.map((digit, index) => (
                     <TextInput
                       key={index}
-                      ref={(ref: TextInput | null) => { inputRefs.current[index] = ref; }}
+                      ref={(ref: TextInput | null) => {
+                        inputRefs.current[index] = ref;
+                      }}
                       style={styles.codeInput}
                       keyboardType="number-pad"
                       maxLength={1}
@@ -290,16 +283,16 @@ export default function RegisterScreen() {
                 </View>
 
                 {isConfirming ? (
-                  <ActivityIndicator size="large" color={themeColors.buttonBackground} style={{ marginTop: 20 }}/>
+                  <ActivityIndicator size="large" color={themeColors.buttonBackground} style={{ marginTop: 20 }} />
                 ) : (
                   <TouchableOpacity style={styles.verifyButton} onPress={handleConfirm}>
                     <Text style={styles.verifyButtonText}>Verify</Text>
                   </TouchableOpacity>
                 )}
 
-                 <TouchableOpacity onPress={handleResend} style={{ marginTop: 15 }}>
-                    <Text style={styles.resendText}>Didn't receive code? Resend</Text>
-                 </TouchableOpacity>
+                <TouchableOpacity onPress={handleResend} style={{ marginTop: 15 }}>
+                  <Text style={styles.resendText}>Didn't receive code? Resend</Text>
+                </TouchableOpacity>
               </View>
             </Pressable>
           </Modal>
@@ -322,21 +315,20 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       flex: 1,
       backgroundColor: themeColors.loginBackground,
     },
-    gridImageStyle: { opacity: 0.5 },
     scrollContentContainer: {
       flexGrow: 1,
       justifyContent: "center",
       paddingTop: 60,
       paddingBottom: 40,
     },
-    logoContainer: { alignItems: "center", marginBottom: 15 },
-    logo: { width: SCREEN_WIDTH * 0.45, height: SCREEN_HEIGHT * 0.09 },
+    logoContainer: { alignItems: "center", marginBottom: 20 },
+    logo: { width: SCREEN_WIDTH * 0.5, height: SCREEN_HEIGHT * 0.1 },
     formContainer: {
-      marginHorizontal: 30,
-      padding: 20,
+      marginHorizontal: 35,
+      padding: 25,
       overflow: "hidden",
-      borderRadius: 25,
-      borderWidth: 1,
+      borderRadius: 30,
+      borderWidth: 3,
       borderColor: themeColors.text === "#11181C" ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.1)",
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 4 },
@@ -345,22 +337,34 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       elevation: 9,
     },
     header: {
-      fontSize: 28,
+      fontSize: 30,
       color: themeColors.text,
       marginBottom: 5,
       textAlign: "left",
       fontFamily: "Inter-ExtraBold", // Updated
     },
     subheader: {
-      fontSize: 28,
-      color: themeColors.buttonBackground,
+      fontSize: 30,
+      color: "#1ce6a6ff",
+      marginBottom: 5,
+      textAlign: "left",
       fontFamily: "Inter-ExtraBold", // Updated
+    },
+
+    labelContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginTop: 20,
+      marginBottom: 8,
+    },
+    labelIcon: {
+      marginRight: 10,
+      width: 20,
+      textAlign: "center",
     },
     label: {
       color: themeColors.text,
-      fontSize: 15,
-      marginTop: 15,
-      marginBottom: 6,
+      fontSize: 16,
       fontFamily: "Inter-ExtraBold", // Updated
     },
     input: {
@@ -371,12 +375,12 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       fontSize: 17,
       borderWidth: 1,
       borderColor: themeColors.inputBorder,
-      fontFamily: "Inter-ExtraBold", // Updated
+      fontFamily: "Inter-medium", // Updated
     },
     loginButtonContainer: { marginTop: 30, marginBottom: 10, borderRadius: 12, overflow: "hidden", height: 50 },
     loginGradient: { flex: 1, justifyContent: "center", alignItems: "center" },
     loginButtonText: {
-      color: themeColors.text,
+      color: themeColors.background,
       fontSize: 18,
       fontFamily: "Inter-ExtraBold", // Updated
     },
@@ -388,7 +392,7 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       fontFamily: "Inter-ExtraBold", // Updated
     },
     registerLink: {
-      color: themeColors.buttonBackground,
+      color: "#1ce6a6ff",
       fontSize: 17,
       fontFamily: "Inter-ExtraBold", // Updated
     },
