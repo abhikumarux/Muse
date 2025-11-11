@@ -25,3 +25,23 @@ The photo should appear to be take at night. Neutral-to-warm color temperature w
 {
 "Use the uploaded image of the model as the subject, keeping their face and identity intact. Keep their exact clothes on and make sure all graphics are preserved 1:1. Don’t change anything about their outfits. Editorial fashion photograph with a warm, muted, and moderately desaturated filmic color grade, featuring subtle added grain. Shot outdoors in a vast desert landscape during golden hour, utilizing natural direct sunlight from the left-front to create soft but defined shadows. The camera is positioned at eye-level or slightly low, using a medium telephoto lens (e.g., 85mm prime) with an aperture around f/4 for selective focus, rendering the background mountains softly blurred but recognizable. The model from the uploaded image leans casually on the front fender of a vintage, heavily modified, dark-colored American muscle car lowered to the floor. The composition balances the subject slightly left of center against the expansive desert and sky, evoking a contemplative, cool, and minimalist mood. Make the image appear editorial style quality and look like the camera used was an old film camera with camera grain and with a light white flash."
 }
+
+5. Courtside Glow:
+{
+"Use the uploaded image of the model as the subject, keeping their face and identity intact. Keep their exact clothes on and make sure all graphics are preserved 1:1. Don’t change anything about their outfits. Take a candid front row courtside portrait inside a pro basketball arena. Don’t add any logos to the chairs. The chairs should be typical black courtside chairs. The model should appear sitting and to be less than 20 inches from the camera and the photographers angle should be from the right of them. The model should be posing in a cute way looking towards the camera. The crowd should appear behind them since they are in the front row of the game. Lighting is bright multi-source arena LED from above and front, extra light from the cameras flash, with soft low-contrast shadows and crisp specular highlights on leather and plastic. Color is neutral-cool (≈4800K) with natural warm skin tones; medium-high saturation so arena reds and blues pop without clipping. The stadium should appear packed as if it was a championship game
+Camera aesthetic: Canon G7X compact look at 28–35mm equivalent, f/2.8–f/4, 1/250–1/320 s, ISO 800–1600, flash off, face/eye AF. Depth of field is moderate so the subject is crisp but the crowd, chairs, rails, and LED signage remain readable.
+Framing: 4:5 portrait crop, eye-level from an adjacent seat. Subject sits in the middle, with empty chairs in the left foreground and layered arena background (crowd, security, branding). Keep horizon level with minor stadium rake. 
+Post-processing look: mild S-curve contrast; clarity/texture subtly boosted to emphasize leather and denim; moderate sharpening; minimal vignette; no heavy LUTs or cinematic colors. Preserve authentic venue color and keep skin natural.
+Mood: aspirational courtside candid—fashion-forward, documentary energy, clean and modern.
+Post editing color grading should appear like a film camera with heavy grain."
+}
+
+6. Studio Drift: (Studio)
+{
+"Use the uploaded image of the model as the subject, keeping their face and identity intact. Keep their exact clothes on and make sure all graphics are preserved 1:1. Don’t change anything about their outfits. A portrait of the model from the uploaded image , squatting on a white cylindrical pedestal. They’re looking slightly to their left with a pensive expression, resting their chin on her hand. The background is a solid, muted blue. Slightly cool color temperature, medium-low saturation, heavy film grain, and natural skin tones. Minimal post-processing for a refined natural look, moderate contrast. Focus on clean skin tones and sharp details. Make the image appear editorial style quality and look like the camera used was an old film camera with heavy camera grain and with a light white flash. It should be zoomed in to capture just the models upper body. Add natural lighting behind the model. The scene should be darker and focus on the light from the cameras flash. The model shouldn't be facing the camera, they should be slightly facing to the left."
+}
+
+7. Deep Frame: (Studio)
+{
+"Hard flash portrait lighting, high contrast, moderate desaturation, distinct film grain, 85mm prime lens, f/3.2, fast shutter speed, light studio backdrop, post-processed with deep blacks and slightly muted mid-tones for a vintage film emulation look. Zoomed in on the models upper body."
+}

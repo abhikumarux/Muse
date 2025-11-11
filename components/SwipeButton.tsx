@@ -30,6 +30,8 @@ interface SwipeButtonProps {
 
 const SwipeButton: FC<SwipeButtonProps> = ({ onSwipeComplete, text }) => {
   const colorScheme = useColorScheme() ?? "light";
+  const themeColors = Colors[colorScheme];
+  const styles = createStyles(themeColors);
   const translateX = useSharedValue(0);
   const isInteracting = useSharedValue(false);
   const nudgeAnimation = useSharedValue(0);
@@ -37,14 +39,7 @@ const SwipeButton: FC<SwipeButtonProps> = ({ onSwipeComplete, text }) => {
   const context = useSharedValue({ startX: 0 });
 
   useEffect(() => {
-    nudgeAnimation.value = withRepeat(
-      withSequence(
-        withTiming(15, { duration: 800 }),
-        withTiming(0, { duration: 800 })
-      ),
-      -1,
-      true
-    );
+    nudgeAnimation.value = withRepeat(withSequence(withTiming(15, { duration: 800 }), withTiming(0, { duration: 800 })), -1, true);
   }, []);
 
   // Highlight: Replaced useAnimatedGestureHandler with the Gesture builder API
@@ -57,10 +52,7 @@ const SwipeButton: FC<SwipeButtonProps> = ({ onSwipeComplete, text }) => {
     })
     .onUpdate((event) => {
       const newTranslateX = context.value.startX + event.translationX;
-      translateX.value = Math.min(
-        Math.max(newTranslateX, 0),
-        BUTTON_WIDTH - BUTTON_HEIGHT
-      );
+      translateX.value = Math.min(Math.max(newTranslateX, 0), BUTTON_WIDTH - BUTTON_HEIGHT);
     })
     .onEnd(() => {
       if (translateX.value > SWIPE_THRESHOLD) {
@@ -83,12 +75,7 @@ const SwipeButton: FC<SwipeButtonProps> = ({ onSwipeComplete, text }) => {
   const animatedTextStyle = useAnimatedStyle(() => {
     const nudge = isInteracting.value ? 0 : nudgeAnimation.value;
     return {
-      opacity: interpolate(
-        translateX.value,
-        [0, SWIPE_THRESHOLD / 2],
-        [1, 0],
-        "clamp"
-      ),
+      opacity: interpolate(translateX.value, [0, SWIPE_THRESHOLD / 2], [1, 0], "clamp"),
       transform: [
         {
           translateX: translateX.value * 0.5 + nudge,
@@ -96,67 +83,50 @@ const SwipeButton: FC<SwipeButtonProps> = ({ onSwipeComplete, text }) => {
       ],
     };
   });
-
-  const themeColors = Colors[colorScheme];
-
   return (
-    <LinearGradient
-      colors={[...themeColors.buttonGradient]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.buttonContainer}
-    >
+    <LinearGradient colors={[...themeColors.buttonGradient]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.buttonContainer}>
       <Animated.View style={animatedTextStyle}>
         <ThemedText style={styles.buttonText}>{text}</ThemedText>
       </Animated.View>
       {/* Highlight: Replaced PanGestureHandler with GestureDetector */}
       <GestureDetector gesture={panGesture}>
-        <Animated.View
-          style={[
-            styles.swipeHandle,
-            { backgroundColor: themeColors.swipeHandleBackground },
-            animatedHandleStyle,
-          ]}
-        >
-          <Feather
-            name="chevrons-right"
-            size={24}
-            color={themeColors.swipeHandleIcon}
-          />
+        <Animated.View style={[styles.swipeHandle, { backgroundColor: themeColors.swipeHandleBackground }, animatedHandleStyle]}>
+          <Feather name="chevrons-right" size={24} color={themeColors.swipeHandleIcon} />
         </Animated.View>
       </GestureDetector>
     </LinearGradient>
   );
 };
 
-const styles = StyleSheet.create({
-  buttonContainer: {
-    width: BUTTON_WIDTH,
-    height: BUTTON_HEIGHT,
-    borderRadius: BUTTON_HEIGHT / 2,
-    justifyContent: "center",
-    alignItems: "center",
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
-    borderWidth: 2,
-    borderColor: "#000000ff",
-  },
-  buttonText: { fontSize: 18, fontFamily: "Inter-ExtraBold" },
-  swipeHandle: {
-    height: BUTTON_HEIGHT - 10,
-    width: BUTTON_HEIGHT - 10,
-    borderRadius: (BUTTON_HEIGHT - 10) / 2,
-    position: "absolute",
-    left: 5,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 0.5,
-    borderColor: "#fff",
-  },
-});
+const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
+  StyleSheet.create({
+    buttonContainer: {
+      width: BUTTON_WIDTH,
+      height: BUTTON_HEIGHT,
+      borderRadius: BUTTON_HEIGHT / 2,
+      justifyContent: "center",
+      alignItems: "center",
+      overflow: "hidden",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 5,
+      elevation: 3,
+      borderWidth: 2,
+      borderColor: "#000000ff",
+    },
+    buttonText: { color: themeColors.background, fontSize: 18, fontFamily: "Inter-ExtraBold" },
+    swipeHandle: {
+      height: BUTTON_HEIGHT - 10,
+      width: BUTTON_HEIGHT - 10,
+      borderRadius: (BUTTON_HEIGHT - 10) / 2,
+      position: "absolute",
+      left: 5,
+      justifyContent: "center",
+      alignItems: "center",
+      borderWidth: 0.5,
+      borderColor: "#fff",
+    },
+  });
 
 export default SwipeButton;

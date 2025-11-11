@@ -1,16 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-  useColorScheme as useDeviceColorScheme,
-  ActivityIndicator,
-  Animated,
-} from "react-native";
+import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, useColorScheme as useDeviceColorScheme, ActivityIndicator, Animated } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { MotiView } from "moti";
@@ -20,6 +9,7 @@ import { useCreateDesign } from "../../lib/CreateDesignContext";
 import { Product, ProductsResponse } from "@/lib/types/printful";
 import { Ionicons } from "@expo/vector-icons";
 import { MuseCoin } from "@/assets/svg/MuseCoin";
+import * as Haptics from "expo-haptics";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 60) / 2;
@@ -50,7 +40,6 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     retryButton: { backgroundColor: theme.text, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
     retryButtonText: { color: theme.background, fontSize: 16, fontFamily: "Inter-ExtraBold" },
 
-    // Header Styles
     productFlowHeaderContainer: {
       flexDirection: "row",
       justifyContent: "space-between",
@@ -102,7 +91,6 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     coinIcon: { width: 24, height: 24, marginRight: 8 },
     coinTextFlow: { fontSize: 18, color: theme.background, fontFamily: "Inter-ExtraBold" },
 
-    // Progress Bar Styles
     progressWrapperNew: {
       marginHorizontal: 5,
       marginVertical: 15,
@@ -174,7 +162,6 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     },
   });
 
-// Header Component
 const ProductFlowHeader = ({ title, onBackPress }: { title: string; onBackPress?: () => void }) => {
   const colorScheme = useDeviceColorScheme();
   const theme = Colors[colorScheme ?? "light"];
@@ -182,7 +169,15 @@ const ProductFlowHeader = ({ title, onBackPress }: { title: string; onBackPress?
 
   return (
     <View style={styles.productFlowHeaderContainer}>
-      <TouchableOpacity style={styles.backButtonNew} onPress={onBackPress}>
+      <TouchableOpacity
+        style={styles.backButtonNew}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          if (onBackPress) {
+            onBackPress();
+          }
+        }}
+      >
         <View style={[styles.backIconCircle, { borderColor: theme.text }]}>
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </View>
@@ -200,15 +195,13 @@ const ProductFlowHeader = ({ title, onBackPress }: { title: string; onBackPress?
   );
 };
 
-// Progress Bar Component
 const ProgressBar = () => {
   const colorScheme = useDeviceColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const styles = getStyles(theme);
 
-  // This is hardcoded to step 1 for now.
   const currentStep = 1;
-  const progress = new Animated.Value(currentStep - 1); // Step 1 means progress is 0
+  const progress = new Animated.Value(currentStep - 1);
 
   const steps = ["product", "design", "final"];
   const activeFill = theme.text;
@@ -254,7 +247,6 @@ const ProgressBar = () => {
   );
 };
 
-// This is your new Products screen component
 export default function ProductsScreen() {
   const colorScheme = useDeviceColorScheme();
   const theme = Colors[colorScheme ?? "light"];
@@ -262,44 +254,41 @@ export default function ProductsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ categoryId: string; categoryName: string }>();
 
-  // Get shared state from context
   const { products, setProducts, setSelectedProduct } = useCreateDesign();
 
   const { printfulApiKey } = useUser();
 
-  // Local state for this screen
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState(""); // You can add a search bar if you like
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Fetch products when this screen loads
+  const fetchProducts = async (categoryId: number) => {
+    if (!printfulApiKey) {
+      setError("Please connect your Printful account in settings.");
+      setLoading(false);
+      return;
+    }
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`https://api.printful.com/products?category_id=${categoryId}`, {
+        headers: { Authorization: `Bearer ${printfulApiKey}` },
+      });
+      const data: ProductsResponse = await response.json();
+      if (data.code === 200) {
+        setProducts(data.result);
+      } else {
+        setError("Failed to fetch products");
+      }
+    } catch (err) {
+      setError("Network error occurred");
+      console.error("Error fetching products:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchProducts = async (categoryId: number) => {
-      if (!printfulApiKey) {
-        setError("Please connect your Printful account in settings.");
-        setLoading(false);
-        return;
-      }
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await fetch(`https://api.printful.com/products?category_id=${categoryId}`, {
-          headers: { Authorization: `Bearer ${printfulApiKey}` },
-        });
-        const data: ProductsResponse = await response.json();
-        if (data.code === 200) {
-          setProducts(data.result);
-        } else {
-          setError("Failed to fetch products");
-        }
-      } catch (err) {
-        setError("Network error occurred");
-        console.error("Error fetching products:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (params.categoryId) {
       fetchProducts(Number(params.categoryId));
     } else {
@@ -308,11 +297,10 @@ export default function ProductsScreen() {
     }
   }, [params.categoryId, printfulApiKey, setProducts]);
 
-  // Navigation to the next step
   const handleProductSelect = (product: Product) => {
-    setSelectedProduct(product); // Set in context
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedProduct(product);
 
-    // PUSH the next screen
     router.push({
       pathname: "/create/variants",
       params: { productId: product.id },
@@ -323,7 +311,6 @@ export default function ProductsScreen() {
     return products.filter((p) => p.title.toLowerCase().includes(searchQuery.toLowerCase()));
   }, [products, searchQuery]);
 
-  // Render logic
   const renderContent = () => {
     if (loading) {
       return (
@@ -347,7 +334,15 @@ export default function ProductsScreen() {
       return (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={() => params.categoryId && fetchProducts(Number(params.categoryId))}>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              if (params.categoryId) {
+                fetchProducts(Number(params.categoryId));
+              }
+            }}
+          >
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
         </View>
@@ -376,10 +371,7 @@ export default function ProductsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      <ProductFlowHeader
-        title={params.categoryName || "Products"}
-        onBackPress={() => router.back()} 
-      />
+      <ProductFlowHeader title={params.categoryName || "Products"} onBackPress={() => router.back()} />
       <ProgressBar />
       {renderContent()}
     </SafeAreaView>

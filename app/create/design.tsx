@@ -1,19 +1,5 @@
-import React, { useEffect, useState, useRef } from "react"; 
-import {
-  View,
-  Text,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-  useColorScheme as useDeviceColorScheme,
-  ActivityIndicator,
-  Animated,
-  TextInput,
-  Alert,
-  Modal,
-} from "react-native";
+import React, { useEffect, useState, useRef } from "react";
+import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, useColorScheme as useDeviceColorScheme, ActivityIndicator, Animated, TextInput, Alert, Modal } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { MotiView } from "moti";
@@ -25,7 +11,6 @@ import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3
 import { fromCognitoIdentityPool } from "@aws-sdk/credential-provider-cognito-identity";
 import { CognitoIdentityClient } from "@aws-sdk/client-cognito-identity";
 import { v4 as uuidv4 } from "uuid";
-
 import { Colors } from "@/constants/Colors";
 import { useUser } from "../../lib/UserContext";
 import { useCreateDesign } from "../../lib/CreateDesignContext";
@@ -34,6 +19,7 @@ import { MuseCoin } from "@/assets/svg/MuseCoin";
 import { LoadingModal } from "@/components/ui/LoadingModal";
 import { GEMINI_API_KEY, AWS_REGION, AWS_S3_BUCKET as BUCKET, AWS_IDENTITY_POOL_ID } from "@/lib/config/constants";
 import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
+import * as Haptics from "expo-haptics"; // Import Haptics
 
 const { width } = Dimensions.get("window");
 
@@ -348,7 +334,15 @@ const ProductFlowHeader = ({ title, onBackPress }: { title: string; onBackPress?
 
   return (
     <View style={styles.productFlowHeaderContainer}>
-      <TouchableOpacity style={styles.backButtonNew} onPress={onBackPress}>
+      <TouchableOpacity
+        style={styles.backButtonNew}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Haptic feedback
+          if (onBackPress) {
+            onBackPress();
+          }
+        }}
+      >
         <View style={[styles.backIconCircle, { borderColor: theme.text }]}>
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </View>
@@ -381,7 +375,7 @@ const ProgressBar = () => {
       duration: 500,
       useNativeDriver: false,
     }).start();
-  }, [currentStep]);
+  }, [currentStep, progress]); // Add progress
 
   const steps = ["product", "design", "final"];
   const activeFill = theme.text;
@@ -464,7 +458,7 @@ export default function DesignScreen() {
     if (preloadedDesignUri) {
       setUploadedImages({ left: preloadedDesignUri, right: null });
       setGeneratedImage(preloadedDesignUri);
-      setPreloadedDesignUri(null); 
+      setPreloadedDesignUri(null);
     }
   }, [preloadedDesignUri, setGeneratedImage, setUploadedImages, setPreloadedDesignUri]);
 
@@ -489,10 +483,12 @@ export default function DesignScreen() {
   }, []);
 
   const handleImageZoom = (imageUrl: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Haptic feedback
     setSelectedImageUrlForZoom(imageUrl);
   };
 
   const handleImageAdd = (position: "left" | "right") => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Haptic feedback
     Alert.alert(
       "Add Image",
       "Choose a source for your image:",
@@ -507,6 +503,7 @@ export default function DesignScreen() {
 
   const pickImage = async (position: "left" | "right") => {
     try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Haptic feedback
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -528,6 +525,7 @@ export default function DesignScreen() {
 
   const takePhoto = async (position: "left" | "right") => {
     try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Haptic feedback
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== "granted") {
         Alert.alert("Permission Required", "Camera permission is needed.");
@@ -552,14 +550,19 @@ export default function DesignScreen() {
   };
 
   const deleteImage = (position: "left" | "right") => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Haptic feedback
     setUploadedImages((prev) => ({ ...prev, [position]: null }));
   };
 
-  const deleteGeneratedImage = () => setGeneratedImage(null);
+  const deleteGeneratedImage = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Haptic feedback
+    setGeneratedImage(null);
+  };
 
   // --- API Logic ---
 
   const GenerateFinalDesign = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // Haptic feedback
     if (!GEMINI_API_KEY) {
       Alert.alert("Error", "Missing API Key. Please configure your .env file.");
       return;
@@ -706,6 +709,7 @@ export default function DesignScreen() {
   };
 
   const handleRemix = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // Haptic feedback
     if (!GEMINI_API_KEY) {
       Alert.alert("Error", "Missing API Key. Please configure your .env file.");
       return;
@@ -754,6 +758,7 @@ export default function DesignScreen() {
   };
 
   const putImageOnItem = async () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); // Haptic feedback
     if (!userId || !generatedImage) {
       console.error("Missing userId or generatedImage");
       return;
@@ -988,7 +993,13 @@ export default function DesignScreen() {
               </ImageZoom>
             </MotiView>
           )}
-          <TouchableOpacity style={styles.modalCloseButton} onPress={() => setSelectedImageUrlForZoom(null)}>
+          <TouchableOpacity
+            style={styles.modalCloseButton}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Haptic feedback
+              setSelectedImageUrlForZoom(null);
+            }}
+          >
             <Text style={styles.modalCloseButtonText}>×</Text>
           </TouchableOpacity>
         </View>
