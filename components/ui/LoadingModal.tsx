@@ -62,7 +62,7 @@ const getStyles = (theme: any) =>
     },
     lottieView: {
       // These are the DEFAULTS
-      width: 150,
+      width: 250,
       height: 150,
       marginBottom: 10,
     },

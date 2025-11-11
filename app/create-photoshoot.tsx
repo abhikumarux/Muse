@@ -17,7 +17,7 @@ import { MuseCoin } from "@/assets/svg/MuseCoin";
 import { useUser } from "@/lib/UserContext";
 import { getPrintfulStoreProducts, getPrintfulProductDetails, PrintfulSyncProduct, getVariantInfo } from "@/lib/aws/printful";
 import ColorSwatch from "@/components/ColorSwatch";
-
+import PhotoshootLoader from "@/assets/lottie/photoshoot-loader.json";
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 60) / 2;
 const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent";
@@ -491,7 +491,7 @@ export default function CreatePhotoshootScreen() {
     <>
       <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]} edges={["top", "left", "right"]}>
         {mode === "select" ? renderScenarioPicker() : renderDetail()}
-        <LoadingModal visible={isLoading} text={loadingText} />
+        <LoadingModal visible={isLoading} text={loadingText} lottieSource={PhotoshootLoader} lottieStyle={{ width: 250, height: 150 }} />
       </SafeAreaView>
 
       {/* --- NEW PRODUCT MODAL --- */}

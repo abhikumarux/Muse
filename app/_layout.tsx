@@ -87,7 +87,7 @@ export default function RootLayout() {
                   headerTitle: "",
                   headerShown: true,
                   headerStyle: {
-                    backgroundColor: "#151515ff",
+                    backgroundColor: theme.forgotPasswordHeader,
                   },
                   headerShadowVisible: false,
                 }}

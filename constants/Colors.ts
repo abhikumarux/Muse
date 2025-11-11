@@ -40,6 +40,7 @@ export const Colors = {
     loadingAnimationBackground: "rgba(255, 255, 255, 0.7)",
     loaderBackground: "rgba(250, 250, 250, 0.9)",
     authGradient: ["#F7F7F7", "#E9E9E9", "#F0F2F5"], // New auth gradient
+    forgotPasswordHeader: "#F7F7F7",
   },
   dark: {
     text: "#FFFFFF", // White text
@@ -80,5 +81,6 @@ export const Colors = {
     loadingAnimationBackground: "rgba(0, 0, 0, 0.7)",
     loaderBackground: "rgba(28, 28, 30, 0.9)",
     authGradient: ["#151515ff", "#020202ff", "#050505ff"], // New auth gradient
+    forgotPasswordHeader: "#151515ff",
   },
 } as const;

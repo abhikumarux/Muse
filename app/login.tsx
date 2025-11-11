@@ -87,42 +87,27 @@ export default function LoginScreen() {
 
   return (
     // Keep KeyboardAvoidingView structure
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.keyboardAvoidingContainer}
-    >
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardAvoidingContainer}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <View style={styles.container}>
           {/* Add the LoadingModal component */}
           <LoadingModal visible={loading} text="Logging in..." />
-
-          <ImageBackground
-            source={require("../assets/images/grid.png")}
-            style={StyleSheet.absoluteFill}
-            imageStyle={styles.gridImageStyle}
-            resizeMode="repeat"
-          />
           <BlurView intensity={4} tint={colorScheme} style={StyleSheet.absoluteFill} />
 
           {/* Keep ScrollView */}
-          <ScrollView
-            contentContainerStyle={styles.scrollContentContainer}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
+          <ScrollView contentContainerStyle={styles.scrollContentContainer} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <BlurView intensity={80} tint={colorScheme} style={styles.formContainer}>
               <View style={styles.logoContainer}>
-                <Image
-                  source={require("../assets/images/logo.png")}
-                  style={styles.logo}
-                  resizeMode="contain"
-                />
+                <Image source={require("../assets/images/logo.png")} style={styles.logo} resizeMode="contain" />
               </View>
 
               <Text style={styles.header}>Hello there,</Text>
               <Text style={styles.subheader}>Welcome Back!</Text>
 
-              <Text style={styles.label}>Enter Email Address</Text>
+              <View style={styles.labelContainer}>
+                <FontAwesome name="envelope-o" size={16} color={themeColors.text} style={styles.labelIcon} />
+                <Text style={styles.label}>Enter Email Address</Text>
+              </View>
               <TextInput
                 value={email}
                 onChangeText={setEmail}
@@ -134,7 +119,10 @@ export default function LoginScreen() {
                 editable={!loading} // Add disabled state
               />
 
-              <Text style={styles.label}>Enter Password</Text>
+              <View style={styles.labelContainer}>
+                <FontAwesome name="lock" size={18} color={themeColors.text} style={styles.labelIcon} />
+                <Text style={styles.label}>Enter Password</Text>
+              </View>
               <TextInput
                 value={password}
                 onChangeText={setPassword}
@@ -153,12 +141,7 @@ export default function LoginScreen() {
                   onPress={() => setRememberMe(!rememberMe)}
                   disabled={loading} // Add disabled state
                 >
-                  <FontAwesome
-                    name={rememberMe ? "check-square" : "square-o"}
-                    size={20}
-                    color={rememberMe ? themeColors.buttonBackground : themeColors.text}
-                    style={styles.rememberMeIcon}
-                  />
+                  <FontAwesome name={rememberMe ? "check-square" : "square-o"} size={20} color={rememberMe ? themeColors.buttonBackground : themeColors.text} style={styles.rememberMeIcon} />
                   <Text style={styles.rememberMeText}>Remember me</Text>
                 </TouchableOpacity>
 
@@ -169,18 +152,16 @@ export default function LoginScreen() {
 
               {/* Use TouchableOpacity with disabled style instead of ActivityIndicator */}
               <TouchableOpacity
-                 style={[styles.loginButtonContainer, loading && styles.disabledButton]} // Apply disabled style when loading
-                 onPress={handleLogin}
-                 disabled={loading}
+                style={[styles.loginButtonContainer, loading && styles.disabledButton]} // Apply disabled style when loading
+                onPress={handleLogin}
+                disabled={loading}
               >
                 <Text style={styles.loginButtonText}>Login</Text>
               </TouchableOpacity>
 
-
               {}
               <SocialButtons />
               {}
-              
 
               <View style={styles.registerContainer}>
                 <Text style={styles.registerText}>Don&apos;t have an account? </Text>
@@ -204,7 +185,6 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       flex: 1,
     },
     container: { flex: 1, backgroundColor: themeColors.loginBackground },
-    gridImageStyle: { opacity: 0.5 },
     scrollContentContainer: {
       flexGrow: 1,
       justifyContent: "center",
@@ -218,7 +198,7 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       padding: 25,
       overflow: "hidden",
       borderRadius: 30,
-      borderWidth: 1,
+      borderWidth: 3,
       borderColor: themeColors.text === "#11181C" ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.1)",
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 4 },
@@ -235,16 +215,26 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
     },
     subheader: {
       fontSize: 30,
-      color: themeColors.subHeader,
+      color: "#1ce6a6ff",
       marginBottom: 5,
       textAlign: "left",
       fontFamily: "Inter-ExtraBold", // Updated
     },
+
+    labelContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginTop: 20,
+      marginBottom: 8,
+    },
+    labelIcon: {
+      marginRight: 10,
+      width: 20,
+      textAlign: "center",
+    },
     label: {
       color: themeColors.text,
       fontSize: 16,
-      marginTop: 20,
-      marginBottom: 8,
       fontFamily: "Inter-ExtraBold", // Updated
     },
     input: {
@@ -255,7 +245,7 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       fontSize: 18,
       borderWidth: 1,
       borderColor: themeColors.inputBorder,
-      fontFamily: "Inter-ExtraBold", // Updated
+      fontFamily: "Inter-medium", // Updated
     },
     optionsRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 10, marginBottom: 30 },
     rememberMeContainer: { flexDirection: "row", alignItems: "center" },
@@ -266,13 +256,13 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       fontFamily: "Inter-ExtraBold", // Updated
     },
     forgotPasswordText: {
-      color: themeColors.text,
+      color: "#1ce6a6ff",
       fontSize: 16,
       fontFamily: "Inter-ExtraBold", // Updated
     },
     loginButtonContainer: { marginTop: 10, borderRadius: 12, height: 50, justifyContent: "center", alignItems: "center", backgroundColor: themeColors.buttonBackground },
     loginButtonText: {
-      color: themeColors.text,
+      color: themeColors.background,
       fontSize: 18,
       fontFamily: "Inter-ExtraBold", // Updated
     },
@@ -289,7 +279,7 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       fontFamily: "Inter-ExtraBold", // Updated
     },
     registerLink: {
-      color: themeColors.subHeader,
+      color: "#1ce6a6ff",
       fontSize: 18,
       fontFamily: "Inter-ExtraBold", // Updated
     },

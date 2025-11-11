@@ -259,7 +259,7 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
     },
     header: {
       fontSize: 28,
-      color: themeColors.text,
+      color: "#f44747ff",
       marginBottom: 15,
       textAlign: "center",
       fontFamily: "Inter-ExtraBold",
@@ -281,7 +281,7 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       borderWidth: 1,
       borderColor: themeColors.inputBorder,
       marginBottom: 20,
-      fontFamily: "Inter-ExtraBold",
+      fontFamily: "Inter-medium",
     },
     disabledInput: {
       opacity: 0.6,
@@ -310,7 +310,7 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
     },
     modalContent: {
       width: "90%",
-      backgroundColor: themeColors.cardBackground,
+      backgroundColor: themeColors.background,
       borderRadius: 20,
       padding: 25,
       alignItems: "center",
@@ -376,7 +376,7 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       fontFamily: "Inter-ExtraBold",
     },
     resendText: {
-      color: themeColors.text,
+      color: "#f44747ff",
       textDecorationLine: "underline",
       fontSize: 15,
       marginTop: 5,

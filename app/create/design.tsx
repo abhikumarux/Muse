@@ -20,7 +20,7 @@ import { LoadingModal } from "@/components/ui/LoadingModal";
 import { GEMINI_API_KEY, AWS_REGION, AWS_S3_BUCKET as BUCKET, AWS_IDENTITY_POOL_ID } from "@/lib/config/constants";
 import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
 import * as Haptics from "expo-haptics"; // Import Haptics
-
+import DesignLoader from "@/assets/lottie/design-creation-loader.json";
 const { width } = Dimensions.get("window");
 
 const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
@@ -885,7 +885,7 @@ export default function DesignScreen() {
   // Render logic
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      <LoadingModal visible={isProcessing} text={modalLoadingText} />
+      <LoadingModal visible={isProcessing} text={modalLoadingText} lottieSource={DesignLoader} />
 
       <ProductFlowHeader
         title={"Add Your Inspo"}
