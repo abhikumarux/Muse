@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { StyleSheet, Text, View, TextInput, Pressable, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, Image, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "@/constants/Colors";
-import { useColorScheme } from "@/hooks/useColorScheme";
+import { useColorScheme as useDeviceColorScheme } from "@/hooks/useColorScheme";
 import { useRouter } from "expo-router";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { CognitoIdentityClient } from "@aws-sdk/client-cognito-identity";
@@ -19,8 +19,9 @@ import {
 } from "@/lib/config/constants";
 
 export default function CreateMuseScreen() {
-  const colorScheme = useColorScheme() ?? "light";
-  const theme = Colors[colorScheme];
+  const colorScheme = useDeviceColorScheme();
+  const theme = Colors[colorScheme ?? "light"];
+  const styles = getStyles(theme);
   const router = useRouter();
 
   const [museName, setMuseName] = useState("");
@@ -271,7 +272,7 @@ export default function CreateMuseScreen() {
               textAlignVertical="top"
             />
 
-            <Pressable onPress={handleCreateMuse} style={[styles.createButton, { backgroundColor: loading ? theme.secondaryText : theme.tint }]} disabled={loading}>
+            <Pressable onPress={handleCreateMuse} style={[styles.createButton, { backgroundColor: loading ? theme.secondaryText : theme.text }]} disabled={loading}>
               {loading ? (
                 <View style={styles.loadingContainer}>
                   <ActivityIndicator color="#fff" />
@@ -310,128 +311,128 @@ export default function CreateMuseScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(0,0,0,0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  backButtonText: {
-    fontSize: 24,
-    fontFamily: "Inter-ExtraBold", // Updated
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontFamily: "Inter-ExtraBold", // Updated
-  },
-  content: {
-    paddingHorizontal: 20,
-    paddingTop: 32,
-    paddingBottom: 40,
-  },
-  label: {
-    fontSize: 20,
-    marginBottom: 8,
-    fontFamily: "Inter-ExtraBold", // Updated
-  },
-  subtitle: {
-    fontSize: 14,
-    marginBottom: 24,
-    lineHeight: 20,
-    fontFamily: "Inter-ExtraBold", // Updated
-  },
-  nameInput: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    marginBottom: 8,
-    fontFamily: "Inter-ExtraBold", // Updated
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    minHeight: 120,
-    marginBottom: 32,
-    fontFamily: "Inter-ExtraBold", // Updated
-  },
-  createButton: {
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  createButtonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontFamily: "Inter-ExtraBold", // Updated
-  },
-  loadingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  previewContent: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 40,
-    alignItems: "center",
-  },
-  imageContainer: {
-    width: "100%",
-    borderRadius: 20,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-    marginBottom: 32,
-  },
-  generatedImage: {
-    width: "100%",
-    height: 400,
-    borderRadius: 12,
-    resizeMode: "contain",
-  },
-  messageContainer: {
-    alignItems: "center",
-    marginBottom: 32,
-  },
-  successTitle: {
-    fontSize: 28,
-    marginBottom: 12,
-    textAlign: "center",
-    fontFamily: "Inter-ExtraBold", // Updated
-  },
-  successMessage: {
-    fontSize: 16,
-    textAlign: "center",
-    lineHeight: 22,
-    paddingHorizontal: 20,
-    fontFamily: "Inter-ExtraBold", // Updated
-  },
-  saveButton: {
-    width: "100%",
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-});
+const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    keyboardView: {
+      flex: 1,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: "rgba(0,0,0,0.1)",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    backButtonText: {
+      fontSize: 24,
+      fontFamily: "Inter-ExtraBold", // Updated
+    },
+    headerTitle: {
+      fontSize: 24,
+      fontFamily: "Inter-ExtraBold", // Updated
+    },
+    content: {
+      paddingHorizontal: 20,
+      paddingTop: 32,
+      paddingBottom: 40,
+    },
+    label: {
+      fontSize: 20,
+      marginBottom: 8,
+      fontFamily: "Inter-ExtraBold", // Updated
+    },
+    subtitle: {
+      fontSize: 14,
+      marginBottom: 24,
+      lineHeight: 20,
+      fontFamily: "Inter-ExtraBold", // Updated
+    },
+    nameInput: {
+      borderWidth: 1,
+      borderRadius: 12,
+      padding: 16,
+      fontSize: 16,
+      marginBottom: 8,
+      fontFamily: "Inter", // Updated
+    },
+    input: {
+      borderWidth: 1,
+      borderRadius: 12,
+      padding: 16,
+      fontSize: 16,
+      minHeight: 120,
+      marginBottom: 32,
+      fontFamily: "Inter", // Updated
+    },
+    createButton: {
+      padding: 16,
+      borderRadius: 12,
+      alignItems: "center",
+    },
+    createButtonText: {
+      color: theme.background,
+      fontSize: 18,
+      fontFamily: "Inter-ExtraBold", // Updated
+    },
+    loadingContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    previewContent: {
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 40,
+      alignItems: "center",
+    },
+    imageContainer: {
+      width: "100%",
+      borderRadius: 20,
+      padding: 16,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+      elevation: 8,
+      marginBottom: 32,
+    },
+    generatedImage: {
+      width: "100%",
+      height: 400,
+      borderRadius: 12,
+      resizeMode: "contain",
+    },
+    messageContainer: {
+      alignItems: "center",
+      marginBottom: 32,
+    },
+    successTitle: {
+      fontSize: 28,
+      marginBottom: 12,
+      textAlign: "center",
+      fontFamily: "Inter-ExtraBold", // Updated
+    },
+    successMessage: {
+      fontSize: 16,
+      textAlign: "center",
+      lineHeight: 22,
+      paddingHorizontal: 20,
+      fontFamily: "Inter-ExtraBold", // Updated
+    },
+    saveButton: {
+      width: "100%",
+      padding: 16,
+      borderRadius: 12,
+      alignItems: "center",
+    },
+  });

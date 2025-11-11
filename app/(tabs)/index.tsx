@@ -36,6 +36,7 @@ import tshirtPlaceholder from "@/assets/images/tshirt-placeholder.png";
 import hoodiePlaceholder from "@/assets/images/hoodie-placeholder.png";
 import { Asset } from "expo-asset";
 import { useCreateDesign } from "@/lib/CreateDesignContext";
+import * as Haptics from "expo-haptics";
 
 LogBox.ignoreLogs(["Warning: ..."]);
 LogBox.ignoreAllLogs();
@@ -52,8 +53,6 @@ export default function CreateNewDesignTab() {
   const styles = getStyles(theme);
   const router = useRouter();
   const params = useLocalSearchParams<{ savedDesignUri?: string }>();
-
-  // Get shared state from Context
   const {
     categories,
     setCategories,
@@ -69,15 +68,13 @@ export default function CreateNewDesignTab() {
     resetFlow,
   } = useCreateDesign();
 
-  // Get user info
   const { userId, printfulApiKey, selectedMuseId, setSelectedMuseId } = useUser();
 
-  // Local state for this screen only
   const [loading, setLoading] = useState(categories.length === 0);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false); // Kept for LoadingModal
-  const [modalLoadingText, setModalLoadingText] = useState("Loading..."); // Kept for LoadingModal
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [modalLoadingText, setModalLoadingText] = useState("Loading...");
 
   const [switchLayout, setSwitchLayout] = useState({ width: 0, height: 0 });
   const switchTranslateX = useRef(new Animated.Value(0)).current;
@@ -88,7 +85,6 @@ export default function CreateNewDesignTab() {
   const scrollX = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // This is the new header component. We move it out of renderCurrentView
   const ProductFlowHeader = ({ title, onBackPress }: { title: string; onBackPress?: () => void }) => (
     <View style={styles.productFlowHeaderContainer}>
       <TouchableOpacity style={styles.backButtonNew} onPress={onBackPress}>
@@ -120,24 +116,22 @@ export default function CreateNewDesignTab() {
     preloadAssets();
   }, []);
 
-  // Handle incoming saved design
   useFocusEffect(
     React.useCallback(() => {
       if (params.savedDesignUri) {
-        resetFlow(); // Reset state from context
-        setPreloadedDesignUri(params.savedDesignUri); // Set preloaded URI in context
-        router.setParams({ savedDesignUri: "" }); // Clear params
+        resetFlow();
+        setPreloadedDesignUri(params.savedDesignUri);
+        router.setParams({ savedDesignUri: "" });
       }
     }, [params.savedDesignUri, resetFlow, setPreloadedDesignUri, router])
   );
 
   useEffect(() => {
     if (categories.length === 0) {
-      // Only fetch if categories aren't already in context
       fetchCategories();
     }
     loadMusesAndSelection();
-  }, [userId, printfulApiKey]); // Re-run if user changes
+  }, [userId, printfulApiKey]);
 
   useEffect(() => {
     if (museSelectorVisible) {
@@ -237,6 +231,7 @@ export default function CreateNewDesignTab() {
     const newMuseId = muses[newIndex].museID;
     if (newMuseId === selectedMuseId) return;
 
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setSelectedMuseId(newMuseId);
 
     try {
@@ -272,6 +267,7 @@ export default function CreateNewDesignTab() {
   };
 
   const openMuseSelector = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     primeMuseScroll();
     setMuseSelectorVisible(true);
   };
@@ -283,7 +279,7 @@ export default function CreateNewDesignTab() {
       return;
     }
     try {
-      setLoading(true); // Now we set loading true only when we actually fetch
+      setLoading(true);
       setError(null);
       const response = await fetch("https://api.printful.com/categories", {
         headers: { Authorization: `Bearer ${printfulApiKey}` },
@@ -334,7 +330,7 @@ export default function CreateNewDesignTab() {
           kids: kidsCat?.id || null,
         });
 
-        setCategories(allCategories); // Set categories in context
+        setCategories(allCategories);
       } else {
         setError("Failed to fetch categories");
       }
@@ -347,24 +343,22 @@ export default function CreateNewDesignTab() {
   };
 
   const handleCategorySelect = (category: Category) => {
-    // If it's a leaf category (no subcategories), go straight to products.
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const subcategories = categories.filter((c) => c.parent_id === category.id);
 
     if (subcategories.length === 0 && category.id !== -1) {
-      // LEAF NODE: Navigate to products screen
       router.push({
         pathname: "/create/products",
         params: { categoryId: category.id, categoryName: category.title },
       });
     } else if (category.id === -1) {
-      // FAKE 'Clothes' PARENT: Navigate to the new sublist screen with special flag
       const initialFilter = clothesCategoryIds.men ? "men" : clothesCategoryIds.women ? "women" : "kids";
       router.push({
         pathname: "/create/category-sublist",
         params: {
           parentCategoryId: category.id,
-          parentCategoryName: "Clothes", // Use a generic name for the title
-          isClothesParent: "true", // Special flag for filter switch
+          parentCategoryName: "Clothes",
+          isClothesParent: "true",
           initialFilter: initialFilter,
         },
       });
@@ -402,7 +396,7 @@ export default function CreateNewDesignTab() {
       parent_id: 0,
       title: "Clothes",
       image_url: clothesImage,
-      size_guides: [], // Added missing property
+      size_guides: [],
     };
   };
 
@@ -426,6 +420,7 @@ export default function CreateNewDesignTab() {
 
   const handleClothesFilterChange = (filter: "men" | "women" | "kids") => {
     if (filter === clothesFilter) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     categoryScrollViewRef.current?.scrollTo({ x: 0, y: 0, animated: true });
     setClothesFilter(filter);
   };
@@ -484,7 +479,13 @@ export default function CreateNewDesignTab() {
       return (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={fetchCategories}>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              fetchCategories();
+            }}
+          >
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
         </View>
@@ -521,28 +522,23 @@ export default function CreateNewDesignTab() {
         </MotiView>
         <ScrollView ref={categoryScrollViewRef} style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.gridContainer}>
-            {displayedCategories.map(
-              (
-                category,
-                index // Changed from gridCategories to displayedCategories
-              ) => (
-                <MotiView key={category.id} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "timing", duration: 300, delay: index * 50 }}>
-                  <TouchableOpacity style={styles.categoryCard} onPress={() => handleCategorySelect(category)}>
-                    <Image
-                      source={
-                        category.title.toLowerCase().includes("all shirts") ? tshirtPlaceholder : category.title.toLowerCase().includes("all hoodies") ? hoodiePlaceholder : { uri: category.image_url }
-                      }
-                      style={[styles.categoryImage, { opacity: 0.95 }]}
-                      resizeMode="cover"
-                    />
+            {displayedCategories.map((category, index) => (
+              <MotiView key={category.id} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "timing", duration: 300, delay: index * 50 }}>
+                <TouchableOpacity style={styles.categoryCard} onPress={() => handleCategorySelect(category)}>
+                  <Image
+                    source={
+                      category.title.toLowerCase().includes("all shirts") ? tshirtPlaceholder : category.title.toLowerCase().includes("all hoodies") ? hoodiePlaceholder : { uri: category.image_url }
+                    }
+                    style={[styles.categoryImage, { opacity: 0.95 }]}
+                    resizeMode="cover"
+                  />
 
-                    <Text style={styles.categoryTitle} numberOfLines={2}>
-                      {category.title}
-                    </Text>
-                  </TouchableOpacity>
-                </MotiView>
-              )
-            )}
+                  <Text style={styles.categoryTitle} numberOfLines={2}>
+                    {category.title}
+                  </Text>
+                </TouchableOpacity>
+              </MotiView>
+            ))}
           </View>
           {allProductsCategory && !searchQuery && (
             <View style={styles.allProductsButtonContainer}>
@@ -570,6 +566,7 @@ export default function CreateNewDesignTab() {
               <TouchableOpacity
                 style={styles.museModalSeeAllButton}
                 onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   setMuseSelectorVisible(false);
                   router.push("/muses");
                 }}
@@ -577,7 +574,13 @@ export default function CreateNewDesignTab() {
                 <Text style={styles.museModalSeeAllText}>See All</Text>
               </TouchableOpacity>
               <Text style={[styles.museModalTitle, { color: "#FFFFFF" }]}>Select Your Muse</Text>
-              <TouchableOpacity onPress={() => setMuseSelectorVisible(false)} style={styles.museModalCloseButton}>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setMuseSelectorVisible(false);
+                }}
+                style={styles.museModalCloseButton}
+              >
                 <Text style={styles.museModalCloseButtonText}>Done</Text>
               </TouchableOpacity>
             </View>
@@ -652,6 +655,7 @@ export default function CreateNewDesignTab() {
                 <TouchableOpacity
                   style={{ marginTop: 15, padding: 10 }}
                   onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     setMuseSelectorVisible(false);
                     router.push("/muses");
                   }}
@@ -790,7 +794,6 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       justifyContent: "space-between",
       alignItems: "center",
       paddingHorizontal: 20,
-      paddingTop: 10,
       paddingBottom: 5,
       backgroundColor: theme.background,
     },
@@ -973,7 +976,6 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       fontSize: 16,
       fontFamily: "Inter-ExtraBold",
     },
-    // Need to keep these styles for the header
     productCard: {
       width: CARD_WIDTH,
       backgroundColor: theme.card,

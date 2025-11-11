@@ -3,7 +3,7 @@ import { View, Text, Modal, StyleSheet, useColorScheme } from "react-native";
 import LottieView from "lottie-react-native";
 import { MotiView } from "moti";
 import { Colors } from "@/constants/Colors";
-
+import { StatusBar } from "expo-status-bar";
 // DEFAULT loader here
 import DefaultLoader from "@/assets/lottie/loader8.json";
 
@@ -22,6 +22,7 @@ export const LoadingModal = ({ visible, text, lottieSource, lottieStyle }: Loadi
 
   return (
     <Modal visible={visible} transparent animationType="fade">
+      <StatusBar style="auto" />
       <View style={styles.overlay}>
         <MotiView from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "timing", duration: 300 }} style={styles.modalContent}>
           <LottieView

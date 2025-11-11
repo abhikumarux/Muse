@@ -16,6 +16,13 @@ export default function LandingScreen() {
   const colorScheme = useColorScheme() ?? "light";
   const themeColors = Colors[colorScheme];
 
+  // Dynamically select the card images based on the color scheme
+  const cardImage1 = colorScheme === "light" ? require("../assets/images/sample1-intro-light.png") : require("../assets/images/sample1-intro-dark.png");
+
+  const cardImage2 = colorScheme === "light" ? require("../assets/images/sample2-intro-light.png") : require("../assets/images/sample1-intro-dark.png"); // Assuming dark mode still uses the same one or a specific sample2-dark
+
+  const cardImage3 = colorScheme === "light" ? require("../assets/images/sample3-intro-light.png") : require("../assets/images/sample1-intro-dark.png"); // Assuming dark mode still uses the same one or a specific sample3-dark
+
   // Animation values
   const contentOpacity = useSharedValue(0);
   const card1Scale = useSharedValue(0.8);
@@ -82,13 +89,13 @@ export default function LandingScreen() {
         {/* Cards */}
         <View style={styles.cardContainer}>
           <Animated.View style={[styles.card, styles.cardCenter, animatedCard1Style]}>
-            <Image source={require("../assets/images/sample1-intro.png")} style={styles.cardImage} resizeMode="contain" />
+            <Image source={cardImage1} style={styles.cardImage} resizeMode="contain" />
           </Animated.View>
           <Animated.View style={[styles.card, styles.cardRight, animatedCard2Style]}>
-            <Image source={require("../assets/images/sample2-intro.png")} style={styles.cardImage} resizeMode="contain" />
+            <Image source={cardImage2} style={styles.cardImage} resizeMode="contain" />
           </Animated.View>
           <Animated.View style={[styles.card, styles.cardCenter, styles.cardBackLeft, animatedCard3Style]}>
-            <Image source={require("../assets/images/sample3-intro.png")} style={styles.cardImage} resizeMode="contain" />
+            <Image source={cardImage3} style={styles.cardImage} resizeMode="contain" />
           </Animated.View>
         </View>
 
@@ -100,8 +107,8 @@ export default function LandingScreen() {
               style={[
                 styles.mainTitle,
                 {
-                  color: themeColors.accent,
-                  textShadowColor: "rgba(0, 0, 0, 0.9)",
+                  color: "red",
+                  textShadowColor: "rgba(94, 35, 35, 0.8)",
                   textShadowOffset: { width: 0, height: 2 },
                   textShadowRadius: 2,
                 },

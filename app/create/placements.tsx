@@ -9,7 +9,8 @@ import {
   Dimensions,
   useColorScheme as useDeviceColorScheme,
   ActivityIndicator,
-  Animated, 
+  Animated,
+  Alert, // Import Alert
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -19,6 +20,7 @@ import { useCreateDesign } from "../../lib/CreateDesignContext";
 import { PrintFilesResponse } from "@/lib/types/printful";
 import { Ionicons } from "@expo/vector-icons";
 import { MuseCoin } from "@/assets/svg/MuseCoin";
+import * as Haptics from "expo-haptics"; // Import Haptics
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 60) / 2;
@@ -244,7 +246,15 @@ const ProductFlowHeader = ({ title, onBackPress }: { title: string; onBackPress?
 
   return (
     <View style={styles.productFlowHeaderContainer}>
-      <TouchableOpacity style={styles.backButtonNew} onPress={onBackPress}>
+      <TouchableOpacity
+        style={styles.backButtonNew}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Haptic feedback
+          if (onBackPress) {
+            onBackPress();
+          }
+        }}
+      >
         <View style={[styles.backIconCircle, { borderColor: theme.text }]}>
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </View>
@@ -270,7 +280,7 @@ const ProgressBar = () => {
 
   // This is now hardcoded to step 2
   const currentStep = 2;
-  const progress = new Animated.Value(currentStep - 1); // Step 2 means progress is 1
+  const progress = useRef(new Animated.Value(0)).current; // <-- Use ref
 
   const steps = ["product", "design", "final"];
   const activeFill = theme.text;
@@ -292,7 +302,7 @@ const ProgressBar = () => {
       duration: 500,
       useNativeDriver: false,
     }).start();
-  }, [currentStep]);
+  }, [currentStep, progress]); // Add progress to dependency array
 
   return (
     <View style={styles.progressWrapperNew}>
@@ -343,34 +353,35 @@ export default function PlacementsScreen() {
 
   const prevPlacementsLength = useRef(0);
 
+  // Fetch placement files function
+  const fetchPlacementFiles = async (productId: number) => {
+    if (!printfulApiKey || !currentStoreId) {
+      setError("Please connect your Printful account in settings.");
+      setLoading(false);
+      return;
+    }
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`https://api.printful.com/mockup-generator/printfiles/${productId}?store_id=${currentStoreId}`, {
+        headers: { Authorization: `Bearer ${printfulApiKey}` },
+      });
+      const data: PrintFilesResponse = await response.json();
+      if (data.code === 200) {
+        setPlacementFiles(data.result.available_placements);
+      } else {
+        setError("Failed to fetch placement options");
+      }
+    } catch (err) {
+      setError("Network error occurred");
+      console.error("Error fetching placement files:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Fetch placement files when this screen loads
   useEffect(() => {
-    const fetchPlacementFiles = async (productId: number) => {
-      if (!printfulApiKey || !currentStoreId) {
-        setError("Please connect your Printful account in settings.");
-        setLoading(false);
-        return;
-      }
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await fetch(`https://api.printful.com/mockup-generator/printfiles/${productId}?store_id=${currentStoreId}`, {
-          headers: { Authorization: `Bearer ${printfulApiKey}` },
-        });
-        const data: PrintFilesResponse = await response.json();
-        if (data.code === 200) {
-          setPlacementFiles(data.result.available_placements);
-        } else {
-          setError("Failed to fetch placement options");
-        }
-      } catch (err) {
-        setError("Network error occurred");
-        console.error("Error fetching placement files:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (selectedVariant) {
       fetchPlacementFiles(selectedVariant.product_id);
     } else {
@@ -395,6 +406,7 @@ export default function PlacementsScreen() {
 
   // Event Handlers
   const handlePlacementToggle = (placementId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Haptic feedback
     setSelectedPlacements((prev) => (prev.includes(placementId) ? prev.filter((id) => id !== placementId) : [...prev, placementId]));
   };
 
@@ -403,6 +415,7 @@ export default function PlacementsScreen() {
       Alert.alert("No Placements Selected", "Please select at least one placement.");
       return;
     }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // Haptic feedback
 
     // PUSH the next screen
     router.push("/create/design");
@@ -423,7 +436,15 @@ export default function PlacementsScreen() {
       return (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={() => selectedVariant && fetchPlacementFiles(selectedVariant.product_id)}>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Haptic feedback
+              if (selectedVariant) {
+                fetchPlacementFiles(selectedVariant.product_id);
+              }
+            }}
+          >
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
         </View>

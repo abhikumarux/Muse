@@ -1,25 +1,10 @@
 import React, { useEffect, useState, useRef } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-  useColorScheme as useDeviceColorScheme,
-  ActivityIndicator,
-  Animated, 
-  TextInput,
-  Alert,
-  Modal,
-} from "react-native";
+import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, useColorScheme as useDeviceColorScheme, ActivityIndicator, Animated, TextInput, Alert, Modal } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { MotiView } from "moti";
 import ImageZoom from "react-native-image-pan-zoom";
 import { v4 as uuidv4 } from "uuid";
-
 import { Colors } from "@/constants/Colors";
 import { useUser } from "../../lib/UserContext";
 import { useCreateDesign } from "../../lib/CreateDesignContext";
@@ -28,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { MuseCoin } from "@/assets/svg/MuseCoin";
 import { LoadingModal } from "@/components/ui/LoadingModal";
 import { GEMINI_API_KEY } from "@/lib/config/constants";
+import * as Haptics from "expo-haptics"; // Import Haptics
 
 const { width } = Dimensions.get("window");
 
@@ -271,7 +257,15 @@ const ProductFlowHeader = ({ title, onBackPress }: { title: string; onBackPress?
 
   return (
     <View style={styles.productFlowHeaderContainer}>
-      <TouchableOpacity style={styles.backButtonNew} onPress={onBackPress}>
+      <TouchableOpacity
+        style={styles.backButtonNew}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Haptic feedback
+          if (onBackPress) {
+            onBackPress();
+          }
+        }}
+      >
         <View style={[styles.backIconCircle, { borderColor: theme.text }]}>
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </View>
@@ -305,7 +299,7 @@ const ProgressBar = () => {
       duration: 500,
       useNativeDriver: false,
     }).start();
-  }, [currentStep]);
+  }, [currentStep, progress]); // Add progress
 
   const steps = ["product", "design", "final"];
   const activeFill = theme.text;
@@ -370,12 +364,14 @@ export default function ViewFinalDesignScreen() {
   const [selectedImageUrlForZoom, setSelectedImageUrlForZoom] = useState<string | null>(null);
 
   const handleImageZoom = (imageUrl: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Haptic feedback
     setSelectedImageUrlForZoom(imageUrl);
   };
 
   // --- API Logic ---
 
   const handleSaveDesign = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // Haptic feedback
     if (!generatedImage) {
       Alert.alert("Error", "No generated image to save.");
       return;
@@ -404,6 +400,7 @@ export default function ViewFinalDesignScreen() {
   };
 
   const handleRemix = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // Haptic feedback
     if (!GEMINI_API_KEY) {
       Alert.alert("Error", "Missing API Key. Please configure your .env file.");
       return;
@@ -457,6 +454,7 @@ export default function ViewFinalDesignScreen() {
   };
 
   const handlePhotoshootPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Haptic feedback
     if (!mockupImages.length) {
       Alert.alert("No Mockup", "Generate and apply your design to a product before launching a photoshoot.");
       return;
@@ -467,6 +465,7 @@ export default function ViewFinalDesignScreen() {
   };
 
   const addToStore = async (mockupUrls: string[]) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); // Haptic feedback
     if (!mockupUrls.length || !selectedVariant?.id || !selectedProduct) {
       Alert.alert("Error", "Missing product data to add to store.");
       return;
@@ -536,6 +535,7 @@ export default function ViewFinalDesignScreen() {
   };
 
   const handleStartNewDesign = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); // Haptic feedback
     resetFlow(); // Clear all data from context
     router.dismissAll();
   };
@@ -637,7 +637,13 @@ export default function ViewFinalDesignScreen() {
               </ImageZoom>
             </MotiView>
           )}
-          <TouchableOpacity style={styles.modalCloseButton} onPress={() => setSelectedImageUrlForZoom(null)}>
+          <TouchableOpacity
+            style={styles.modalCloseButton}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Haptic feedback
+              setSelectedImageUrlForZoom(null);
+            }}
+          >
             <Text style={styles.modalCloseButtonText}>×</Text>
           </TouchableOpacity>
         </View>

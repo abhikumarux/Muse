@@ -4,7 +4,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import { listDesignsForCurrentUser, deleteDesign, MuseDesignRow } from "@/lib/aws/saveDesign";
 import { Colors } from "@/constants/Colors";
-
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
 

@@ -35,7 +35,7 @@ import { WebView } from "react-native-webview";
 import { listDesignsForCurrentUser } from "@/lib/aws/saveDesign";
 import { getPrintfulStoreProducts } from "@/lib/aws/printful";
 import { listPhotoshootsForCurrentUser } from "@/lib/aws/savePhotoshoot";
-
+import * as Haptics from "expo-haptics";
 import ColorPicker from "react-native-wheel-color-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
@@ -111,6 +111,7 @@ export default function AnimatedProfile() {
   }, []);
 
   const openColorSheet = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setColorPickerVisible(true);
     sheetTranslateY.value = SHEET_HEIGHT;
     sheetTranslateY.value = withTiming(0, { duration: 350, easing: Easing.out(Easing.cubic) });
@@ -118,6 +119,7 @@ export default function AnimatedProfile() {
 
   const closeColorSheet = useCallback(
     async (shouldSave = true) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       sheetTranslateY.value = withTiming(SHEET_HEIGHT, { duration: 300, easing: Easing.in(Easing.cubic) }, (finished) => {
         if (finished) {
           runOnJS(setColorPickerVisible)(false);
@@ -126,6 +128,9 @@ export default function AnimatedProfile() {
 
       if (shouldSave) {
         try {
+          if (themeColor1 !== originalColorRef.current.c1 || themeColor2 !== originalColorRef.current.c2) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          }
           const payload = { c1: themeColor1, c2: themeColor2 };
           await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
           originalColorRef.current = payload;
@@ -141,6 +146,7 @@ export default function AnimatedProfile() {
   );
 
   const handlePickAvatar = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
       Alert.alert("Permission denied", "Sorry, we need camera roll permissions to make this work!");
@@ -192,12 +198,14 @@ export default function AnimatedProfile() {
   );
 
   const handleSignOut = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Alert.alert("Log Out", "Are you sure you want to log out?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Log Out",
         style: "destructive",
         onPress: async () => {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
           try {
             await signOutLocal();
             router.replace("/login");
@@ -211,6 +219,7 @@ export default function AnimatedProfile() {
   };
 
   async function fetchStores() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       if (!apiKey) {
         Alert.alert("Error", "Please enter your API key first");
@@ -233,6 +242,7 @@ export default function AnimatedProfile() {
   }
 
   async function saveSelection(store: any) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       const idToken = await getIdTokenFromStorage();
       if (!idToken) return Alert.alert("Not signed in", "Please log in again.");
@@ -246,12 +256,14 @@ export default function AnimatedProfile() {
   }
 
   async function removeConnection() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Alert.alert("Confirm Removal", "Are you sure you want to remove the Printful connection?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Remove",
         style: "destructive",
         onPress: async () => {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
           try {
             const idToken = await getIdTokenFromStorage();
             if (!idToken) return Alert.alert("Not signed in");
@@ -285,24 +297,20 @@ export default function AnimatedProfile() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]}>
       <Animated.ScrollView onScroll={scrollHandler} scrollEventThrottle={16} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* FIX: New MotiView wrapper for the main header block */}
-        <MotiView from={{ opacity: 0, translateY: -20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: "timing", duration: 300 }}>
+        <MotiView from={{ opacity: 0, translateY: -20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: "timing", duration: 300, delay: 100 }}>
           <Animated.View style={[styles.animatedHeader, headerAnimatedStyle]}>
             <LinearGradient colors={[themeColor1, themeColor2]} style={styles.headerGradient}>
-              {/* Adjusted inner MotiView: removed delay, reduced duration slightly */}
-              <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: "timing", duration: 200 }} style={styles.headerContent}>
+              <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: "timing", duration: 200, delay: 100 }} style={styles.headerContent}>
                 <TouchableOpacity style={styles.colorPickerIcon} onPress={openColorSheet}>
                   <Ionicons name="color-palette-outline" size={20} color="#fff" />
                 </TouchableOpacity>
 
-                {/* === AVATAR START === */}
                 <TouchableOpacity onPress={handlePickAvatar} style={styles.avatarContainer}>
                   <Image source={{ uri: avatarUri ?? DEFAULT_AVATAR }} style={styles.avatar} />
                   <View style={styles.avatarEditIcon}>
                     <Ionicons name="pencil" size={12} color="#333" />
                   </View>
                 </TouchableOpacity>
-                {/* === AVATAR END === */}
 
                 <Text style={styles.name}>{userName || "Muse User"}</Text>
                 <View style={styles.statsRow}>
@@ -311,7 +319,7 @@ export default function AnimatedProfile() {
                     { label: "Shoots", value: photoshootCount },
                     { label: "Products", value: productCount },
                   ].map((stat, i) => (
-                    <AnimatedCounter key={i} label={stat.label} value={stat.value} delay={i * 200} isLoading={loadingCounts} />
+                    <AnimatedCounter key={i} label={stat.label} value={stat.value} delay={150 + i * 100} isLoading={loadingCounts} />
                   ))}
                 </View>
               </MotiView>
@@ -319,7 +327,6 @@ export default function AnimatedProfile() {
           </Animated.View>
         </MotiView>
 
-        {/* QUICK ACTIONS - Delay adjusted from 300 to 200 */}
         <MotiView from={{ opacity: 0, translateY: 30 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: 200 }} style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Quick Actions</Text>
           <View style={styles.actionsGrid}>
@@ -330,12 +337,23 @@ export default function AnimatedProfile() {
               {
                 icon: "storefront",
                 label: "My Store",
-                action: () => setStoreModalVisible(true),
+                action: () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setStoreModalVisible(true);
+                },
               },
             ].map((item, i) => (
-              <MotiView key={i} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 300 + i * 100 }}>
-                {/* Apply dynamic borderColor from themeColor1 */}
-                <TouchableOpacity style={[styles.actionCard, { backgroundColor: theme.card, borderColor: theme.text }]} onPress={item.action ?? (() => router.push(item.route as any))}>
+              <MotiView key={i} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 250 + i * 100 }}>
+                <TouchableOpacity
+                  style={[styles.actionCard, { backgroundColor: theme.card, borderColor: theme.text }]}
+                  onPress={
+                    item.action ??
+                    (() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push(item.route as any);
+                    })
+                  }
+                >
                   <Ionicons name={item.icon as any} size={28} color={theme.text} />
                   <Text style={[styles.actionLabel, { color: theme.text }]}>{item.label}</Text>
                 </TouchableOpacity>
@@ -344,8 +362,7 @@ export default function AnimatedProfile() {
           </View>
         </MotiView>
 
-        {/* PRINTFUL CONNECTION */}
-        <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: 600 }}>
+        <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: 300 }}>
           <BlurView intensity={colorScheme === "dark" ? 30 : 90} tint={colorScheme === "dark" ? "dark" : "light"} style={styles.card}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Printful Connection</Text>
             <View style={styles.row}>
@@ -396,14 +413,19 @@ export default function AnimatedProfile() {
               <Text style={[styles.infoText, { color: theme.text }]}>Store: {currentStoreId ?? "None"}</Text>
             </View>
             <View style={{ marginTop: 10 }}>
-              <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: theme.tint }]} onPress={() => setModalVisible(true)}>
+              <TouchableOpacity
+                style={[styles.primaryBtn, { backgroundColor: theme.tint }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setModalVisible(true);
+                }}
+              >
                 <Text style={[styles.primaryText, { color: theme.background }]}>{printfulApiKey ? "Manage Connection" : "Connect Printful"}</Text>
               </TouchableOpacity>
             </View>
           </BlurView>
         </MotiView>
-        {/* SETTINGS */}
-        <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: 700 }}>
+        <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: 400 }}>
           <BlurView intensity={colorScheme === "dark" ? 30 : 90} tint={colorScheme === "dark" ? "dark" : "light"} style={styles.card}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Settings</Text>
             <View style={styles.settingRow}>
@@ -419,21 +441,19 @@ export default function AnimatedProfile() {
           </BlurView>
         </MotiView>
 
-        {/* LOGOUT */}
-        <MotiView from={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 650 }}>
-          <MotiView from={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 650 }}>
+        <MotiView from={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 500 }}>
+          <MotiView from={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 500 }}>
             <TouchableOpacity style={styles.logoutBtn} onPress={handleSignOut}>
               <Ionicons name="log-out-outline" size={20} color="#fff" />
               <Text style={styles.logoutText}>Sign Out</Text>
             </TouchableOpacity>
           </MotiView>
-          <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 800 }}>
+          <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 600 }}>
             <Text style={styles.footer}>v1.0.0 • Made with ❤️</Text>
           </MotiView>
         </MotiView>
       </Animated.ScrollView>
 
-      {/* === Printful Connection Modal === */}
       <Modal visible={modalVisible} animationType="fade" transparent onRequestClose={() => setModalVisible(false)}>
         <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
           <View
@@ -463,18 +483,22 @@ export default function AnimatedProfile() {
                     >
                       Manage Printful Connection
                     </Text>
-                    <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeIconButton}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setModalVisible(false);
+                      }}
+                      style={styles.closeIconButton}
+                    >
                       <Ionicons name="close-outline" size={26} color={theme.tint} />
                     </TouchableOpacity>
                   </View>
 
-                  {/* Status */}
                   <View style={styles.statusCard}>
                     <Ionicons name={printfulApiKey ? "checkmark-circle" : "alert-circle-outline"} size={22} color={printfulApiKey ? "#2ecc71" : "#ff3b30"} />
                     <Text style={[styles.statusText, { color: printfulApiKey ? "#2ecc71" : "#ff3b30" }]}>{printfulApiKey ? "Connected" : "Not Connected"}</Text>
                   </View>
 
-                  {/* API Input */}
                   <TextInput
                     style={[
                       styles.input,
@@ -491,7 +515,6 @@ export default function AnimatedProfile() {
                     secureTextEntry
                   />
 
-                  {/* Fetch / Refresh */}
                   <TouchableOpacity style={[styles.fetchButton, { backgroundColor: theme.tint }, !apiKey && { opacity: 0.5 }]} onPress={fetchStores} disabled={!apiKey || loadingStores}>
                     {loadingStores ? (
                       <ActivityIndicator color={theme.background} />
@@ -502,7 +525,6 @@ export default function AnimatedProfile() {
 
                   {error && <Text style={styles.errorText}>{error}</Text>}
 
-                  {/* Store List */}
                   {!loadingStores && stores.length > 0 && (
                     <FlatList
                       data={stores}
@@ -520,7 +542,6 @@ export default function AnimatedProfile() {
                     />
                   )}
 
-                  {/* Remove Connection */}
                   {printfulApiKey && (
                     <View style={styles.removeSection}>
                       <View style={styles.removeDivider} />
@@ -537,11 +558,15 @@ export default function AnimatedProfile() {
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* === My Store WebView Modal === */}
       <Modal animationType="slide" visible={storeModalVisible} presentationStyle="pageSheet" onRequestClose={() => setStoreModalVisible(false)}>
         <View style={[styles.webviewContainer, { backgroundColor: theme.card }]}>
           <View style={[styles.webviewHeader, { borderBottomColor: theme.tabIconDefault }]}>
-            <TouchableOpacity onPress={() => setStoreModalVisible(false)}>
+            <TouchableOpacity
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setStoreModalVisible(false);
+              }}
+            >
               <Text
                 style={{
                   color: theme.tint,
@@ -566,7 +591,6 @@ export default function AnimatedProfile() {
         </View>
       </Modal>
 
-      {/* === COLOR PICKER SHEET (animated bottom sheet) === */}
       <Modal visible={colorPickerVisible} animationType="none" transparent onRequestClose={() => closeColorSheet(false)}>
         <TouchableWithoutFeedback onPress={() => closeColorSheet(false)}>
           <View style={styles.colorModalOverlay} />
@@ -594,7 +618,10 @@ export default function AnimatedProfile() {
                 ].map((c) => (
                   <TouchableOpacity
                     key={c.id}
-                    onPress={() => setEditingIndex(c.id as 1 | 2)}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setEditingIndex(c.id as 1 | 2);
+                    }}
                     style={{
                       paddingVertical: 8,
                       paddingHorizontal: 14,
@@ -632,6 +659,7 @@ export default function AnimatedProfile() {
                 <TouchableOpacity
                   style={[styles.colorModalButton, { backgroundColor: "transparent", borderWidth: 1, borderColor: theme.tint }]}
                   onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     setThemeColor1(originalColorRef.current.c1);
                     setThemeColor2(originalColorRef.current.c2);
                     closeColorSheet(true);

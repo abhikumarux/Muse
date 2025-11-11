@@ -1,15 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-  useColorScheme as useDeviceColorScheme,
-  Animated,
-} from "react-native";
+import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, useColorScheme as useDeviceColorScheme, Animated } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { MotiView } from "moti";
@@ -19,7 +9,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { MuseCoin } from "@/assets/svg/MuseCoin";
 import tshirtPlaceholder from "@/assets/images/tshirt-placeholder.png";
 import hoodiePlaceholder from "@/assets/images/hoodie-placeholder.png";
-import { LinearGradient } from "expo-linear-gradient"; 
+import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 60) / 2;
@@ -117,7 +108,15 @@ const ProductFlowHeader = ({ title, onBackPress }: { title: string; onBackPress?
 
   return (
     <View style={styles.productFlowHeaderContainer}>
-      <TouchableOpacity style={styles.backButtonNew} onPress={onBackPress}>
+      <TouchableOpacity
+        style={styles.backButtonNew}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          if (onBackPress) {
+            onBackPress();
+          }
+        }}
+      >
         <View style={[styles.backIconCircle, { borderColor: theme.text }]}>
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </View>
@@ -208,10 +207,10 @@ export default function CategorySublistScreen() {
   }, [categories, currentParentId, clothesFilter]);
 
   const handleCategorySelect = (category: (typeof categories)[0]) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const subcategories = categories.filter((c) => c.parent_id === category.id);
 
     if (subcategories.length > 0) {
-      // It's a parent category, push this screen recursively
       router.push({
         pathname: "/create/category-sublist",
         params: {
@@ -220,7 +219,6 @@ export default function CategorySublistScreen() {
         },
       });
     } else {
-      // It's a leaf category, navigate to products screen
       router.push({
         pathname: "/create/products",
         params: { categoryId: category.id, categoryName: category.title },
@@ -230,6 +228,7 @@ export default function CategorySublistScreen() {
 
   const handleClothesFilterChange = (filter: "men" | "women" | "kids") => {
     if (filter === clothesFilter) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setClothesFilter(filter);
   };
 

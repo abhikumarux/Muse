@@ -1,16 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-  useColorScheme as useDeviceColorScheme,
-  ActivityIndicator,
-  Animated, 
-} from "react-native";
+import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, useColorScheme as useDeviceColorScheme, ActivityIndicator, Animated, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import AnimatedReanimated, { useSharedValue, useAnimatedStyle, useAnimatedScrollHandler, interpolate, Extrapolate } from "react-native-reanimated";
@@ -20,6 +9,7 @@ import { useCreateDesign } from "../../lib/CreateDesignContext";
 import { Variant, ProductDetailsResponse } from "@/lib/types/printful";
 import { Ionicons } from "@expo/vector-icons";
 import { MuseCoin } from "@/assets/svg/MuseCoin";
+import * as Haptics from "expo-haptics";
 
 const { width } = Dimensions.get("window");
 
@@ -34,7 +24,6 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     retryButton: { backgroundColor: theme.text, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
     retryButtonText: { color: theme.background, fontSize: 16, fontFamily: "Inter-ExtraBold" },
 
-    // Header Styles
     productFlowHeaderContainer: {
       flexDirection: "row",
       justifyContent: "space-between",
@@ -86,7 +75,6 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     coinIcon: { width: 24, height: 24, marginRight: 8 },
     coinTextFlow: { fontSize: 18, color: theme.background, fontFamily: "Inter-ExtraBold" },
 
-    // Progress Bar Styles
     progressWrapperNew: {
       marginHorizontal: 5,
       marginVertical: 15,
@@ -157,7 +145,6 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       fontFamily: "Inter-ExtraBold",
     },
 
-    // Variant Screen Specific Styles
     imageContainerForAnimation: {
       width: "100%",
       aspectRatio: 1,
@@ -199,13 +186,11 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     sizeButtonTextNew: { fontSize: 16, color: theme.text, fontFamily: "Inter-ExtraBold" },
     sizeButtonTextNewSelected: { color: theme.background, fontFamily: "Inter-ExtraBold" },
 
-    // Bottom Bar
     bottomBar: { position: "absolute", bottom: 50, left: 0, right: 0, paddingHorizontal: 20, paddingTop: 10, backgroundColor: "transparent" },
     confirmButton: { backgroundColor: theme.text, paddingVertical: 16, borderRadius: 12, alignItems: "center" },
     confirmButtonText: { color: theme.background, fontSize: 18, fontFamily: "Inter-ExtraBold" },
   });
 
-// Header Component
 const ProductFlowHeader = ({ title, onBackPress }: { title: string; onBackPress?: () => void }) => {
   const colorScheme = useDeviceColorScheme();
   const theme = Colors[colorScheme ?? "light"];
@@ -213,7 +198,15 @@ const ProductFlowHeader = ({ title, onBackPress }: { title: string; onBackPress?
 
   return (
     <View style={styles.productFlowHeaderContainer}>
-      <TouchableOpacity style={styles.backButtonNew} onPress={onBackPress}>
+      <TouchableOpacity
+        style={styles.backButtonNew}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          if (onBackPress) {
+            onBackPress();
+          }
+        }}
+      >
         <View style={[styles.backIconCircle, { borderColor: theme.text }]}>
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </View>
@@ -231,15 +224,13 @@ const ProductFlowHeader = ({ title, onBackPress }: { title: string; onBackPress?
   );
 };
 
-// Progress Bar Component
 const ProgressBar = () => {
   const colorScheme = useDeviceColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const styles = getStyles(theme);
 
-  // This is hardcoded to step 1 for now.
   const currentStep = 1;
-  const progress = new Animated.Value(currentStep - 1); // Step 1 means progress is 0
+  const progress = new Animated.Value(currentStep - 1);
 
   const steps = ["product", "design", "final"];
   const activeFill = theme.text;
@@ -285,7 +276,6 @@ const ProgressBar = () => {
   );
 };
 
-// New Variants screen component
 export default function VariantsScreen() {
   const colorScheme = useDeviceColorScheme();
   const theme = Colors[colorScheme ?? "light"];
@@ -293,16 +283,13 @@ export default function VariantsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ productId: string }>();
 
-  // Get shared state from context
   const { productDetails, setProductDetails, selectedVariant, setSelectedVariant, selectedColor, setSelectedColor, selectedSize, setSelectedSize, variantScrollViewRef } = useCreateDesign();
 
   const { printfulApiKey } = useUser();
 
-  // Local state for this screen
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Animated scroll logic
   const variantScrollY = useSharedValue(0);
   const variantScrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -321,39 +308,37 @@ export default function VariantsScreen() {
     };
   });
 
-  // Fetch product details when this screen loads
-  useEffect(() => {
-    const fetchProductDetails = async (productId: number) => {
-      if (!printfulApiKey) {
-        setError("Please connect your Printful account in settings.");
-        setLoading(false);
-        return;
-      }
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await fetch(`https://api.printful.com/products/${productId}`, {
-          headers: { Authorization: `Bearer ${printfulApiKey}` },
-        });
-        const data: ProductDetailsResponse = await response.json();
-        if (data.code === 200) {
-          setProductDetails(data.result);
-          if (data.result && data.result.variants.length > 0) {
-            // Set initial color to the cheapest variant
-            const cheapestVariant = data.result.variants.reduce((cheapest, current) => (parseFloat(current.price) < parseFloat(cheapest.price) ? current : cheapest));
-            setSelectedColor(cheapestVariant);
-          }
-        } else {
-          setError("Failed to fetch product details");
+  const fetchProductDetails = async (productId: number) => {
+    if (!printfulApiKey) {
+      setError("Please connect your Printful account in settings.");
+      setLoading(false);
+      return;
+    }
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`https://api.printful.com/products/${productId}`, {
+        headers: { Authorization: `Bearer ${printfulApiKey}` },
+      });
+      const data: ProductDetailsResponse = await response.json();
+      if (data.code === 200) {
+        setProductDetails(data.result);
+        if (data.result && data.result.variants.length > 0) {
+          const cheapestVariant = data.result.variants.reduce((cheapest, current) => (parseFloat(current.price) < parseFloat(cheapest.price) ? current : cheapest));
+          setSelectedColor(cheapestVariant);
         }
-      } catch (err) {
-        setError("Network error occurred");
-        console.error("Error fetching product details:", err);
-      } finally {
-        setLoading(false);
+      } else {
+        setError("Failed to fetch product details");
       }
-    };
+    } catch (err) {
+      setError("Network error occurred");
+      console.error("Error fetching product details:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     if (params.productId) {
       fetchProductDetails(Number(params.productId));
     } else {
@@ -361,7 +346,6 @@ export default function VariantsScreen() {
       setLoading(false);
     }
 
-    // Reset selections when product changes
     return () => {
       setSelectedColor(null);
       setSelectedSize(null);
@@ -370,7 +354,6 @@ export default function VariantsScreen() {
     };
   }, [params.productId, printfulApiKey, setProductDetails, setSelectedColor, setSelectedSize, setSelectedVariant]);
 
-  // Helper to sort sizes
   const sortSizes = (sizes: string[]): string[] => {
     const sizeOrderMap: { [key: string]: number } = { XS: 1, S: 2, M: 3, L: 4, XL: 5, "2XL": 6, XXL: 6, "3XL": 7, XXXL: 7, "4XL": 8, "5XL": 9 };
     return [...sizes].sort((a, b) => {
@@ -386,17 +369,17 @@ export default function VariantsScreen() {
     });
   };
 
-  // Event Handlers
   const handleColorSelect = (colorVariant: Variant) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedColor(colorVariant);
-    setSelectedSize(null); // Reset size
-    setSelectedVariant(null); // Reset variant
+    setSelectedSize(null);
+    setSelectedVariant(null);
   };
 
   const handleSizeSelect = (size: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedSize(size);
     if (productDetails && selectedColor) {
-      // Find the specific variant that matches color and size
       const finalVariant = productDetails.variants.find((v) => v.color === selectedColor.color && v.size === size);
       if (finalVariant) {
         setSelectedVariant(finalVariant);
@@ -405,16 +388,15 @@ export default function VariantsScreen() {
   };
 
   const handleConfirmSelection = () => {
-    if (!selectedVariant) return; // Should be disabled if no variant
+    if (!selectedVariant) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    // PUSH the next screen
     router.push({
       pathname: "/create/placements",
       params: { productId: selectedVariant.product_id },
     });
   };
 
-  // Render logic
   const renderContent = () => {
     if (loading) {
       return (
@@ -429,7 +411,15 @@ export default function VariantsScreen() {
       return (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={() => params.productId && fetchProductDetails(Number(params.productId))}>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              if (params.productId) {
+                fetchProductDetails(Number(params.productId));
+              }
+            }}
+          >
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
         </View>
@@ -444,7 +434,6 @@ export default function VariantsScreen() {
       );
     }
 
-    // Data for rendering
     const { product, variants } = productDetails;
     const colors: { [key: string]: Variant } = {};
     for (const variant of variants) {
@@ -479,7 +468,12 @@ export default function VariantsScreen() {
             </ScrollView>
             <View style={styles.sizeHeader}>
               <Text style={styles.selectionTitle}>Select Size</Text>
-              <TouchableOpacity onPress={() => Alert.alert("Size Guide", "Coming soon!")}>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  Alert.alert("Size Guide", "Coming soon!");
+                }}
+              >
                 <Text style={styles.sizeGuideLink}>Size Guide</Text>
               </TouchableOpacity>
             </View>
@@ -509,10 +503,7 @@ export default function VariantsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      <ProductFlowHeader
-        title={productDetails?.product.title || "Select Variant"}
-        onBackPress={() => router.back()} 
-      />
+      <ProductFlowHeader title={productDetails?.product.title || "Select Variant"} onBackPress={() => router.back()} />
       <ProgressBar />
       {renderContent()}
     </SafeAreaView>
