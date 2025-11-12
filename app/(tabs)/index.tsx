@@ -40,6 +40,7 @@ import swimwearPlaceholder from "@/assets/images/Swimwear.png";
 import knitwearPlaceholder from "@/assets/images/Knitwear.png";
 import accessoriesPlaceholder from "@/assets/images/Accessories.png";
 import homeLivingPlaceholder from "@/assets/images/Home-&-Living-Category.png";
+import collectionsPlaceholder from "@/assets/images/Collections.png";
 import { Asset } from "expo-asset";
 import { useCreateDesign } from "@/lib/CreateDesignContext";
 import * as Haptics from "expo-haptics";
@@ -122,6 +123,7 @@ export default function CreateNewDesignTab() {
           require("@/assets/images/Knitwear.png"),
           require("@/assets/images/Accessories.png"),
           require("@/assets/images/Home-&-Living-Category.png"),
+          require("@/assets/images/Collections.png"),
         ]);
         console.log("✅ Placeholder images preloaded");
       } catch (err) {
@@ -559,6 +561,8 @@ export default function CreateNewDesignTab() {
                           ? accessoriesPlaceholder
                           : category.title.toLowerCase().includes("home & living")
                           ? homeLivingPlaceholder
+                          : category.title.toLowerCase().includes("collections")
+                          ? collectionsPlaceholder
                           : { uri: category.image_url }
                       }
                       style={[
@@ -568,6 +572,7 @@ export default function CreateNewDesignTab() {
                         category.title.toLowerCase().includes("knitwear") && styles.customKnitwearImage,
                         category.title.toLowerCase().includes("accessories") && styles.customAccessoriesImage,
                         category.title.toLowerCase().includes("home & living") && styles.customHomeLivingImage,
+                        category.title.toLowerCase().includes("collections") && styles.customCollectionsImage,
                         (category.title.toLowerCase().includes("all shirts") || category.title.toLowerCase().includes("clothes")) && styles.customAllShirtsImage,
                         category.title.toLowerCase().includes("all hoodies") && styles.customHoodiesImage, // NEW CONDITION
                       ]}
@@ -738,9 +743,9 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       justifyContent: "center", // Center vertically
       alignItems: "center", // Center horizontally
     },
-    categoryImage: {
-      width: "100%", // Take up full width/height of container by default
-      height: "100%",
+    categoryImage: { // just made the width and height from 100% to 80% to better fit the container 
+      width: "80%", // Take up full width/height of container by default
+      height: "80%",
       borderTopLeftRadius: 16,
       borderTopRightRadius: 16,
       backgroundColor: theme.background,
@@ -758,8 +763,12 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       height: "80%",
     },
     customHomeLivingImage: {
-      width: "80%",
-      height: "80%",
+      width: "70%",
+      height: "70%",
+    },
+    customCollectionsImage: {
+      width: "70%",
+      height: "70%",
     },
     customAllShirtsImage: {
       transform: [{ translateY: 10 }],
@@ -772,7 +781,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       fontSize: 16,
       color: theme.text,
       textAlign: "center",
-      paddingTop: 40,
+      paddingTop: 20, // changed from 40 to 20
       fontFamily: "Inter-ExtraBold",
     },
 

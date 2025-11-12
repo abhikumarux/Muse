@@ -46,20 +46,20 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       justifyContent: "center", // Center vertically
       alignItems: "center", // Center horizontally
     },
-    categoryImage: {
-      width: "100%", // Take up full width/height of container by default
-      height: "100%",
+    categoryImage: { // just made the width and height from 100% to 80% to better fit the container 
+      width: "80%", // Take up full width/height of container by default
+      height: "80%",
       borderTopLeftRadius: 16,
       borderTopRightRadius: 16,
       backgroundColor: theme.background,
     },
     customSwimwearImage: {
-      width: "80%",
-      height: "80%",
+      width: "70%", //changed from 80% to 70%
+      height: "70%",
     },
     customKnitwearImage: {
-      width: "80%",
-      height: "80%",
+      width: "70%", //changed from 80% to 70%
+      height: "70%",
     },
     customAccessoriesImage: {
       width: "80%",
@@ -80,7 +80,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       fontSize: 16,
       color: theme.text,
       textAlign: "center",
-      paddingTop: 32, // MODIFIED from 20 to 40
+      paddingTop: 16, // MODIFIED from 20 to 40, then changed from 32 to 16
       fontFamily: "Inter-ExtraBold",
     },
     productFlowHeaderContainer: {
