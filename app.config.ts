@@ -51,6 +51,7 @@ export default {
       AWS_IDENTITY_POOL_ID: process.env.AWS_IDENTITY_POOL_ID,
       AWS_S3_BUCKET: process.env.AWS_S3_BUCKET,
       MUSE_REFERENCE_IMAGE_URL: process.env.MUSE_REFERENCE_IMAGE_URL,
+      REMOVE_BG_API_KEY: process.env.REMOVE_BG_API_KEY,
     },
   },
 };

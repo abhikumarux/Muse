@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, useColorScheme as useDeviceColorScheme, ActivityIndicator, Animated, TextInput, Alert, Modal } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -17,7 +17,7 @@ import { useCreateDesign } from "../../lib/CreateDesignContext";
 import { Ionicons } from "@expo/vector-icons";
 import { MuseCoin } from "@/assets/svg/MuseCoin";
 import { LoadingModal } from "@/components/ui/LoadingModal";
-import { GEMINI_API_KEY, AWS_REGION, AWS_S3_BUCKET as BUCKET, AWS_IDENTITY_POOL_ID } from "@/lib/config/constants";
+import { GEMINI_API_KEY, REMOVE_BG_API_KEY, AWS_REGION, AWS_S3_BUCKET as BUCKET, AWS_IDENTITY_POOL_ID } from "@/lib/config/constants";
 import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
 import * as Haptics from "expo-haptics"; // Import Haptics
 import DesignLoader from "@/assets/lottie/design-creation-loader.json";
@@ -561,6 +561,51 @@ export default function DesignScreen() {
 
   // --- API Logic ---
 
+  const removeBackgroundIfPossible = useCallback(
+    async (base64Image: string, contextLabel: string) => {
+      if (!REMOVE_BG_API_KEY) {
+        return base64Image;
+      }
+
+      try {
+        setModalLoadingText(`${contextLabel} • Removing Background...`);
+        const response = await fetch("https://api.remove.bg/v1.0/removebg", {
+          method: "POST",
+          headers: {
+            "X-Api-Key": REMOVE_BG_API_KEY,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            image_file_b64: base64Image,
+            size: "auto",
+            format: "png",
+          }),
+        });
+
+        if (!response.ok) {
+          let errorText: string;
+          try {
+            errorText = JSON.stringify(await response.json());
+          } catch {
+            errorText = await response.text();
+          }
+          console.warn("remove.bg error:", errorText);
+          return base64Image;
+        }
+
+        const arrayBuffer = await response.arrayBuffer();
+        const cleanedBase64 = Buffer.from(arrayBuffer).toString("base64");
+        return cleanedBase64;
+      } catch (error) {
+        console.error("Background removal failed:", error);
+        return base64Image;
+      } finally {
+        setModalLoadingText(contextLabel);
+      }
+    },
+    [setModalLoadingText]
+  );
+
   const GenerateFinalDesign = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // Haptic feedback
     if (!GEMINI_API_KEY) {
@@ -618,14 +663,56 @@ export default function DesignScreen() {
         console.log("No Muse selected, using generic prompt.");
       }
 
-      const tempMuseString = usingSecond
-        ? `Take the first image and the second image, merge them into one cohesive image that makes sense. ${
-            museString ? `I want you to make the whole image theme based off of this description: ${museString}` : ""
-          }`
-        : `Use the first image to generate an appealing, well-composed design based on the image provided. ${
-            museString ? `I want you to make the whole image theme based off of this description: ${museString}` : ""
-          }`;
+      const museGuidanceSection = museString
+        ? `\nMuse Guidance (weight: +persona alignment)\n   - ${museString}\n`
+        : "";
 
+      const tempMuseString = `[ROLE]
+You are a world-class creative assistant specialized in designing graphics.
+Your task is to create a remix of the uploaded images.
+Use the inspiration images only to understand color harmony, texture, emotion, and symbolic mood.
+The result should be a standalone front print artwork (no T-shirt or product shown).
+---
+[INPUTS]
+<Image 1> (optional)
+<Image 2> (optional)${museGuidanceSection}
+---
+[INSTRUCTIONS]
+Inspiration Analysis  (weight: +color harmony +texture +symbolism)
+   - Study the uploaded image(s) carefully.
+   - Extract a balanced color palette that captures the feeling but not the literal look.
+   - Note shapes, gestures, and textures that could influence composition.
+   - Understand the emotional tone or atmosphere the references convey.
+Concept & Storybuilding  (weight: +narrative depth +symbolic relation)
+   - Build a short story or visual theme inspired by what the images represent.
+   - Relate each reference to ideas or symbols that exist in the same world.
+     Example: if an image shows cherry blossoms, connect to Japan → koi fish → peaceful water flow.
+   - Let this conceptual thread guide the new design’s subject and mood.
+Original Creation  (weight: +fresh composition +organic balance)
+   - Create a completely new design that expresses the story.
+   - Use the references only as creative DNA — distill their spirit, not their form.
+   - Merge symbolic elements into one cohesive, premium streetwear graphic.
+   - Avoid any box or background; keep the layout open and organic.
+Typography  (bold font heavyweight: +meaningful integration +font harmony)
+   - Add one poetic or conceptual phrase that complements the art.
+   - Position it naturally within the design’s flow (no rectangular text box).
+   - Choose a bold font style inspired by the references’ mood.
+Final Output Rules
+   - The final output is only the graphic artwork (no product, no mockup).
+   - Composition should look balanced, dynamic, and real.
+   - Background must be pure white.
+   - The edges should feel natural and flowing with the design, not framed or cropped.
+   - Style: hyper-realistic, premium, print-ready, artistic storytelling.
+---
+[TECHNICAL GUIDELINES]
+Aspect ratio: 1:1 (square)
+Lighting: soft and even
+Resolution: high (print-quality detail)
+Keywords: streetwear design, front graphic, organic layout, color harmony, premium detail, conceptual storytelling, DTG-ready, no borders, no mockup, unique typography
+---
+[OUTPUT GOAL]
+Produce a hyper-realistic, original front graphic design inspired by the uploaded images —
+fresh, conceptually connected, and visually stunning enough for a premium streetwear T-shirt print.`;
       const endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent";
 
       const img1Base64 = await FileSystem.readAsStringAsync(localUri1, {
@@ -688,7 +775,8 @@ export default function DesignScreen() {
             throw new Error("No image data returned.");
           }
 
-          const combinedImageUri = `data:image/png;base64,${base64Image}`;
+          const cleanedBase64 = await removeBackgroundIfPossible(base64Image, "Generating Design...");
+          const combinedImageUri = `data:image/png;base64,${cleanedBase64}`;
           setGeneratedImage(combinedImageUri);
           success = true;
           console.log("✅ Image generation successful!");
@@ -746,7 +834,15 @@ export default function DesignScreen() {
 
       const data = await response.json();
       const remixedBase64 = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-      const remixedImageUri = `data:image/png;base64,${remixedBase64}`;
+
+      if (!remixedBase64) {
+        console.warn("Remix attempt returned no image data.", JSON.stringify(data, null, 2));
+        Alert.alert("Error", "Remix did not return an image. Please try again.");
+        return;
+      }
+
+      const cleanedRemixBase64 = await removeBackgroundIfPossible(remixedBase64, "Remixing Design...");
+      const remixedImageUri = `data:image/png;base64,${cleanedRemixBase64}`;
       setGeneratedImage(remixedImageUri);
       setPrompt("");
     } catch (err: any) {
