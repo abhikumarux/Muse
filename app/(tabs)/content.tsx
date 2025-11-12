@@ -130,7 +130,7 @@ export default function ContentTab() {
             <ContentText fill={theme.text} style={{ marginBottom: 4 }} />
           </View>
           <View style={[styles.coinsContainer, { backgroundColor: theme.text }]}>
-            <MuseCoin width={24} height={24} style={styles.coinIcon} />
+            <MuseCoin width={20} height={20} style={styles.coinIcon} />
             <Text style={[styles.coinText, { color: theme.background }]}>325</Text>
           </View>
         </View>
@@ -178,8 +178,8 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       justifyContent: "space-between",
       alignItems: "center",
       paddingHorizontal: 20,
-      paddingTop: 17,
       paddingBottom: 5,
+      marginTop: 13,
     },
     headerSpacer: {
       width: 70,
@@ -197,16 +197,14 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       flexDirection: "row",
       alignItems: "center",
       borderRadius: 20,
-      paddingHorizontal: 12,
+      paddingHorizontal: 10,
       paddingVertical: 6,
+      backgroundColor: theme.text,
     },
-    coinIcon: {
-      marginRight: 8,
-    },
-    coinText: {
-      fontSize: 18,
-      fontFamily: "Inter-ExtraBold",
-    },
+    coinIcon: { width: 12, height: 12, marginRight: 8 },
+
+    coinText: { fontSize: 16, color: theme.background, fontFamily: "Inter-ExtraBold" },
+
     filterRow: {
       flexDirection: "row",
       gap: 10,
@@ -220,12 +218,13 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       borderRadius: 12,
     },
     filterText: {
-      fontSize: 16,
+      fontSize: 14,
       fontFamily: "Inter-ExtraBold",
+      textTransform: "uppercase",
     },
     sectionLabel: {
       fontFamily: "Inter-Bold",
-      fontSize: 13,
+      fontSize: 12,
       marginBottom: 12,
       borderColor: theme.secondaryText,
       borderRadius: 20,
@@ -235,6 +234,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       overflow: "hidden",
       alignSelf: "flex-start",
       textAlign: "center",
+      textTransform: "uppercase",
     },
     scenarioGrid: {
       flexDirection: "row",
@@ -267,6 +267,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       fontSize: 16,
       marginTop: 8,
       textAlign: "center",
+      textTransform: "uppercase",
     },
     favoriteToggle: {
       position: "absolute",
