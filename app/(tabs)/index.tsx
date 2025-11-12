@@ -32,8 +32,14 @@ import { AWS_REGION, AWS_S3_BUCKET as BUCKET, AWS_IDENTITY_POOL_ID } from "@/lib
 import { Category, CategoriesResponse, Muse } from "@/lib/types/printful";
 import { DesignText } from "@/assets/svg/DesignText";
 import { MuseCoin } from "@/assets/svg/MuseCoin";
-import tshirtPlaceholder from "@/assets/images/tshirt-placeholder.png";
-import hoodiePlaceholder from "@/assets/images/hoodie-placeholder.png";
+import tshirtPlaceholder from "@/assets/images/All-Shirts.png";
+import hoodiePlaceholder from "@/assets/images/Hoodies-&-Sweatshirt.png";
+import jacketsPlaceholder from "@/assets/images/Jackets-&-Vests-Category.png";
+import bottomsPlaceholder from "@/assets/images/All-Bottoms.png";
+import swimwearPlaceholder from "@/assets/images/Swimwear.png";
+import knitwearPlaceholder from "@/assets/images/Knitwear.png";
+import accessoriesPlaceholder from "@/assets/images/Accessories.png";
+import homeLivingPlaceholder from "@/assets/images/Home-&-Living-Category.png";
 import { Asset } from "expo-asset";
 import { useCreateDesign } from "@/lib/CreateDesignContext";
 import * as Haptics from "expo-haptics";
@@ -98,7 +104,7 @@ export default function CreateNewDesignTab() {
         {title}
       </Text>
       <View style={[styles.coinsContainerFlow, { backgroundColor: theme.text }]}>
-        <MuseCoin width={24} height={24} style={styles.coinIcon} />
+        <MuseCoin width={2} height={20} style={styles.coinIcon} />
         <Text style={[styles.coinTextFlow, { color: theme.background }]}>325</Text>
       </View>
     </View>
@@ -107,7 +113,16 @@ export default function CreateNewDesignTab() {
   useEffect(() => {
     const preloadAssets = async () => {
       try {
-        await Asset.loadAsync([require("@/assets/images/tshirt-placeholder.png"), require("@/assets/images/hoodie-placeholder.png")]);
+        await Asset.loadAsync([
+          require("@/assets/images/All-Shirts.png"),
+          require("@/assets/images/Hoodies-&-Sweatshirt.png"),
+          require("@/assets/images/Jackets-&-Vests-Category.png"),
+          require("@/assets/images/All-Bottoms.png"),
+          require("@/assets/images/Swimwear.png"),
+          require("@/assets/images/Knitwear.png"),
+          require("@/assets/images/Accessories.png"),
+          require("@/assets/images/Home-&-Living-Category.png"),
+        ]);
         console.log("✅ Placeholder images preloaded");
       } catch (err) {
         console.warn("⚠️ Error preloading images:", err);
@@ -515,7 +530,7 @@ export default function CreateNewDesignTab() {
               <DesignText height={45} width="100%" fill={theme.text} preserveAspectRatio="xMidYMid meet" style={{ height: 55, width: "100%" }} />
             </View>
             <View style={[styles.coinsContainer, { backgroundColor: theme.text }]}>
-              <MuseCoin width={24} height={24} style={styles.coinIcon} />
+              <MuseCoin width={20} height={20} style={styles.coinIcon} />
               <Text style={styles.coinText}>325</Text>
             </View>
           </View>
@@ -525,16 +540,43 @@ export default function CreateNewDesignTab() {
             {displayedCategories.map((category, index) => (
               <MotiView key={category.id} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "timing", duration: 300, delay: index * 50 }}>
                 <TouchableOpacity style={styles.categoryCard} onPress={() => handleCategorySelect(category)}>
-                  <Image
-                    source={
-                      category.title.toLowerCase().includes("all shirts") ? tshirtPlaceholder : category.title.toLowerCase().includes("all hoodies") ? hoodiePlaceholder : { uri: category.image_url }
-                    }
-                    style={[styles.categoryImage, { opacity: 0.95 }]}
-                    resizeMode="cover"
-                  />
+                  <View style={styles.imageContainer}>
+                    <Image
+                      source={
+                        category.title.toLowerCase().includes("all shirts") || category.title.toLowerCase().includes("clothes")
+                          ? tshirtPlaceholder
+                          : category.title.toLowerCase().includes("all hoodies")
+                          ? hoodiePlaceholder
+                          : category.title.toLowerCase().includes("jackets & vests")
+                          ? jacketsPlaceholder
+                          : category.title.toLowerCase().includes("all bottoms")
+                          ? bottomsPlaceholder
+                          : category.title.toLowerCase().includes("swimwear")
+                          ? swimwearPlaceholder
+                          : category.title.toLowerCase().includes("knitwear")
+                          ? knitwearPlaceholder
+                          : category.title.toLowerCase().includes("accessories")
+                          ? accessoriesPlaceholder
+                          : category.title.toLowerCase().includes("home & living")
+                          ? homeLivingPlaceholder
+                          : { uri: category.image_url }
+                      }
+                      style={[
+                        styles.categoryImage,
+                        { opacity: 0.95 },
+                        category.title.toLowerCase().includes("swimwear") && styles.customSwimwearImage,
+                        category.title.toLowerCase().includes("knitwear") && styles.customKnitwearImage,
+                        category.title.toLowerCase().includes("accessories") && styles.customAccessoriesImage,
+                        category.title.toLowerCase().includes("home & living") && styles.customHomeLivingImage,
+                        (category.title.toLowerCase().includes("all shirts") || category.title.toLowerCase().includes("clothes")) && styles.customAllShirtsImage,
+                        category.title.toLowerCase().includes("all hoodies") && styles.customHoodiesImage, // NEW CONDITION
+                      ]}
+                      resizeMode="contain"
+                    />
+                  </View>
 
                   <Text style={styles.categoryTitle} numberOfLines={2}>
-                    {category.title}
+                    {category.title.toUpperCase()}
                   </Text>
                 </TouchableOpacity>
               </MotiView>
@@ -675,7 +717,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
     scrollView: { flex: 1 },
-    scrollContent: { padding: 20, paddingTop: 10, paddingBottom: 80 },
+    scrollContent: { padding: 20, paddingTop: 22, paddingBottom: 80 },
     gridContainer: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
     categoryCard: {
       width: CARD_WIDTH,
@@ -687,8 +729,52 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       borderColor: theme.text,
       paddingBottom: 12,
     },
-    categoryImage: { width: "100%", height: CARD_WIDTH * 1, borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: theme.background },
-    categoryTitle: { fontSize: 16, color: theme.text, textAlign: "center", paddingTop: 20, fontFamily: "Inter-ExtraBold" },
+    imageContainer: {
+      width: "100%",
+      height: CARD_WIDTH * 1, // Fixed height for image display area
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      backgroundColor: theme.background,
+      justifyContent: "center", // Center vertically
+      alignItems: "center", // Center horizontally
+    },
+    categoryImage: {
+      width: "100%", // Take up full width/height of container by default
+      height: "100%",
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      backgroundColor: theme.background,
+    },
+    customSwimwearImage: {
+      width: "80%",
+      height: "80%",
+    },
+    customKnitwearImage: {
+      width: "80%",
+      height: "80%",
+    },
+    customAccessoriesImage: {
+      width: "80%",
+      height: "80%",
+    },
+    customHomeLivingImage: {
+      width: "80%",
+      height: "80%",
+    },
+    customAllShirtsImage: {
+      transform: [{ translateY: 10 }],
+    },
+    customHoodiesImage: {
+      // NEW STYLE
+      transform: [{ translateY: 10 }],
+    },
+    categoryTitle: {
+      fontSize: 16,
+      color: theme.text,
+      textAlign: "center",
+      paddingTop: 40,
+      fontFamily: "Inter-ExtraBold",
+    },
 
     loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.background },
     loadingText: { marginTop: 10, fontSize: 16, color: theme.secondaryText, fontFamily: "Inter-ExtraBold" },
@@ -738,7 +824,6 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       fontSize: 28,
       textAlign: "center",
       color: theme.text,
-      marginHorizontal: 10,
       fontFamily: "Inter-ExtraBold",
     },
     coinsContainerFlow: {
@@ -747,17 +832,16 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       borderRadius: 20,
       paddingHorizontal: 12,
       paddingVertical: 6,
-      minWidth: 70,
       backgroundColor: theme.text,
     },
-    coinTextFlow: { fontSize: 18, color: theme.background, fontFamily: "Inter-ExtraBold" },
+    coinTextFlow: { fontSize: 16, color: theme.background, fontFamily: "Inter-ExtraBold" },
 
     museSelectorButton: {
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: theme.background,
-      width: 70,
-      height: 70,
+      width: 50,
+      height: 50,
       borderRadius: 35,
       alignSelf: "flex-start",
       borderWidth: 1,
@@ -795,13 +879,14 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       alignItems: "center",
       paddingHorizontal: 20,
       paddingBottom: 5,
+      marginTop: 5,
       backgroundColor: theme.background,
     },
     coinsContainer: {
       flexDirection: "row",
       alignItems: "center",
       borderRadius: 20,
-      paddingHorizontal: 12,
+      paddingHorizontal: 10,
       paddingVertical: 6,
       backgroundColor: theme.text,
     },
@@ -875,6 +960,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       width: "100%",
       height: "100%",
       resizeMode: "cover",
+      backgroundColor: theme.tabIconDefault,
     },
     museOverlay: {
       position: "absolute",
@@ -905,8 +991,8 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       shadowRadius: 3,
       elevation: 5,
     },
-    coinIcon: { width: 24, height: 24, marginRight: 8 },
-    coinText: { fontSize: 18, color: theme.background, fontFamily: "Inter-ExtraBold" },
+    coinIcon: { width: 20, height: 20, marginRight: 8 },
+    coinText: { fontSize: 16, color: theme.background, fontFamily: "Inter-ExtraBold" },
     clothesSwitchContainer: {
       flexDirection: "row",
       height: 38,

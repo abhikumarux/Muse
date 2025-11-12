@@ -84,7 +84,6 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     coinIcon: { width: 24, height: 24, marginRight: 8 },
     coinTextFlow: { fontSize: 18, color: theme.background, fontFamily: "Inter-ExtraBold" },
 
-    // Progress Bar Styles
     progressWrapperNew: {
       marginHorizontal: 5,
       marginVertical: 15,
@@ -158,6 +157,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     // Design Screen Specific Styles
     designContent: { paddingHorizontal: 20, paddingBottom: 100 },
     designUploadTitle: {
+      paddingTop: 35,
       fontSize: 18,
       color: theme.text,
       textAlign: "center",
@@ -244,7 +244,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       shadowColor: theme.text,
       shadowOpacity: 0.08,
       shadowRadius: 8,
-      elevation: 2,
+      elevation: 4,
       width: "100%",
       maxWidth: 400,
       alignSelf: "center",
@@ -619,10 +619,127 @@ export default function DesignScreen() {
       }
 
       const tempMuseString = usingSecond
-        ? `Take the first image and the second image, merge them into one cohesive image that makes sense. ${
+        ? `[ROLE]
+You are a world-class creative assistant specialized in designing graphics.
+
+Your task is to create a remix of the uploaded images.  
+Use the inspiration images only to understand color harmony, texture, emotion, and symbolic mood.  
+The result should be a standalone front print artwork (no T-shirt or product shown).
+
+---
+
+[INPUTS]
+<Image 1> (optional)
+<Image 2> (optional)
+
+---
+
+[INSTRUCTIONS]
+
+Inspiration Analysis  (weight: +color harmony +texture +symbolism)
+   - Study the uploaded image(s) carefully.
+   - Extract a balanced color palette that captures the feeling but not the literal look.
+   - Note shapes, gestures, and textures that could influence composition.
+   - Understand the emotional tone or atmosphere the references convey.
+
+Concept & Storybuilding  (weight: +narrative depth +symbolic relation)
+   - Build a short story or visual theme inspired by what the images represent.
+   - Relate each reference to ideas or symbols that exist in the same world.
+     Example: if an image shows cherry blossoms, connect to Japan → koi fish → peaceful water flow.
+   - Let this conceptual thread guide the new design’s subject and mood.
+
+Original Creation  (weight: +fresh composition +organic balance)
+   - Create a completely new design that expresses the story.
+   - Use the references only as creative DNA — distill their spirit, not their form.
+   - Merge symbolic elements into one cohesive, premium streetwear graphic.
+   - Avoid any box or background; keep the layout open and organic.
+
+Typography  (bold font heavyweight: +meaningful integration +font harmony)
+   - Add one poetic or conceptual phrase that complements the art.
+   - Position it naturally within the design’s flow (no rectangular text box).
+   - Choose a bold font style inspired by the references’ mood.
+
+Final Output Rules
+   - The final output is only the graphic artwork (no product, no mockup).
+   - Composition should look balanced, dynamic, and real.
+   - Background must be pure white.
+   - The edges should feel natural and flowing with the design, not framed or cropped.
+   - Style: hyper-realistic, premium, print-ready, artistic storytelling.
+
+---
+
+[TECHNICAL GUIDELINES]
+Aspect ratio: 1:1 (square)
+Lighting: soft and even
+Resolution: high (print-quality detail)
+Keywords: streetwear design, front graphic, organic layout, color harmony, premium detail, conceptual storytelling, DTG-ready, no borders, no mockup, unique typography
+
+---
+
+[OUTPUT GOAL]
+Produce a hyper-realistic, original front graphic design inspired by the uploaded images —  
+fresh, conceptually connected, and visually stunning enough for a premium streetwear T-shirt print ${
             museString ? `I want you to make the whole image theme based off of this description: ${museString}` : ""
           }`
-        : `Use the first image to generate an appealing, well-composed design based on the image provided. ${
+        : `[ROLE]
+You are a world-class creative assistant specialized in designing graphics.
+
+Your task is to create a remix of the uploaded images.  
+Use the inspiration images only to understand color harmony, texture, emotion, and symbolic mood.  
+The result should be a standalone front print artwork (no T-shirt or product shown).
+
+---
+
+[INPUTS]
+<Image 1>
+
+---
+
+[INSTRUCTIONS]
+
+Inspiration Analysis  (weight: +color harmony +texture +symbolism)
+   - Study the uploaded image(s) carefully.
+   - Extract a balanced color palette that captures the feeling but not the literal look.
+   - Note shapes, gestures, and textures that could influence composition.
+   - Understand the emotional tone or atmosphere the references convey.
+
+Concept & Storybuilding  (weight: +narrative depth +symbolic relation)
+   - Build a short story or visual theme inspired by what the images represent.
+   - Relate each reference to ideas or symbols that exist in the same world.
+     Example: if an image shows cherry blossoms, connect to Japan → koi fish → peaceful water flow.
+   - Let this conceptual thread guide the new design’s subject and mood.
+
+Original Creation  (weight: +fresh composition +organic balance)
+   - Create a completely new design that expresses the story.
+   - Use the references only as creative DNA — distill their spirit, not their form.
+   - Merge symbolic elements into one cohesive, premium streetwear graphic.
+   - Avoid any box or background; keep the layout open and organic.
+
+Typography  (bold font heavyweight: +meaningful integration +font harmony)
+   - Add one poetic or conceptual phrase that complements the art.
+   - Position it naturally within the design’s flow (no rectangular text box).
+   - Choose a bold font style inspired by the references’ mood.
+
+Final Output Rules
+   - The final output is only the graphic artwork (no product, no mockup).
+   - Composition should look balanced, dynamic, and real.
+   - Background must be pure white.
+   - The edges should feel natural and flowing with the design, not framed or cropped.
+   - Style: hyper-realistic, premium, print-ready, artistic storytelling.
+
+---
+
+[TECHNICAL GUIDELINES]
+Aspect ratio: 1:1 (square)
+Lighting: soft and even
+Resolution: high (print-quality detail)
+Keywords: streetwear design, front graphic, organic layout, color harmony, premium detail, conceptual storytelling, DTG-ready, no borders, no mockup, unique typography
+
+---
+
+[OUTPUT GOAL]
+Produce a hyper-realistic, original front graphic design inspired by the uploaded images —  
+fresh, conceptually connected, and visually stunning enough for a premium streetwear T-shirt print  ${
             museString ? `I want you to make the whole image theme based off of this description: ${museString}` : ""
           }`;
 

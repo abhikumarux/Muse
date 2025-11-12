@@ -7,8 +7,14 @@ import { Colors } from "@/constants/Colors";
 import { useCreateDesign } from "../../lib/CreateDesignContext";
 import { Ionicons } from "@expo/vector-icons";
 import { MuseCoin } from "@/assets/svg/MuseCoin";
-import tshirtPlaceholder from "@/assets/images/tshirt-placeholder.png";
-import hoodiePlaceholder from "@/assets/images/hoodie-placeholder.png";
+import tshirtPlaceholder from "@/assets/images/All-Shirts.png";
+import hoodiePlaceholder from "@/assets/images/Hoodies-&-Sweatshirt.png";
+import jacketsPlaceholder from "@/assets/images/Jackets-&-Vests-Category.png";
+import bottomsPlaceholder from "@/assets/images/All-Bottoms.png";
+import swimwearPlaceholder from "@/assets/images/Swimwear.png";
+import knitwearPlaceholder from "@/assets/images/Knitwear.png";
+import accessoriesPlaceholder from "@/assets/images/Accessories.png";
+import homeLivingPlaceholder from "@/assets/images/Home-&-Living-Category.png";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 
@@ -31,8 +37,52 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       borderColor: theme.text,
       paddingBottom: 12,
     },
-    categoryImage: { width: "100%", height: CARD_WIDTH * 1, borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: theme.background },
-    categoryTitle: { fontSize: 16, color: theme.text, textAlign: "center", paddingTop: 20, fontFamily: "Inter-ExtraBold" },
+    imageContainer: {
+      width: "100%",
+      height: CARD_WIDTH * 1, // Fixed height for image display area
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      backgroundColor: theme.background,
+      justifyContent: "center", // Center vertically
+      alignItems: "center", // Center horizontally
+    },
+    categoryImage: {
+      width: "100%", // Take up full width/height of container by default
+      height: "100%",
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      backgroundColor: theme.background,
+    },
+    customSwimwearImage: {
+      width: "80%",
+      height: "80%",
+    },
+    customKnitwearImage: {
+      width: "80%",
+      height: "80%",
+    },
+    customAccessoriesImage: {
+      width: "80%",
+      height: "80%",
+    },
+    customHomeLivingImage: {
+      width: "80%",
+      height: "80%",
+    },
+    customAllShirtsImage: {
+      transform: [{ translateY: 10 }],
+    },
+    customHoodiesImage: {
+      // NEW STYLE
+      transform: [{ translateY: 10 }],
+    },
+    categoryTitle: {
+      fontSize: 16,
+      color: theme.text,
+      textAlign: "center",
+      paddingTop: 32, // MODIFIED from 20 to 40
+      fontFamily: "Inter-ExtraBold",
+    },
     productFlowHeaderContainer: {
       flexDirection: "row",
       justifyContent: "space-between",
@@ -282,7 +332,7 @@ export default function CategorySublistScreen() {
           <View style={[styles.allProductsButtonContainer, gridCategories.length > 0 && { marginBottom: 20 }]}>
             {allClothingCategories.map((category, index) => (
               <TouchableOpacity key={category.id} style={[styles.allProductsButton, index < allClothingCategories.length - 1 && { marginBottom: 15 }]} onPress={() => handleCategorySelect(category)}>
-                <Text style={styles.allProductsButtonText}>{category.title}</Text>
+                <Text style={styles.allProductsButtonText}>{category.title.toUpperCase()}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -292,15 +342,42 @@ export default function CategorySublistScreen() {
           {gridCategories.map((category, index) => (
             <MotiView key={category.id} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "timing", duration: 300, delay: index * 50 }}>
               <TouchableOpacity style={styles.categoryCard} onPress={() => handleCategorySelect(category)}>
-                <Image
-                  source={
-                    category.title.toLowerCase().includes("all shirts") ? tshirtPlaceholder : category.title.toLowerCase().includes("all hoodies") ? hoodiePlaceholder : { uri: category.image_url }
-                  }
-                  style={[styles.categoryImage, { opacity: 0.95 }]}
-                  resizeMode="cover"
-                />
+                <View style={styles.imageContainer}>
+                  <Image
+                    source={
+                      category.title.toLowerCase().includes("all shirts")
+                        ? tshirtPlaceholder
+                        : category.title.toLowerCase().includes("all hoodies")
+                        ? hoodiePlaceholder
+                        : category.title.toLowerCase().includes("jackets & vests")
+                        ? jacketsPlaceholder
+                        : category.title.toLowerCase().includes("all bottoms")
+                        ? bottomsPlaceholder
+                        : category.title.toLowerCase().includes("swimwear")
+                        ? swimwearPlaceholder
+                        : category.title.toLowerCase().includes("knitwear")
+                        ? knitwearPlaceholder
+                        : category.title.toLowerCase().includes("accessories")
+                        ? accessoriesPlaceholder
+                        : category.title.toLowerCase().includes("home & living")
+                        ? homeLivingPlaceholder
+                        : { uri: category.image_url }
+                    }
+                    style={[
+                      styles.categoryImage,
+                      { opacity: 0.95 },
+                      category.title.toLowerCase().includes("swimwear") && styles.customSwimwearImage,
+                      category.title.toLowerCase().includes("knitwear") && styles.customKnitwearImage,
+                      category.title.toLowerCase().includes("accessories") && styles.customAccessoriesImage,
+                      category.title.toLowerCase().includes("home & living") && styles.customHomeLivingImage,
+                      category.title.toLowerCase().includes("all shirts") && styles.customAllShirtsImage,
+                      category.title.toLowerCase().includes("all hoodies") && styles.customHoodiesImage, // NEW CONDITION
+                    ]}
+                    resizeMode="contain"
+                  />
+                </View>
                 <Text style={styles.categoryTitle} numberOfLines={2}>
-                  {category.title}
+                  {category.title.toUpperCase()}
                 </Text>
               </TouchableOpacity>
             </MotiView>
