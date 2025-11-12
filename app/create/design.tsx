@@ -84,7 +84,6 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     coinIcon: { width: 24, height: 24, marginRight: 8 },
     coinTextFlow: { fontSize: 18, color: theme.background, fontFamily: "Inter-ExtraBold" },
 
-    // Progress Bar Styles
     progressWrapperNew: {
       marginHorizontal: 5,
       marginVertical: 15,
@@ -158,6 +157,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     // Design Screen Specific Styles
     designContent: { paddingHorizontal: 20, paddingBottom: 100 },
     designUploadTitle: {
+      paddingTop: 35,
       fontSize: 18,
       color: theme.text,
       textAlign: "center",
@@ -244,7 +244,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       shadowColor: theme.text,
       shadowOpacity: 0.08,
       shadowRadius: 8,
-      elevation: 2,
+      elevation: 4,
       width: "100%",
       maxWidth: 400,
       alignSelf: "center",
