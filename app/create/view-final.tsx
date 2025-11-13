@@ -383,6 +383,11 @@ export default function ViewFinalDesignScreen() {
   // --- API Logic ---
 
   const handleSaveDesign = async () => {
+    if (!generatedImage) {
+      Alert.alert("Error", "No generated image to save.");
+      return;
+    }
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // Haptic feedback
     if (!generatedImage) {
       Alert.alert("Error", "No generated image to save.");
@@ -391,7 +396,17 @@ export default function ViewFinalDesignScreen() {
 
     setIsSaving(true);
     try {
-      // NOTE: saveDesign logic here
+      await saveDesign({
+        imageUri: generatedImage,
+        productName: selectedProduct?.title,
+        productId: selectedProduct?.id?.toString(),
+        variantId: selectedVariant?.id?.toString(),
+        size: selectedSize ?? undefined,
+        color: selectedColor?.color,
+        title: `${selectedProduct?.title || "Custom Design"}`,
+        prompt: prompt,
+      });
+
       Alert.alert("Success", "Design saved successfully!");
     } catch (err: any) {
       console.error("Error saving design:", err);
@@ -400,6 +415,7 @@ export default function ViewFinalDesignScreen() {
       setIsSaving(false);
     }
   };
+  
 
   const handleRemix = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // Haptic feedback
@@ -441,8 +457,8 @@ export default function ViewFinalDesignScreen() {
     router.push({ pathname: "/create-photoshoot", params: { designUri: encodeURIComponent(primaryMockup) } });
   };
 
-  const addToStore = async (mockupUrls: string[]) => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); // Haptic feedback
+const addToStore = async (mockupUrls: string[]) => {
+   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Haptic feedback
     if (!mockupUrls.length || !selectedVariant?.id || !selectedProduct) {
       Alert.alert("Error", "Missing product data to add to store.");
       return;
@@ -456,7 +472,52 @@ export default function ViewFinalDesignScreen() {
     setIsProcessing(true);
 
     try {
-      // NOTE: Add to store logic here
+      const files = selectedPlacements.map((placement, i) => {
+        const fileObj: any = { url: mockupUrls[i] || mockupUrls[0] };
+
+        if (placement !== "front" && placement !== "default") {
+          fileObj.type = placement;
+        } else {
+          fileObj.type = "default";
+        }
+        return fileObj;
+      });
+
+      if (!files.length) {
+        throw new Error("No placements were selected to create files.");
+      }
+
+      if (!selectedProduct.title) throw new Error("Product title is required.");
+
+      const endpoint = `https://api.printful.com/store/products?store_id=${currentStoreId}`;
+
+      const payload = {
+        sync_product: {
+          name: `${selectedProduct.title} - Custom Design`,
+          thumbnail: mockupUrls[0],
+        },
+        sync_variants: [
+          {
+            retail_price: selectedVariant.price, // Use original variant price
+            variant_id: selectedVariant.id,
+            files: files, // Pass the array of file objects we just built
+          },
+        ],
+      };
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${printfulApiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Printful API Error:", errorData);
+        throw new Error(errorData.error?.message || "Failed to add product to store.");
+      }
+
+      await response.json();
       Alert.alert("Success", "Product added to your store!");
     } catch (err: any) {
       console.error("Error in addToStore:", err);
