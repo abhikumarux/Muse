@@ -1,479 +1,273 @@
-import { SocialButtons } from "@/components/ui/SocialButtons";
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import {
-  View, Text, TextInput, ActivityIndicator, Alert, TouchableOpacity,
-  StyleSheet, Dimensions, Image, ImageBackground, Modal, Pressable, Keyboard,
-  ScrollView, KeyboardAvoidingView, Platform
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  TouchableWithoutFeedback,
+  Keyboard,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Dimensions,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
-import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
+import { FontAwesome } from "@expo/vector-icons";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { SocialButtons } from "@/components/ui/SocialButtons";
 import {
   signUpEmailPassword,
   confirmSignUp,
-  resendConfirmationCode,
-  isValidEmail,
-  isStrongPassword,
-  signInEmailPassword,
-  getIdTokenFromStorage,
 } from "../lib/aws/auth";
-import { ensureMuseUserRow } from "../lib/aws/userProfile";
-import { useUser } from "../lib/UserContext";
+import {
+  widthPercentageToDP as wp,
+  heightPercentageToDP as hp,
+} from "react-native-responsive-screen";
+import { MuseLogo } from "../assets/svg/MuseLogo"; 
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
+const scale = Math.min(width / 375, 1.25);
 
 export default function RegisterScreen() {
-  const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const { refreshUser } = useUser();
 
   const colorScheme = useColorScheme() ?? "light";
   const themeColors = Colors[colorScheme];
   const styles = createStyles(themeColors);
 
-  // Verification
-  const [verificationModalVisible, setVerificationModalVisible] = useState(false);
-  const [verificationCode, setVerificationCode] = useState<string[]>(Array(6).fill(""));
-  const [isConfirming, setIsConfirming] = useState(false);
-  const inputRefs = useRef<(TextInput | null)[]>([]);
-
   const handleRegister = async () => {
     Keyboard.dismiss();
-
-    // Name validation and make it required
-    if (name.trim().length === 0) {
-      Alert.alert("Missing Name", "Please enter your full name.");
+    if (!name || !email || !password || !confirmPassword) {
+      Alert.alert("Missing fields", "Please fill in all fields.");
       return;
     }
-
-    if (!isValidEmail(email)) {
-      Alert.alert("Invalid email", "Please enter a valid email address.");
-      return;
-    }
-    if (!isStrongPassword(password)) {
-      Alert.alert("Weak password", "Password must be at least 8 characters and include upper, lower, number, and special.");
+    if (password !== confirmPassword) {
+      Alert.alert("Password mismatch", "Passwords do not match.");
       return;
     }
 
     setLoading(true);
     try {
-      // Pass name.trim() directly
-      await signUpEmailPassword(email.trim(), password, name.trim());
-
-      console.log("Sign up successful, showing modal.");
-      setVerificationModalVisible(true);
-      setTimeout(() => inputRefs.current[0]?.focus(), 100);
+      await signUpEmailPassword(email.trim(), password, name);
+      Alert.alert("Success", "Please verify your email before logging in.");
+      router.replace("/login");
     } catch (err: any) {
-      console.log("Sign up failed:", err.name, err.message);
-      if (err.name === "UsernameExistsException") {
-        console.log("User exists. Attempting to resend code.");
-        try {
-          await resendConfirmationCode(email.trim());
-          setVerificationModalVisible(true);
-          setTimeout(() => inputRefs.current[0]?.focus(), 100);
-          Alert.alert("Verification Needed", "This email is already registered but unconfirmed. We've resent the verification code.");
-        } catch (resendErr: any) {
-          console.error("Resend code failed:", resendErr);
-          Alert.alert("Error", resendErr?.message || "Could not resend code. Please try signing in.");
-        }
-      } else {
-        Alert.alert("Error", err?.message || "Registration failed");
-      }
+      Alert.alert("Error", err?.message || "Registration failed.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Verification code input handlers
-  const handleCodeChange = (text: string, index: number) => {
-    const newCode = [...verificationCode];
-    const digit = text.replace(/[^0-9]/g, "");
-    newCode[index] = digit;
-    setVerificationCode(newCode);
-
-    if (digit && index < 5) {
-      inputRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleBackspace = (event: any, index: number) => {
-    if (event.nativeEvent.key === "Backspace") {
-      const newCode = [...verificationCode];
-      if (!newCode[index] && index > 0) {
-        newCode[index - 1] = "";
-        inputRefs.current[index - 1]?.focus();
-      } else {
-        newCode[index] = "";
-      }
-      setVerificationCode(newCode);
-    }
-  };
-
-  // Confirmation handler
-  const handleConfirm = async () => {
-    const code = verificationCode.join("");
-    if (code.length !== 6) {
-      Alert.alert("Incomplete Code", "Please enter the full 6-digit code.");
-      return;
-    }
-    setIsConfirming(true);
-    Keyboard.dismiss();
-    try {
-      await confirmSignUp(email.trim(), code);
-      await signInEmailPassword(email.trim(), password);
-
-      const idToken = await getIdTokenFromStorage();
-      if (idToken) await ensureMuseUserRow(idToken);
-
-      await refreshUser();
-
-      // Extract first name and personalize alert
-      const fullName = name.trim();
-      const firstName = fullName.split(" ")[0] || fullName; // Get first part, or full name if no space
-
-      setVerificationModalVisible(false);
-      setVerificationCode(Array(6).fill(""));
-
-      Alert.alert(`Welcome, ${firstName}!`, "Your account is confirmed.");
-
-      router.replace("/(tabs)");
-    } catch (err: any) {
-      Alert.alert("Error", err?.message || "Confirmation failed");
-    } finally {
-      setIsConfirming(false);
-    }
-  };
-
-  const handleResend = async () => {
-    try {
-      await resendConfirmationCode(email.trim());
-      Alert.alert("Code Sent", "We’ve re-sent the verification code to your email.");
-    } catch (e: any) {
-      Alert.alert("Error", e?.message || "Could not resend code");
-    }
-  };
-
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardAvoidingContainer}>
-      <Pressable onPress={Keyboard.dismiss} style={styles.outerPressable}>
-        <View style={styles.container}>
-          <BlurView intensity={4} tint={colorScheme} style={StyleSheet.absoluteFill} />
+    <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }} edges={[]}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.keyboardAvoidingContainer}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.container}>
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <BlurView intensity={80} tint={colorScheme} style={styles.formContainer}>
+                <MuseLogo
+                  width={wp("35%") * scale}
+                  height={hp("7") * scale}
+                  style={{ alignSelf: 'center' }}
+                />
 
-          <ScrollView contentContainerStyle={styles.scrollContentContainer} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            <BlurView intensity={80} tint={colorScheme} style={styles.formContainer}>
-              <View style={styles.logoContainer}>
-                <Image source={require("../assets/images/logo.png")} style={styles.logo} resizeMode="contain" />
-              </View>
-
-              <Text style={styles.header}>
-                Create an <Text style={styles.subheader}>Account!</Text>
-              </Text>
-
-              {/* Name first */}
-              <View style={styles.labelContainer}>
-                <FontAwesome name="user-o" size={16} color={themeColors.text} style={styles.labelIcon} />
-                <Text style={styles.label}>Enter Name</Text>
-              </View>
-              <TextInput
-                value={name}
-                onChangeText={setName}
-                autoCapitalize="words"
-                placeholder="Full name"
-                style={styles.input}
-                placeholderTextColor={themeColors.inputPlaceholder}
-                editable={!loading}
-              />
-
-              {/* Email second */}
-              <View style={styles.labelContainer}>
-                <FontAwesome name="envelope-o" size={16} color={themeColors.text} style={styles.labelIcon} />
-                <Text style={styles.label}>Enter Email</Text>
-              </View>
-              <TextInput
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                placeholder="Email address"
-                style={styles.input}
-                placeholderTextColor={themeColors.inputPlaceholder}
-                editable={!loading}
-              />
-
-              {/* Password third */}
-              <View style={styles.labelContainer}>
-                <FontAwesome name="lock" size={18} color={themeColors.text} style={styles.labelIcon} />
-                <Text style={styles.label}>Enter Password</Text>
-              </View>
-              <TextInput
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                placeholder="Password"
-                style={styles.input}
-                placeholderTextColor={themeColors.inputPlaceholder}
-                editable={!loading}
-              />
-
-              {loading ? (
-                <ActivityIndicator size="large" color={themeColors.text} style={styles.loginButtonContainer} />
-              ) : (
-                <TouchableOpacity style={styles.loginButtonContainer} onPress={handleRegister}>
-                  <LinearGradient colors={themeColors.loginGradient} style={styles.loginGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                    <Text style={styles.loginButtonText}>Sign Up</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              )}
-
-              {}
-              <SocialButtons />
-              {}
-
-              <View style={styles.registerContainer}>
-                <Text style={styles.registerText}>Already have an account? </Text>
-                <TouchableOpacity onPress={() => router.replace("/login")}>
-                  <Text style={styles.registerLink}>Sign in</Text>
-                </TouchableOpacity>
-              </View>
-            </BlurView>
-          </ScrollView>
-
-          {/* Verification */}
-          <Modal
-            animationType="fade"
-            transparent={true}
-            visible={verificationModalVisible}
-            onRequestClose={() => {
-              setVerificationModalVisible(false);
-              setVerificationCode(Array(6).fill(""));
-            }}
-          >
-            <Pressable style={styles.modalOverlay} onPress={Keyboard.dismiss}>
-              <View style={styles.modalContent}>
-                <TouchableOpacity style={styles.closeModalButton} onPress={() => setVerificationModalVisible(false)}>
-                  <Ionicons name="close-circle" size={28} color={themeColors.secondaryText} />
-                </TouchableOpacity>
-                <Text style={styles.modalTitle}>Verify your email</Text>
-                <Text style={styles.modalMessage}>We sent you a 6-digit code. Enter it below to confirm.</Text>
-
-                <View style={styles.codeInputContainer}>
-                  {verificationCode.map((digit, index) => (
-                    <TextInput
-                      key={index}
-                      ref={(ref: TextInput | null) => {
-                        inputRefs.current[index] = ref;
-                      }}
-                      style={styles.codeInput}
-                      keyboardType="number-pad"
-                      maxLength={1}
-                      onChangeText={(text) => handleCodeChange(text, index)}
-                      onKeyPress={(e) => handleBackspace(e, index)}
-                      value={digit}
-                      selectionColor={themeColors.tint}
-                      editable={!isConfirming}
-                      textContentType="oneTimeCode"
-                    />
-                  ))}
+                <View style={styles.headerRow}>
+                  <Text style={styles.greeting}>Create Account, </Text>
+                  <Text style={styles.subheader}>Let’s Get Started!</Text>
                 </View>
 
-                {isConfirming ? (
-                  <ActivityIndicator size="large" color={themeColors.buttonBackground} style={{ marginTop: 20 }} />
+                {/* Name */}
+                <View style={styles.labelContainer}>
+                  <FontAwesome name="user" size={18} color={themeColors.text} style={styles.labelIcon} />
+                  <Text style={styles.label}>Enter Full Name</Text>
+                </View>
+                <TextInput
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Full name"
+                  autoCapitalize="words"
+                  style={styles.input}
+                  placeholderTextColor={themeColors.inputPlaceholder}
+                />
+
+                {/* Email */}
+                <View style={styles.labelContainer}>
+                  <FontAwesome name="envelope-o" size={16} color={themeColors.text} style={styles.labelIcon} />
+                  <Text style={styles.label}>Enter Email Address</Text>
+                </View>
+                <TextInput
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="Email address"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  style={styles.input}
+                  placeholderTextColor={themeColors.inputPlaceholder}
+                />
+
+                {/* Password */}
+                <View style={styles.labelContainer}>
+                  <FontAwesome name="lock" size={18} color={themeColors.text} style={styles.labelIcon} />
+                  <Text style={styles.label}>Enter Password</Text>
+                </View>
+                <TextInput
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Password"
+                  secureTextEntry
+                  style={styles.input}
+                  placeholderTextColor={themeColors.inputPlaceholder}
+                />
+
+                {/* Confirm Password */}
+                <View style={styles.labelContainer}>
+                  <FontAwesome name="lock" size={18} color={themeColors.text} style={styles.labelIcon} />
+                  <Text style={styles.label}>Confirm Password</Text>
+                </View>
+                <TextInput
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  placeholder="Confirm password"
+                  secureTextEntry
+                  style={styles.input}
+                  placeholderTextColor={themeColors.inputPlaceholder}
+                />
+
+                {loading ? (
+                  <ActivityIndicator
+                    size="large"
+                    color={themeColors.text}
+                    style={{ marginTop: hp("2%") }}
+                  />
                 ) : (
-                  <TouchableOpacity style={styles.verifyButton} onPress={handleConfirm}>
-                    <Text style={styles.verifyButtonText}>Verify</Text>
+                  <TouchableOpacity style={styles.button} onPress={handleRegister}>
+                    <Text style={styles.buttonText}>Register</Text>
                   </TouchableOpacity>
                 )}
 
-                <TouchableOpacity onPress={handleResend} style={{ marginTop: 15 }}>
-                  <Text style={styles.resendText}>Didn't receive code? Resend</Text>
-                </TouchableOpacity>
-              </View>
-            </Pressable>
-          </Modal>
-          {/* End Verification */}
-        </View>
-      </Pressable>
-    </KeyboardAvoidingView>
+                <SocialButtons />
+
+                <View style={styles.footerRow}>
+                  <Text style={styles.footerText}>Already have an account? </Text>
+                  <TouchableOpacity onPress={() => router.replace("/login")}>
+                    <Text style={styles.linkText}>Login</Text>
+                  </TouchableOpacity>
+                </View>
+              </BlurView>
+            </ScrollView>
+          </View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
-const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
+const createStyles = (themeColors) =>
   StyleSheet.create({
-    keyboardAvoidingContainer: {
-      flex: 1,
-    },
-    outerPressable: {
-      flex: 1,
-    },
-    container: {
-      flex: 1,
-      backgroundColor: themeColors.loginBackground,
-    },
-    scrollContentContainer: {
+    keyboardAvoidingContainer: { flex: 1 },
+    container: { flex: 1, backgroundColor: themeColors.loginBackground },
+    scrollContent: {
       flexGrow: 1,
       justifyContent: "center",
-      paddingTop: 60,
-      paddingBottom: 40,
+      paddingVertical: hp("5%"),
     },
-    logoContainer: { alignItems: "center", marginBottom: 20 },
-    logo: { width: SCREEN_WIDTH * 0.5, height: SCREEN_HEIGHT * 0.1 },
     formContainer: {
-      marginHorizontal: 35,
-      padding: 25,
-      overflow: "hidden",
-      borderRadius: 30,
-      borderWidth: 3,
-      borderColor: themeColors.text === "#11181C" ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.1)",
+      marginHorizontal: wp("5%") * scale,
+      padding: wp("4%") * scale,
+      borderRadius: wp("8%"),
+      borderWidth: 2,
+      borderColor: themeColors.inputBorder,
+      backgroundColor: themeColors.background,
       shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 5.46,
-      elevation: 9,
+      shadowOpacity: 0.2,
+      shadowRadius: 5,
+      elevation: 5,
+      overflow: "hidden",
     },
-    header: {
-      fontSize: 30,
+    logo: {
+      width: wp("45%") * scale,
+      height: hp("10%") * scale,
+      alignSelf: "center",
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+    },
+    greeting: {
+      fontSize: wp("4.8"),
+      fontFamily: "Inter-ExtraBold",
       color: themeColors.text,
-      marginBottom: 5,
-      textAlign: "left",
-      fontFamily: "Inter-ExtraBold", // Updated
     },
     subheader: {
-      fontSize: 30,
+      fontSize: wp("4.8") ,
+      fontFamily: "Inter-ExtraBold",
       color: "#1ce6a6ff",
-      marginBottom: 5,
-      textAlign: "left",
-      fontFamily: "Inter-ExtraBold", // Updated
     },
-
     labelContainer: {
       flexDirection: "row",
       alignItems: "center",
-      marginTop: 20,
-      marginBottom: 8,
+      marginTop: hp("1.4%"),
+      marginBottom: hp("0.5%"),
     },
-    labelIcon: {
-      marginRight: 10,
-      width: 20,
-      textAlign: "center",
-    },
+    labelIcon: { marginRight: wp("2%") },
     label: {
       color: themeColors.text,
-      fontSize: 16,
-      fontFamily: "Inter-ExtraBold", // Updated
+      fontSize: wp("3.5%") * scale,
+      fontFamily: "Inter-ExtraBold",
     },
     input: {
       backgroundColor: themeColors.inputBackground,
       color: themeColors.text,
-      padding: 14,
-      borderRadius: 10,
-      fontSize: 17,
+      padding: hp("1.7%"),
+      borderRadius: wp("3%"),
       borderWidth: 1,
       borderColor: themeColors.inputBorder,
-      fontFamily: "Inter-medium", // Updated
+      fontSize: wp("4%"),
     },
-    loginButtonContainer: { marginTop: 30, marginBottom: 10, borderRadius: 12, overflow: "hidden", height: 50 },
-    loginGradient: { flex: 1, justifyContent: "center", alignItems: "center" },
-    loginButtonText: {
-      color: themeColors.background,
-      fontSize: 18,
-      fontFamily: "Inter-ExtraBold", // Updated
-    },
-
-    registerContainer: { flexDirection: "row", justifyContent: "center", marginTop: 10 },
-    registerText: {
-      color: themeColors.text,
-      fontSize: 17,
-      fontFamily: "Inter-ExtraBold", // Updated
-    },
-    registerLink: {
-      color: "#1ce6a6ff",
-      fontSize: 17,
-      fontFamily: "Inter-ExtraBold", // Updated
-    },
-
-    modalOverlay: {
-      flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
-      backgroundColor: "rgba(0, 0, 0, 0.6)",
-    },
-    modalContent: {
-      width: "90%",
-      backgroundColor: themeColors.cardBackground,
-      borderRadius: 20,
-      padding: 25,
-      alignItems: "center",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
-      shadowRadius: 4,
-      elevation: 5,
-      position: "relative",
-    },
-    closeModalButton: {
-      position: "absolute",
-      top: 10,
-      right: 10,
-      padding: 5,
-    },
-    modalTitle: {
-      fontSize: 22,
-      color: themeColors.text,
-      marginBottom: 10,
-      textAlign: "center",
-      fontFamily: "Inter-ExtraBold", // Updated
-    },
-    modalMessage: {
-      fontSize: 15,
-      color: themeColors.secondaryText,
-      textAlign: "center",
-      marginBottom: 25,
-      lineHeight: 21,
-      fontFamily: "Inter-ExtraBold", // Updated
-    },
-    codeInputContainer: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      width: "100%",
-      marginBottom: 20,
-      paddingHorizontal: 5,
-    },
-    codeInput: {
-      width: 45,
-      height: 55,
-      borderWidth: 1.5,
-      borderColor: themeColors.inputBorder,
-      borderRadius: 10,
-      textAlign: "center",
-      fontSize: 22,
-      color: themeColors.text,
-      backgroundColor: themeColors.inputBackground,
-      fontFamily: "Inter-ExtraBold", // Updated
-    },
-    verifyButton: {
+    button: {
       backgroundColor: themeColors.buttonBackground,
-      paddingVertical: 14,
-      paddingHorizontal: 40,
-      borderRadius: 12,
-      width: "80%",
+      paddingVertical: hp("1.8%"),
+      borderRadius: wp("4%"),
       alignItems: "center",
-      marginTop: 10,
+      width: "100%",
+      marginTop: hp("2.5%"),
     },
-    verifyButtonText: {
+    buttonText: {
+      color: themeColors.background,
+      fontSize: wp("4.5%"),
+      fontFamily: "Inter-ExtraBold",
+    },
+    footerRow: {
+      flexDirection: "row",
+      justifyContent: "center",
+      marginTop: hp("0%"),
+    },
+    footerText: {
       color: themeColors.text,
-      fontSize: 18,
-      fontFamily: "Inter-ExtraBold", // Updated
+      fontSize: wp("4%"),
     },
-    resendText: {
-      color: themeColors.tint,
-      fontSize: 15,
-      marginTop: 5,
-      fontFamily: "Inter-ExtraBold", // Updated
+    linkText: {
+      color: "#1ce6a6ff",
+      fontSize: wp("4%"),
+      fontFamily: "Inter-ExtraBold",
+      marginLeft: wp("2%"),
     },
   });

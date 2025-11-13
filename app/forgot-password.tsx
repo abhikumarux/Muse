@@ -7,7 +7,13 @@ import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { forgotPasswordRequest, forgotPasswordConfirm, isValidEmail, isStrongPassword } from "../lib/aws/auth";
 import { LinearGradient } from "expo-linear-gradient"; // Import LinearGradient
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+import {
+  widthPercentageToDP as wp,
+  heightPercentageToDP as hp,
+} from "react-native-responsive-screen";
+
+const { width } = Dimensions.get("window");
+const scale = Math.min(width / 375, 1.25);
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState("");
@@ -177,7 +183,7 @@ export default function ForgotPasswordScreen() {
               <Pressable style={styles.modalOverlay} onPress={Keyboard.dismiss}>
                 <View style={styles.modalContent}>
                   <TouchableOpacity style={styles.closeModalButton} onPress={() => setModalVisible(false)}>
-                    <Ionicons name="close-circle" size={28} color={themeColors.secondaryText} />
+                    <Ionicons name="close-circle" size={wp("7%") * scale} color={themeColors.secondaryText} />
                   </TouchableOpacity>
                   <Text style={styles.modalTitle}>Verify Code</Text>
                   <Text style={styles.modalMessage}>Enter the 6-digit code sent to your email.</Text>
@@ -243,12 +249,12 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       paddingBottom: 40,
     },
     formContainer: {
-      marginHorizontal: 20,
-      padding: 25,
-      paddingTop: 30,
-      paddingBottom: 30,
+      marginHorizontal: wp("5%"),
+      padding: wp("4%") * scale,
+      paddingTop: hp("3.5%"),
+      paddingBottom: hp("3.5%"),
       overflow: "hidden",
-      borderRadius: 20,
+      borderRadius: wp("8%"),
       borderWidth: 1,
       borderColor: themeColors.inputBorder,
       shadowColor: "#000",
@@ -256,40 +262,41 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
       shadowOpacity: 0.1,
       shadowRadius: 10,
       elevation: 9,
+      backgroundColor: themeColors.background,
     },
     header: {
-      fontSize: 28,
+      fontSize: wp("6%") * scale,
       color: "#f44747ff",
-      marginBottom: 15,
+      marginBottom: hp("1.5%"),
       textAlign: "center",
       fontFamily: "Inter-ExtraBold",
     },
     instructions: {
-      fontSize: 16,
+      fontSize: wp("3.9") ,
       color: themeColors.secondaryText,
       textAlign: "center",
-      marginBottom: 30,
-      lineHeight: 22,
+      marginBottom: hp("3%"),
+      lineHeight: hp("2.5%"),
       fontFamily: "Inter-ExtraBold",
     },
     input: {
       backgroundColor: themeColors.inputBackground,
       color: themeColors.text,
-      padding: 16,
-      borderRadius: 12,
-      fontSize: 17,
+      padding: hp("1.7%"),
+      borderRadius: wp("3%"),
+      fontSize: wp("4%"),
       borderWidth: 1,
       borderColor: themeColors.inputBorder,
-      marginBottom: 20,
+      marginBottom: hp("2%"),
       fontFamily: "Inter-medium",
     },
     disabledInput: {
       opacity: 0.6,
     },
     buttonContainer: {
-      marginTop: 10,
-      borderRadius: 12,
-      height: 52,
+      marginTop: hp("1%"),
+      borderRadius: wp("4%"),
+      height: hp("6%"),
       justifyContent: "center",
       alignItems: "center",
       backgroundColor: themeColors.buttonBackground,
@@ -299,87 +306,90 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
     },
     buttonText: {
       color: themeColors.buttonText,
-      fontSize: 18,
+      fontSize: wp("4.5%"),
       fontFamily: "Inter-ExtraBold",
     },
     modalOverlay: {
       flex: 1,
       justifyContent: "center",
       alignItems: "center",
-      backgroundColor: "rgba(0, 0, 0, 0.6)",
+      backgroundColor: "rgba(85, 83, 83, 0.14)",
     },
     modalContent: {
       width: "90%",
       backgroundColor: themeColors.background,
-      borderRadius: 20,
-      padding: 25,
+      borderRadius: wp("8%"),
+      padding: wp("5%"),
       alignItems: "center",
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.25,
+      borderWidth: 1,
+      borderColor: themeColors.inputBorder,
       shadowRadius: 4,
       elevation: 5,
       position: "relative",
     },
     closeModalButton: {
       position: "absolute",
-      top: 10,
-      right: 10,
+      top: hp("1%"),
+      right: wp("2%"),
       padding: 5,
     },
     modalTitle: {
-      fontSize: 22,
+      fontSize: wp("5.5%") * scale,
       color: themeColors.text,
-      marginBottom: 10,
+      marginBottom: hp("1%"),
       textAlign: "center",
       fontFamily: "Inter-ExtraBold",
     },
     modalMessage: {
-      fontSize: 15,
+      fontSize: wp("3.4%") * scale,
       color: themeColors.secondaryText,
       textAlign: "center",
-      marginBottom: 25,
-      lineHeight: 21,
+      marginBottom: hp("2.5%"),
+      lineHeight: hp("2.5%"),
       fontFamily: "Inter-ExtraBold",
     },
     codeInputContainer: {
       flexDirection: "row",
       justifyContent: "space-between",
       width: "100%",
-      marginBottom: 20,
-      paddingHorizontal: 5,
+      marginBottom: hp("2%"),
+      paddingHorizontal: wp("0.25%"),
     },
     codeInput: {
-      width: 45,
-      height: 55,
-      borderWidth: 1.5,
+      width: wp("10%"),
+      height: wp("12%"),
+      borderWidth: 2,
       borderColor: themeColors.inputBorder,
-      borderRadius: 10,
+      borderRadius: wp("2.5%"),
       textAlign: "center",
-      fontSize: 22,
+      fontSize: wp("4.3%") * scale,
       color: themeColors.text,
       backgroundColor: themeColors.inputBackground,
       fontFamily: "Inter-ExtraBold",
+      textAlignVertical: "center",
     },
     verifyButton: {
       backgroundColor: themeColors.buttonBackground,
-      paddingVertical: 14,
+      paddingVertical: hp("1.8%"),
       paddingHorizontal: 40,
-      borderRadius: 12,
+      borderRadius: wp("4%"),
       width: "80%",
       alignItems: "center",
-      marginTop: 10,
+      marginTop: hp("1%"),
     },
     verifyButtonText: {
       color: themeColors.buttonText,
-      fontSize: 18,
+      fontSize: wp("4.5%"),
       fontFamily: "Inter-ExtraBold",
     },
     resendText: {
       color: "#f44747ff",
       textDecorationLine: "underline",
-      fontSize: 15,
-      marginTop: 5,
+      fontSize: wp("4%"),
+      marginTop: hp("1.5%"),
       fontFamily: "Inter-ExtraBold",
     },
   });
