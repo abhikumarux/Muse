@@ -19,9 +19,9 @@ export default function LandingScreen() {
   // Dynamically select the card images based on the color scheme
   const cardImage1 = colorScheme === "light" ? require("../assets/images/sample1-intro-light.png") : require("../assets/images/sample1-intro-dark.png");
 
-  const cardImage2 = colorScheme === "light" ? require("../assets/images/sample2-intro-light.png") : require("../assets/images/sample1-intro-dark.png"); // Assuming dark mode still uses the same one or a specific sample2-dark
+  const cardImage2 = colorScheme === "light" ? require("../assets/images/sample2-intro-light.png") : require("../assets/images/sample2-intro-dark.png"); // Assuming dark mode still uses the same one or a specific sample2-dark
 
-  const cardImage3 = colorScheme === "light" ? require("../assets/images/sample3-intro-light.png") : require("../assets/images/sample1-intro-dark.png"); // Assuming dark mode still uses the same one or a specific sample3-dark
+  const cardImage3 = colorScheme === "light" ? require("../assets/images/sample3-intro-light.png") : require("../assets/images/sample3-intro-dark.png"); // Assuming dark mode still uses the same one or a specific sample3-dark
 
   // Animation values
   const contentOpacity = useSharedValue(0);
@@ -129,11 +129,22 @@ export default function LandingScreen() {
 
 const styles = StyleSheet.create({
   gradientBackground: { flex: 1, width: "100%", height: "100%", alignItems: "center", justifyContent: "space-between" },
-  content: { flex: 1, alignItems: "center", width: "100%", justifyContent: "space-between", paddingTop: 50, paddingHorizontal: 24, paddingBottom: 40, backgroundColor: "transparent" },
-  logo: { width: 280, height: 100, marginTop: 10 },
-  cardContainer: { width: "100%", height: SCREEN_HEIGHT * 0.5, justifyContent: "center", alignItems: "center", position: "relative", marginBottom: 20 },
+  content: { flex: 1, alignItems: "center", width: "100%", justifyContent: "space-between", paddingTop: 40, paddingHorizontal: 24, paddingBottom: 20, backgroundColor: "transparent" },
+  logo: { 
+    width: SCREEN_WIDTH * 0.6, // CHANGED to 70% of screen width for responsiveness
+    height: SCREEN_WIDTH * 0.3, // CHANGED to maintain aspect ratio 
+    paddingTop: 20
+  },
+  cardContainer: {
+    width: "100%",
+    flex: 1, // Changed from fixed height to flex: 1 to allow shrinking
+    maxHeight: SCREEN_HEIGHT * 0.5, // Added maxHeight to limit size on large screens
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+  },
   card: {
-    width: SCREEN_WIDTH * 0.75,
+    width: SCREEN_WIDTH * 0.75, 
     height: "100%",
     borderRadius: 20,
     overflow: "hidden",
@@ -142,14 +153,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.1,
     shadowRadius: 15,
-    elevation: 70,
   },
   cardCenter: { alignItems: "center", zIndex: 100 },
   cardRight: { right: "-4%", zIndex: 9 },
   cardBackLeft: { left: "1%", zIndex: 8, opacity: 0.8 },
   cardImage: { width: "100%", height: "100%", resizeMode: "contain" },
   textSection: { alignItems: "center" },
-  textContainer: { alignItems: "center", marginBottom: 30 },
+  textContainer: { alignItems: "center", marginBottom: 3 },
   mainTitle: {
     fontSize: 32,
     textAlign: "center",
@@ -161,5 +171,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 15,
     fontFamily: "Inter-ExtraBold", // Updated
+    marginBottom: 20,
   },
 });

@@ -113,12 +113,12 @@ const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
     socialContainer: {
       flexDirection: "row",
       justifyContent: "space-around",
-      marginBottom: 25,
-      gap: 15,
+      marginBottom: 10,
+      gap: 10,
     },
     socialButton: {
       flex: 1,
-      paddingVertical: 10,
+      paddingVertical: 5,
       backgroundColor: themeColors.inputBackground,
       borderRadius: 10,
       alignItems: "center",

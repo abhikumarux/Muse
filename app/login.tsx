@@ -1,15 +1,26 @@
-import { SocialButtons } from "@/components/ui/SocialButtons";
 import React, { useEffect, useState } from "react";
 import {
-  View, Text, TextInput, ActivityIndicator, Alert, TouchableOpacity,
-  StyleSheet, Dimensions, Image, ImageBackground, TouchableWithoutFeedback, Keyboard,
-  ScrollView, KeyboardAvoidingView, Platform
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  TouchableWithoutFeedback,
+  Keyboard,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Dimensions,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { FontAwesome } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
+import { FontAwesome } from "@expo/vector-icons";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { SocialButtons } from "@/components/ui/SocialButtons";
 import {
   signInEmailPassword,
   getRememberedEmail,
@@ -18,9 +29,14 @@ import {
 } from "../lib/aws/auth";
 import { ensureMuseUserRow } from "../lib/aws/userProfile";
 import { useUser } from "../lib/UserContext";
-import { LoadingModal } from "@/components/ui/LoadingModal";
+import {
+  widthPercentageToDP as wp,
+  heightPercentageToDP as hp,
+} from "react-native-responsive-screen";
+import { MuseLogo } from "../assets/svg/MuseLogo";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
+const scale = Math.min(width / 375, 1.25);
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -38,249 +54,237 @@ export default function LoginScreen() {
     (async () => {
       const remembered = await getRememberedEmail();
       if (remembered) setEmail(remembered);
-
-      // Check for token, refresh user context, THEN navigate
-      const token = await getIdTokenFromStorage();
-      if (token) {
-        try {
-          await refreshUser(); // Make sure user data is loaded
-          router.replace("/(tabs)");
-        } catch (e) {
-          console.error("Error refreshing user on initial load:", e);
-          // If refresh fails, stay on login
-        }
-      }
     })();
-  }, [refreshUser, router]); // Keep dependencies
+  }, []);
 
   const handleLogin = async () => {
-    Keyboard.dismiss(); // Dismiss keyboard
-    if (!password) {
-      Alert.alert("Missing password", "Please enter your password.");
+    Keyboard.dismiss();
+    if (!email || !password) {
+      Alert.alert("Missing fields", "Please enter both email and password.");
       return;
     }
-    setLoading(true); // Show LoadingModal
+
+    setLoading(true);
     try {
       if (rememberMe) await rememberEmail(email.trim());
       else await rememberEmail(null);
 
       await signInEmailPassword(email.trim(), password);
-
       const idToken = await getIdTokenFromStorage();
       if (idToken) await ensureMuseUserRow(idToken);
-
-      // Hydrate context before rendering tabs
       await refreshUser();
-
-      // Only clear email if rememberMe is false
-      setPassword("");
-      if (!rememberMe) setEmail("");
-
       router.replace("/(tabs)");
     } catch (err: any) {
-      const msg = err?.name === "UserNotConfirmedException" ? "Your email isn’t confirmed yet. Check your inbox for the code, or sign up again to resend it." : err?.message || "Login failed.";
-      Alert.alert("Error", msg);
+      Alert.alert("Error", err?.message || "Login failed.");
     } finally {
-      setLoading(false); // Hide LoadingModal
+      setLoading(false);
     }
   };
 
   return (
-    // Keep KeyboardAvoidingView structure
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardAvoidingContainer}>
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <View style={styles.container}>
-          {/* Add the LoadingModal component */}
-          <LoadingModal visible={loading} text="Logging in..." />
-          <BlurView intensity={4} tint={colorScheme} style={StyleSheet.absoluteFill} />
+    <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }} edges={[]}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.keyboardAvoidingContainer}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.container}>
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <BlurView intensity={80} tint={colorScheme} style={styles.formContainer}>
+                <MuseLogo
+                  width={wp("35%") * scale}
+                  height={hp("10%") * scale}
+                  style={{ alignSelf: 'center' }}
+                />
 
-          {/* Keep ScrollView */}
-          <ScrollView contentContainerStyle={styles.scrollContentContainer} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            <BlurView intensity={80} tint={colorScheme} style={styles.formContainer}>
-              <View style={styles.logoContainer}>
-                <Image source={require("../assets/images/logo.png")} style={styles.logo} resizeMode="contain" />
-              </View>
+                <Text style={styles.greeting}>Hello there,</Text>
+                <Text style={styles.subheader}>Welcome Back!</Text>
 
-              <Text style={styles.header}>Hello there,</Text>
-              <Text style={styles.subheader}>Welcome Back!</Text>
+                {/* Email Field */}
+                <View style={styles.labelContainer}>
+                  <FontAwesome name="envelope-o" size={16} color={themeColors.text} style={styles.labelIcon} />
+                  <Text style={styles.label}>Enter Email Address</Text>
+                </View>
+                <TextInput
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="Email address"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  style={styles.input}
+                  placeholderTextColor={themeColors.inputPlaceholder}
+                />
 
-              <View style={styles.labelContainer}>
-                <FontAwesome name="envelope-o" size={16} color={themeColors.text} style={styles.labelIcon} />
-                <Text style={styles.label}>Enter Email Address</Text>
-              </View>
-              <TextInput
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                placeholder="Email address"
-                style={styles.input}
-                placeholderTextColor={themeColors.inputPlaceholder}
-                editable={!loading} // Add disabled state
-              />
+                {/* Password Field */}
+                <View style={styles.labelContainer}>
+                  <FontAwesome name="lock" size={18} color={themeColors.text} style={styles.labelIcon} />
+                  <Text style={styles.label}>Enter Password</Text>
+                </View>
+                <TextInput
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Password"
+                  secureTextEntry
+                  style={styles.input}
+                  placeholderTextColor={themeColors.inputPlaceholder}
+                />
 
-              <View style={styles.labelContainer}>
-                <FontAwesome name="lock" size={18} color={themeColors.text} style={styles.labelIcon} />
-                <Text style={styles.label}>Enter Password</Text>
-              </View>
-              <TextInput
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                placeholder="Password"
-                style={styles.input}
-                placeholderTextColor={themeColors.inputPlaceholder}
-                editable={!loading} // Add disabled state
-                returnKeyType="done"
-                onSubmitEditing={handleLogin}
-              />
+                {/* Remember + Forgot */}
+                <View style={styles.row}>
+                  <TouchableOpacity
+                    onPress={() => setRememberMe(!rememberMe)}
+                    style={styles.rememberContainer}
+                  >
+                    <FontAwesome
+                      name={rememberMe ? "check-square" : "square-o"}
+                      size={wp("4.5%") * scale}
+                      color={rememberMe ? themeColors.buttonBackground : themeColors.text}
+                      style={{ marginRight: wp("0.5%") }}
+                    />
+                    <Text style={styles.rememberText}>Remember me</Text>
+                  </TouchableOpacity>
 
-              <View style={styles.optionsRow}>
-                <TouchableOpacity
-                  style={styles.rememberMeContainer}
-                  onPress={() => setRememberMe(!rememberMe)}
-                  disabled={loading} // Add disabled state
-                >
-                  <FontAwesome name={rememberMe ? "check-square" : "square-o"} size={20} color={rememberMe ? themeColors.buttonBackground : themeColors.text} style={styles.rememberMeIcon} />
-                  <Text style={styles.rememberMeText}>Remember me</Text>
-                </TouchableOpacity>
+                  <TouchableOpacity onPress={() => router.push("/forgot-password")}>
+                    <Text style={styles.linkText}>Forgot password?</Text>
+                  </TouchableOpacity>
+                </View>
 
-                <TouchableOpacity onPress={() => router.push("/forgot-password")} disabled={loading}>
-                  <Text style={styles.forgotPasswordText}>Forgot password?</Text>
-                </TouchableOpacity>
-              </View>
+                {loading ? (
+                  <ActivityIndicator
+                    size="large"
+                    color={themeColors.text}
+                    style={{ marginTop: hp("2%") }}
+                  />
+                ) : (
+                  <TouchableOpacity style={styles.button} onPress={handleLogin}>
+                    <Text style={styles.buttonText}>Login</Text>
+                  </TouchableOpacity>
+                )}
 
-              {/* Use TouchableOpacity with disabled style instead of ActivityIndicator */}
-              <TouchableOpacity
-                style={[styles.loginButtonContainer, loading && styles.disabledButton]} // Apply disabled style when loading
-                onPress={handleLogin}
-                disabled={loading}
-              >
-                <Text style={styles.loginButtonText}>Login</Text>
-              </TouchableOpacity>
+                <SocialButtons />
 
-              {}
-              <SocialButtons />
-              {}
-
-              <View style={styles.registerContainer}>
-                <Text style={styles.registerText}>Don&apos;t have an account? </Text>
-                <TouchableOpacity onPress={() => router.replace("/register")} disabled={loading}>
-                  <Text style={styles.registerLink}>Sign up</Text>
-                </TouchableOpacity>
-              </View>
-            </BlurView>
-          </ScrollView>
-          {/* End ScrollView */}
-        </View>
-      </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
-    // End KeyboardAvoidingView
+                <View style={styles.footerRow}>
+                  <Text style={styles.footerText}>Don’t have an account? </Text>
+                  <TouchableOpacity onPress={() => router.replace("/register")}>
+                    <Text style={styles.linkText}>Sign up</Text>
+                  </TouchableOpacity>
+                </View>
+              </BlurView>
+            </ScrollView>
+          </View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
-const createStyles = (themeColors: (typeof Colors)[keyof typeof Colors]) =>
+const createStyles = (themeColors) =>
   StyleSheet.create({
-    keyboardAvoidingContainer: {
-      flex: 1,
-    },
+    keyboardAvoidingContainer: { flex: 1 },
     container: { flex: 1, backgroundColor: themeColors.loginBackground },
-    scrollContentContainer: {
+    scrollContent: {
       flexGrow: 1,
       justifyContent: "center",
-      paddingTop: 60,
-      paddingBottom: 40,
+      paddingVertical: hp("7%"),
     },
-    logoContainer: { alignItems: "center", marginBottom: 20 },
-    logo: { width: SCREEN_WIDTH * 0.5, height: SCREEN_HEIGHT * 0.1 },
     formContainer: {
-      marginHorizontal: 35,
-      padding: 25,
-      overflow: "hidden",
-      borderRadius: 30,
-      borderWidth: 3,
-      borderColor: themeColors.text === "#11181C" ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.1)",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 5.46,
-      elevation: 9,
+    marginHorizontal: wp("5%"),
+    padding: wp("4%") * scale,
+    borderRadius: wp("8%"),
+    borderWidth: 2,
+    borderColor: themeColors.inputBorder,
+    backgroundColor: themeColors.background,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 5,
+    overflow: "hidden", 
+},
+    logo: {
+      width: wp("45%") * scale,
+      height: hp("10%") * scale,
+      alignSelf: "center",
     },
-    header: {
-      fontSize: 30,
+    greeting: {
+      fontSize: wp("6%") * scale,
+      fontFamily: "Inter-ExtraBold",
       color: themeColors.text,
-      marginBottom: 5,
-      textAlign: "left",
-      fontFamily: "Inter-ExtraBold", // Updated
     },
     subheader: {
-      fontSize: 30,
+      fontSize: wp("6%") * scale,
+      fontFamily: "Inter-ExtraBold",
       color: "#1ce6a6ff",
-      marginBottom: 5,
-      textAlign: "left",
-      fontFamily: "Inter-ExtraBold", // Updated
+      marginBottom: hp("1.5%"),
     },
-
     labelContainer: {
       flexDirection: "row",
       alignItems: "center",
-      marginTop: 20,
-      marginBottom: 8,
+      marginTop: hp("1.5%"),
+      marginBottom: hp("0.5%"),
     },
-    labelIcon: {
-      marginRight: 10,
-      width: 20,
-      textAlign: "center",
-    },
+    labelIcon: { marginRight: wp("2%") },
     label: {
       color: themeColors.text,
-      fontSize: 16,
-      fontFamily: "Inter-ExtraBold", // Updated
+      fontSize: wp("4%"),
+      fontFamily: "Inter-ExtraBold",
     },
     input: {
       backgroundColor: themeColors.inputBackground,
       color: themeColors.text,
-      padding: 15,
-      borderRadius: 12,
-      fontSize: 18,
+      padding: hp("1.7%"),
+      borderRadius: wp("3%"),
       borderWidth: 1,
       borderColor: themeColors.inputBorder,
-      fontFamily: "Inter-medium", // Updated
+      fontSize: wp("4%"),
     },
-    optionsRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 10, marginBottom: 30 },
-    rememberMeContainer: { flexDirection: "row", alignItems: "center" },
-    rememberMeIcon: { marginRight: 8 },
-    rememberMeText: {
+    row: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      width: "100%",
+      marginVertical: hp("1.5%"),
+      paddingHorizontal: wp("1%"),
+    },
+    rememberContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      maxWidth: "60%",
+    },
+    rememberText: {
       color: themeColors.text,
-      fontSize: 16,
-      fontFamily: "Inter-ExtraBold", // Updated
+      fontSize: wp("4%"),
+      flexShrink: 1,
     },
-    forgotPasswordText: {
+    linkText: {
       color: "#1ce6a6ff",
-      fontSize: 16,
-      fontFamily: "Inter-ExtraBold", // Updated
+      fontSize: wp("4%"),
+      fontFamily: "Inter-ExtraBold",
+      marginLeft: wp("2%"),
     },
-    loginButtonContainer: { marginTop: 10, borderRadius: 12, height: 50, justifyContent: "center", alignItems: "center", backgroundColor: themeColors.buttonBackground },
-    loginButtonText: {
+    button: {
+      backgroundColor: themeColors.buttonBackground,
+      paddingVertical: hp("1.8%"),
+      borderRadius: wp("4%"),
+      alignItems: "center",
+      width: "100%",
+      marginTop: hp("1"),
+    },
+    buttonText: {
       color: themeColors.background,
-      fontSize: 18,
-      fontFamily: "Inter-ExtraBold", // Updated
+      fontSize: wp("4.5%"),
+      fontFamily: "Inter-ExtraBold",
     },
-
-    disabledButton: {
-      backgroundColor: themeColors.inputBorder,
-      opacity: 0.7,
+    footerRow: {
+      flexDirection: "row",
+      justifyContent: "center",
+      marginTop: hp("0"),
     },
-
-    registerContainer: { flexDirection: "row", justifyContent: "center", marginTop: 15 },
-    registerText: {
+    footerText: {
       color: themeColors.text,
-      fontSize: 18,
-      fontFamily: "Inter-ExtraBold", // Updated
-    },
-    registerLink: {
-      color: "#1ce6a6ff",
-      fontSize: 18,
-      fontFamily: "Inter-ExtraBold", // Updated
+      fontSize: wp("4%"),
     },
   });
