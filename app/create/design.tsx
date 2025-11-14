@@ -667,6 +667,8 @@ export default function DesignScreen() {
         ? `\nMuse Guidance (weight: +persona alignment)\n   - ${museString}\n`
         : "";
 
+
+      // Maher's prompt
       const tempMuseString = `[ROLE]
 You are a world-class creative assistant specialized in designing graphics.
 Your task is to create a remix of the uploaded images.
@@ -713,6 +715,21 @@ Keywords: streetwear design, front graphic, organic layout, color harmony, premi
 [OUTPUT GOAL]
 Produce a hyper-realistic, original front graphic design inspired by the uploaded images —
 fresh, conceptually connected, and visually stunning enough for a premium streetwear T-shirt print.`;
+
+
+
+// Our prompt
+
+// const tempMuseString = usingSecond
+//         ? `Take the first image and the second image, merge them into one cohesive image that makes sense. ${
+//             museString ? `I want you to make the whole image theme based off of this description: ${museString}` : ""
+//           }`
+//         : `Use the first image to generate an appealing, well-composed design based on the image provided. ${
+//             museString ? `I want you to make the whole image theme based off of this description: ${museString}` : ""
+//           }`;
+
+
+
       const endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent";
 
       const img1Base64 = await FileSystem.readAsStringAsync(localUri1, {
