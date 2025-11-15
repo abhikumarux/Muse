@@ -8,6 +8,7 @@ import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { CognitoIdentityClient } from "@aws-sdk/client-cognito-identity";
 import { fromCognitoIdentityPool } from "@aws-sdk/credential-provider-cognito-identity";
 import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
+import { useUser } from "../lib/UserContext";
 import { Buffer } from "buffer";
 // Import constants
 import {
@@ -29,6 +30,7 @@ export default function CreateMuseScreen() {
   const [loading, setLoading] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+    const { setSelectedMuseId, muses, setMuses } = useUser();
 
   const handleCreateMuse = async () => {
     if (!museName.trim()) {
@@ -211,6 +213,8 @@ export default function CreateMuseScreen() {
           onPress: () => router.back(),
         },
       ]);
+
+
     } catch (error) {
       console.error("Error saving muse:", error);
       Alert.alert("Error", "Failed to save muse. Please try again.");

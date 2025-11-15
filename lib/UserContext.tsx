@@ -6,6 +6,13 @@ import { DDB_TABLE_MUSE_USERS } from "./aws/config";
 import { getIdTokenFromStorage, clearTokens } from "./aws/auth";
 import { Buffer } from "buffer";
 
+interface Muse {
+  museID: string;
+  Name: string;
+  Description: string;
+  S3Location: string;
+}
+
 type Ctx = {
   userId: string | null;
   email: string | null;
@@ -20,6 +27,8 @@ type Ctx = {
   setSelectedMuseId: (m: string | null) => void;
   refreshUser: () => Promise<void>;
   signOutLocal: () => Promise<void>;
+  muses: Muse[] | null;
+  setMuses: (m: Muse[]) => void;
 };
 
 const UserContext = createContext<Ctx>({
@@ -36,6 +45,8 @@ const UserContext = createContext<Ctx>({
   setSelectedMuseId: () => {},
   refreshUser: async () => {},
   signOutLocal: async () => {},
+  muses: null,
+  setMuses: () => {},
 });
 
 function decodeJwt(idToken: string): any {
@@ -55,6 +66,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [initializing, setInitializing] = useState(true);
   const [loading, setLoading] = useState(true);
   const bootstrapped = useRef(false);
+  const [muses, setMuses] = useState<Muse[]>([]);
 
   const refreshUser = async () => {
     if (bootstrapped.current) setLoading(true);
@@ -150,16 +162,18 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       printfulApiKey,
       currentStoreId,
       selectedMuseId,
+      muses,
       initializing,
       loading,
       setPrintfulApiKey,
       setCurrentStoreId,
       setSelectedMuseId,
+      setMuses,
       refreshUser,
       signOutLocal,
     }),
     // Add name to dependency array
-    [userId, email, name, printfulApiKey, currentStoreId, selectedMuseId, initializing, loading]
+    [userId, email, name, printfulApiKey, currentStoreId, selectedMuseId, initializing, loading, muses]
   );
 
   if (initializing) {

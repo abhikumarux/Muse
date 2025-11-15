@@ -75,7 +75,7 @@ export default function CreateNewDesignTab() {
     resetFlow,
   } = useCreateDesign();
 
-  const { userId, printfulApiKey, selectedMuseId, setSelectedMuseId } = useUser();
+  const { userId, printfulApiKey, selectedMuseId, setSelectedMuseId, muses, setMuses } = useUser();
 
   const [loading, setLoading] = useState(categories.length === 0);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +86,7 @@ export default function CreateNewDesignTab() {
   const [switchLayout, setSwitchLayout] = useState({ width: 0, height: 0 });
   const switchTranslateX = useRef(new Animated.Value(0)).current;
 
-  const [muses, setMuses] = useState<Muse[]>([]);
+ 
   const [loadingMuses, setLoadingMuses] = useState(true);
   const [museSelectorVisible, setMuseSelectorVisible] = useState(false);
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -114,6 +114,7 @@ export default function CreateNewDesignTab() {
   useEffect(() => {
     const preloadAssets = async () => {
       try {
+        loadMusesAndSelection();
         await Asset.loadAsync([
           require("@/assets/images/All-Shirts.png"),
           require("@/assets/images/Hoodies-&-Sweatshirt.png"),
@@ -200,6 +201,27 @@ export default function CreateNewDesignTab() {
     return userResult.Item?.selectedMuseId?.S || null;
   };
 
+  const directlyLoadMuses = async () => {
+     const client = new DynamoDBClient({
+        region: AWS_REGION,
+        credentials: fromCognitoIdentityPool({
+          clientConfig: { region: AWS_REGION },
+          identityPoolId: AWS_IDENTITY_POOL_ID,
+        }),
+      });
+
+      const scanResult = await client.send(new ScanCommand({ TableName: "Muse" }));
+      const musesData: Muse[] = (scanResult.Items || []).map((item) => ({
+        museID: item.museID?.S || "",
+        Name: item.Name?.S || "",
+        Description: item.Description?.S || "",
+        S3Location: item.S3Location?.S || "",
+      }));
+      musesData.forEach((muse) => {
+});
+      setMuses(musesData);
+  }
+
   const loadMusesAndSelection = async () => {
     if (!userId) {
       setLoadingMuses(false);
@@ -222,6 +244,8 @@ export default function CreateNewDesignTab() {
         Description: item.Description?.S || "",
         S3Location: item.S3Location?.S || "",
       }));
+      musesData.forEach((muse) => {
+});
       setMuses(musesData);
 
       const currentMuseId = selectedMuseId || (await fetchSelectedMuseId(client));
@@ -517,7 +541,6 @@ export default function CreateNewDesignTab() {
     if (clothingCatIds.length > 0) {
       displayedCategories.unshift(getFakeClothesCategory());
     }
-
     displayedCategories = displayedCategories.filter((c) => c.title.toLowerCase().includes(searchQuery.toLowerCase()) && c.id !== allProductsCategory?.id);
     const currentMuse = muses.find((m) => m.museID === selectedMuseId);
     return (
@@ -624,6 +647,7 @@ export default function CreateNewDesignTab() {
               <TouchableOpacity
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  directlyLoadMuses();
                   setMuseSelectorVisible(false);
                 }}
                 style={styles.museModalCloseButton}

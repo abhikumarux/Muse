@@ -20,9 +20,7 @@ export default function MusesScreen() {
   const colorScheme = useColorScheme() ?? "light";
   const theme = Colors[colorScheme];
   const router = useRouter();
-  const { userId, loading: userLoading, setSelectedMuseId } = useUser();
-
-  const [muses, setMuses] = useState<Muse[]>([]);
+  const { userId, loading: userLoading, setSelectedMuseId, muses, setMuses } = useUser();
   const [loading, setLoading] = useState(true);
 
   const styles = getStyles(theme);
@@ -67,7 +65,6 @@ export default function MusesScreen() {
         })
       );
       setSelectedMuseId(museID); // instant UI update
-      console.log(`Updated user ${userId} with selected muse: ${museID}`);
       router.back();
     } catch (error) {
       console.error("Error selecting muse:", error);
