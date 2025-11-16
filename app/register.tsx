@@ -71,27 +71,16 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }} edges={[]}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.keyboardAvoidingContainer}
-      >
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardAvoidingContainer}>
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.container}>
-            <ScrollView
-              contentContainerStyle={styles.scrollContent}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-            >
+            <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               <BlurView intensity={80} tint={colorScheme} style={styles.formContainer}>
-                <MuseLogo
-                  width={wp("35%") * scale}
-                  height={hp("7") * scale}
-                  style={{ alignSelf: 'center' }}
-                />
+                <MuseLogo width={wp("35%") * scale} height={hp("7") * scale} style={{ alignSelf: "center" }} />
 
                 <View style={styles.headerRow}>
-                  <Text style={styles.greeting}>Create Account, </Text>
-                  <Text style={styles.subheader}>Let’s Get Started!</Text>
+                  <Text style={styles.greeting}>Let’s Get You </Text>
+                  <Text style={styles.subheader}>Started!</Text>
                 </View>
 
                 {/* Name */}
@@ -99,14 +88,7 @@ export default function RegisterScreen() {
                   <FontAwesome name="user" size={18} color={themeColors.text} style={styles.labelIcon} />
                   <Text style={styles.label}>Enter Full Name</Text>
                 </View>
-                <TextInput
-                  value={name}
-                  onChangeText={setName}
-                  placeholder="Full name"
-                  autoCapitalize="words"
-                  style={styles.input}
-                  placeholderTextColor={themeColors.inputPlaceholder}
-                />
+                <TextInput value={name} onChangeText={setName} placeholder="Full name" autoCapitalize="words" style={styles.input} placeholderTextColor={themeColors.inputPlaceholder} />
 
                 {/* Email */}
                 <View style={styles.labelContainer}>
@@ -128,14 +110,7 @@ export default function RegisterScreen() {
                   <FontAwesome name="lock" size={18} color={themeColors.text} style={styles.labelIcon} />
                   <Text style={styles.label}>Enter Password</Text>
                 </View>
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="Password"
-                  secureTextEntry
-                  style={styles.input}
-                  placeholderTextColor={themeColors.inputPlaceholder}
-                />
+                <TextInput value={password} onChangeText={setPassword} placeholder="Password" secureTextEntry style={styles.input} placeholderTextColor={themeColors.inputPlaceholder} />
 
                 {/* Confirm Password */}
                 <View style={styles.labelContainer}>
@@ -152,11 +127,7 @@ export default function RegisterScreen() {
                 />
 
                 {loading ? (
-                  <ActivityIndicator
-                    size="large"
-                    color={themeColors.text}
-                    style={{ marginTop: hp("2%") }}
-                  />
+                  <ActivityIndicator size="large" color={themeColors.text} style={{ marginTop: hp("2%") }} />
                 ) : (
                   <TouchableOpacity style={styles.button} onPress={handleRegister}>
                     <Text style={styles.buttonText}>Register</Text>

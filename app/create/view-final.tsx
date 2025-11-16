@@ -1,7 +1,22 @@
 // app/create/view-final.tsx
 
 import React, { useEffect, useState, useRef } from "react";
-import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, useColorScheme as useDeviceColorScheme, ActivityIndicator, Animated, TextInput, Alert, Modal } from "react-native";
+import {
+  View,
+  Text,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
+  useColorScheme as useDeviceColorScheme,
+  ActivityIndicator,
+  Animated,
+  TextInput,
+  Alert,
+  Modal,
+  FlatList,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { MotiView } from "moti";
@@ -24,6 +39,7 @@ import { ContentIcon } from "../../components/icons/ContentIcon";
 // -------------------------
 
 const { width } = Dimensions.get("window");
+const CARD_WIDTH = (width - 60) / 2;
 
 const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
   StyleSheet.create({
@@ -117,7 +133,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     stepContainerNew: {
       alignItems: "center",
       zIndex: 1,
-      backgroundColor: theme.background,
+      backgroundColor: "transparent",
       paddingHorizontal: 2,
       marginHorizontal: -2,
     },
@@ -196,25 +212,42 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     mockupContainer: { marginBottom: 20, width: "100%" },
     mockupTitle: { fontSize: 18, color: theme.text, textAlign: "center", marginBottom: 15, fontFamily: "Inter-ExtraBold" },
     mockupScrollView: { maxHeight: 300 },
-    mockupScrollContent: { paddingHorizontal: 10, alignItems: "center" },
-    mockupImageContainer: {
-      marginRight: 15,
+    mockupScrollContent: { paddingHorizontal: 20, alignItems: "center" },
+
+    mockupWrapper: {
+      marginRight: 45,
       alignItems: "center",
+      minWidth: CARD_WIDTH,
+    },
+    mockupImageContainer: {
       backgroundColor: theme.card,
-      borderRadius: 12,
-      padding: 10,
+      borderRadius: 20,
       shadowColor: theme.text,
+      borderWidth: 1,
+      borderColor: theme.tabIconDefault,
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
-      minWidth: 200,
+      width: "120%",
+      height: CARD_WIDTH * 1.25,
+      overflow: "hidden",
     },
-    mockupImage: { width: 180, height: 200, borderRadius: 8, backgroundColor: theme.background },
-    mockupImageLabel: { fontSize: 12, color: theme.secondaryText, marginTop: 8, textAlign: "center", fontFamily: "Inter-ExtraBold" },
+    mockupImage: {
+      width: "100%",
+      height: "100%",
+    },
+
+    mockupImageLabel: {
+      fontSize: 16,
+      color: theme.text,
+      marginTop: 8,
+      textAlign: "center",
+      fontFamily: "Inter-ExtraBold",
+      textTransform: "uppercase",
+    },
     noMockupContainer: { alignItems: "center", padding: 20, backgroundColor: theme.card, borderRadius: 12, marginBottom: 20 },
     noMockupText: { fontSize: 16, color: theme.secondaryText, textAlign: "center", fontFamily: "Inter-ExtraBold" },
 
-    // Start Over Button
     startOverContainer: {
       position: "absolute",
       bottom: 105,
@@ -373,11 +406,10 @@ export default function ViewFinalDesignScreen() {
   const [isProcessing, setIsProcessing] = useState(false); // For remixing
   const [isSaving, setIsSaving] = useState(false); // For saving
   const [modalLoadingText, setModalLoadingText] = useState("Loading...");
-  const [selectedImageUrlForZoom, setSelectedImageUrlForZoom] = useState<string | null>(null);
-
-  const handleImageZoom = (imageUrl: string) => {
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+  const handleImageZoom = (index: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Haptic feedback
-    setSelectedImageUrlForZoom(imageUrl);
+    setSelectedImageIndex(index);
   };
 
   // --- API Logic ---
@@ -415,7 +447,6 @@ export default function ViewFinalDesignScreen() {
       setIsSaving(false);
     }
   };
-  
 
   const handleRemix = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // Haptic feedback
@@ -457,8 +488,8 @@ export default function ViewFinalDesignScreen() {
     router.push({ pathname: "/create-photoshoot", params: { designUri: encodeURIComponent(primaryMockup) } });
   };
 
-const addToStore = async (mockupUrls: string[]) => {
-   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Haptic feedback
+  const addToStore = async (mockupUrls: string[]) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Haptic feedback
     if (!mockupUrls.length || !selectedVariant?.id || !selectedProduct) {
       Alert.alert("Error", "Missing product data to add to store.");
       return;
@@ -553,11 +584,11 @@ const addToStore = async (mockupUrls: string[]) => {
             <Text style={styles.mockupTitle}>Your Design on Product</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mockupScrollView} contentContainerStyle={styles.mockupScrollContent}>
               {mockupImages.map((mockupUrl, index) => (
-                <TouchableOpacity key={index} onPress={() => handleImageZoom(mockupUrl)}>
+                <TouchableOpacity key={index} onPress={() => handleImageZoom(index)} style={styles.mockupWrapper}>
                   <View style={styles.mockupImageContainer}>
-                    <Image source={{ uri: mockupUrl }} style={styles.mockupImage} resizeMode="contain" />
-                    <Text style={styles.mockupImageLabel}>View {index + 1}</Text>
+                    <Image source={{ uri: mockupUrl }} style={styles.mockupImage} resizeMode="cover" />
                   </View>
+                  <Text style={styles.mockupImageLabel}>View {index + 1}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -621,10 +652,9 @@ const addToStore = async (mockupUrls: string[]) => {
         </TouchableOpacity>
       </View>
 
-      {/* Image Zoom Modal */}
-      <Modal transparent={true} visible={!!selectedImageUrlForZoom} onRequestClose={() => setSelectedImageUrlForZoom(null)}>
+      <Modal transparent={true} visible={selectedImageIndex !== null} onRequestClose={() => setSelectedImageIndex(null)}>
         <View style={styles.modalContainer}>
-          {selectedImageUrlForZoom && (
+          {selectedImageIndex !== null && (
             <MotiView
               from={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -632,27 +662,40 @@ const addToStore = async (mockupUrls: string[]) => {
               transition={{ type: "timing", duration: 250 }}
               style={{ width: "100%", height: "100%", alignItems: "center", justifyContent: "center" }}
             >
-              {/* @ts-ignore */}
-              <ImageZoom
-                cropWidth={width}
-                cropHeight={Dimensions.get("window").height}
-                imageWidth={width}
-                imageHeight={Dimensions.get("window").height * 0.9}
-                minScale={1}
-                maxScale={4}
-                enableCenterFocus
-                useNativeDriver
-                doubleClickInterval={250}
-              >
-                <Image source={{ uri: selectedImageUrlForZoom }} style={{ width: width, height: Dimensions.get("window").height * 0.9, resizeMode: "contain" }} />
-              </ImageZoom>
+              <FlatList
+                data={mockupImages}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                initialScrollIndex={selectedImageIndex ?? 0}
+                getItemLayout={(data, index) => ({ length: width, offset: width * index, index })}
+                keyExtractor={(item, index) => index.toString()}
+                renderItem={({ item }) => (
+                  <View style={{ width: width, height: Dimensions.get("window").height, justifyContent: "center", alignItems: "center" }}>
+                    {/* @ts-ignore */}
+                    <ImageZoom
+                      cropWidth={width}
+                      cropHeight={Dimensions.get("window").height}
+                      imageWidth={width}
+                      imageHeight={Dimensions.get("window").height * 0.9}
+                      minScale={1}
+                      maxScale={4}
+                      enableCenterFocus
+                      useNativeDriver
+                      doubleClickInterval={250}
+                    >
+                      <Image source={{ uri: item }} style={{ width: width, height: Dimensions.get("window").height * 0.9, resizeMode: "contain" }} />
+                    </ImageZoom>
+                  </View>
+                )}
+              />
             </MotiView>
           )}
           <TouchableOpacity
             style={styles.modalCloseButton}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); // Haptic feedback
-              setSelectedImageUrlForZoom(null);
+              setSelectedImageIndex(null);
             }}
           >
             <Text style={styles.modalCloseButtonText}>×</Text>
