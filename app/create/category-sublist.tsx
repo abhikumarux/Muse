@@ -43,6 +43,7 @@ import giftsPlaceholder from "@/assets/images/Collections-Category/Gifts.png";
 import newProductsPlaceholder from "@/assets/images/Collections-Category/New-Products.png";
 import backToSchoolPlaceholder from "@/assets/images/Collections-Category/Back-To-School.png";
 import collectionsPlaceholder from "@/assets/images/Collections-Category/Collections.png";
+import { CollectionsIcon } from "@/assets/svg/CollectionsIcon";
 
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
@@ -279,7 +280,7 @@ export default function CategorySublistScreen() {
       displayed = allCategories.filter((c) => c.parent_id === currentParentId);
     }
 
-    const specificTitles = new Set(["all men's clothing", "all women’s clothing", "all kids & youth clothing"]);
+    const specificTitles = new Set(["all men's clothing", "all women’s clothing", "all kids & youth clothing", "all accessories", "all home & living products"]);
     const allClothing = displayed.filter((c) => specificTitles.has(c.title.toLowerCase()));
     const grid = displayed.filter((c) => !specificTitles.has(c.title.toLowerCase()));
 
@@ -378,126 +379,145 @@ export default function CategorySublistScreen() {
               <TouchableOpacity style={styles.categoryCard} onPress={() => handleCategorySelect(category)}>
                 {((): React.ReactNode => {
                   const categoryTitleLower = category.title.toLowerCase();
+                  const isCollectionsCategory = categoryTitleLower.includes("collections") && category.title.toLowerCase() === "collections";
+
+                  if (isCollectionsCategory) {
+                    return (
+                      <>
+                        <View style={styles.imageContainer}>
+                          <CollectionsIcon width="80%" height="80%" style={[{ opacity: 0.95 }, styles.customCollectionsImage]} fill={theme.text} />
+                        </View>
+                        <Text style={styles.categoryTitle} numberOfLines={2}>
+                          {category.title.toUpperCase()}
+                        </Text>
+                      </>
+                    );
+                  }
+
                   return (
                     <>
                       <View style={styles.imageContainer}>
                         <Image
                           source={
+                            // --- CLOTHES LOGIC ---
                             categoryTitleLower.includes("all shirts")
                               ? tshirtPlaceholder
                               : categoryTitleLower.includes("all hoodies")
                               ? hoodiePlaceholder
-                              : categoryTitleLower.includes("jackets & vests")
+                              : categoryTitleLower.includes("jackets & vests") // This title is specific enough
                               ? jacketsPlaceholder
                               : categoryTitleLower.includes("all bottoms")
                               ? bottomsPlaceholder
-                              : categoryTitleLower.includes("swimwear")
+                              : categoryTitleLower === "swimwear" 
                               ? swimwearPlaceholder
-                              : categoryTitleLower.includes("knitwear")
+                              : categoryTitleLower === "knitwear" 
                               ? knitwearPlaceholder
-                              : // --- ACCESSORIES LOGIC START ---
-                              categoryTitleLower.includes("hats")
+                              : // --- ACCESSORIES LOGIC ---
+                              // Use exact matches to avoid sub-categories using parent image
+                              categoryTitleLower === "hats" 
                               ? hatsPlaceholder
-                              : categoryTitleLower.includes("bags")
+                              : categoryTitleLower === "bags" 
                               ? bagsPlaceholder
-                              : categoryTitleLower.includes("face masks")
+                              : categoryTitleLower === "face masks" 
                               ? faceMasksPlaceholder
-                              : categoryTitleLower.includes("footwear")
+                              : categoryTitleLower === "footwear" 
                               ? footwearPlaceholder
-                              : categoryTitleLower.includes("patches")
+                              : categoryTitleLower === "patches" 
                               ? patchesPlaceholder
-                              : categoryTitleLower.includes("hair accessories")
+                              : categoryTitleLower === "hair accessories" 
                               ? hairAccessoriesPlaceholder
-                              : categoryTitleLower.includes("tech") // For "Tech Accessories"
+                              : categoryTitleLower === "tech accessories" 
                               ? techPlaceholder
-                              : categoryTitleLower.includes("pins")
+                              : categoryTitleLower === "pins" 
                               ? pinsPlaceholder
-                              : categoryTitleLower.includes("sports accessories")
+                              : categoryTitleLower === "sports accessories" 
                               ? sportsAccessoriesPlaceholder
-                              : categoryTitleLower.includes("accessories") // Generic fallback for "Accessories"
-                              ? hatsPlaceholder // Use hat image as the generic accessory placeholder
-                              : // --- ACCESSORIES LOGIC END ---
+                              : categoryTitleLower === "accessories"
+                              ? hatsPlaceholder
+                              : // --- ACCESSORIES LOGIC ---
 
-                              // --- HOME & LIVING LOGIC START ---
-                              categoryTitleLower.includes("wall art")
+                              // --- HOME & LIVING LOGIC ---
+                              // Use exact matches
+                              categoryTitleLower === "wall art" 
                               ? wallArtPlaceholder
-                              : categoryTitleLower.includes("towels")
+                              : categoryTitleLower === "towels" 
                               ? towelsPlaceholder
-                              : categoryTitleLower.includes("aprons")
+                              : categoryTitleLower === "aprons" 
                               ? apronsPlaceholder
-                              : categoryTitleLower.includes("drinkware & coasters")
+                              : categoryTitleLower === "drinkware & coasters" 
                               ? drinkwarePlaceholder
-                              : categoryTitleLower.includes("pet products")
+                              : categoryTitleLower === "pet products" 
                               ? petProductsPlaceholder
-                              : categoryTitleLower.includes("stationery")
+                              : categoryTitleLower === "stationery" 
                               ? stationeryPlaceholder
-                              : categoryTitleLower.includes("home decor")
+                              : categoryTitleLower === "home decor"
                               ? homeDecorPlaceholder
-                              : categoryTitleLower.includes("beauty")
+                              : categoryTitleLower === "beauty" 
                               ? beautyPlaceholder
-                              : categoryTitleLower.includes("toys & games")
+                              : categoryTitleLower === "toys & games" 
                               ? toysAndGamesPlaceholder
-                              : categoryTitleLower.includes("home & living")
+                              : categoryTitleLower === "home & living" 
                               ? homeLivingPlaceholder
-                              : // --- HOME & LIVING LOGIC END ---
+                              : // --- HOME & LIVING LOGIC ---
 
-                              // --- NEW COLLECTIONS LOGIC START ---
-                              categoryTitleLower.includes("sportswear")
+                              // --- NEW COLLECTIONS LOGIC ---
+                              categoryTitleLower === "sportswear" 
                               ? sportswearPlaceholder
-                              : categoryTitleLower.includes("streetwear")
+                              : categoryTitleLower === "streetwear" 
                               ? streetwearPlaceholder
-                              : categoryTitleLower.includes("beachwear")
+                              : categoryTitleLower === "beachwear" 
                               ? beachwearPlaceholder
-                              : categoryTitleLower.includes("eco-friendly")
+                              : categoryTitleLower === "eco-friendly" 
                               ? ecoFriendlyPlaceholder
-                              : categoryTitleLower.includes("gifts")
+                              : categoryTitleLower === "gifts" 
                               ? giftsPlaceholder
-                              : categoryTitleLower.includes("new products")
+                              : categoryTitleLower === "new products" 
                               ? newProductsPlaceholder
-                              : categoryTitleLower.includes("back to school")
+                              : categoryTitleLower === "back to school" 
                               ? backToSchoolPlaceholder
-                              : categoryTitleLower.includes("collections")
+                              : categoryTitleLower === "collections" 
                               ? collectionsPlaceholder
-                              : // --- NEW COLLECTIONS LOGIC END ---
-                                { uri: category.image_url }
+                              : { uri: category.image_url } 
                           }
                           style={[
                             styles.categoryImage,
                             { opacity: 0.95 },
-                            categoryTitleLower.includes("swimwear") && styles.customSwimwearImage,
-                            categoryTitleLower.includes("knitwear") && styles.customKnitwearImage,
-                            (categoryTitleLower.includes("accessories") ||
-                              categoryTitleLower.includes("hats") ||
-                              categoryTitleLower.includes("bags") ||
-                              categoryTitleLower.includes("face masks") ||
-                              categoryTitleLower.includes("footwear") ||
-                              categoryTitleLower.includes("patches") ||
-                              categoryTitleLower.includes("hair accessories") ||
-                              categoryTitleLower.includes("tech") ||
-                              categoryTitleLower.includes("pins") ||
-                              categoryTitleLower.includes("sports accessories")) &&
+                            // Style logic can still use .includes() if it's general sizing
+                            // Or we can make it exact too, to be safe. Let's make it exact.
+                            categoryTitleLower === "swimwear" && styles.customSwimwearImage,
+                            categoryTitleLower === "knitwear" && styles.customKnitwearImage,
+                            (categoryTitleLower === "accessories" ||
+                              categoryTitleLower === "hats" ||
+                              categoryTitleLower === "bags" ||
+                              categoryTitleLower === "face masks" ||
+                              categoryTitleLower === "footwear" ||
+                              categoryTitleLower === "patches" ||
+                              categoryTitleLower === "hair accessories" ||
+                              categoryTitleLower === "tech accessories" ||
+                              categoryTitleLower === "pins" ||
+                              categoryTitleLower === "sports accessories") &&
                               styles.customAccessoriesImage,
-                            (categoryTitleLower.includes("home & living") ||
-                              categoryTitleLower.includes("wall art") ||
-                              categoryTitleLower.includes("towels") ||
-                              categoryTitleLower.includes("aprons") ||
-                              categoryTitleLower.includes("drinkware & coasters") ||
-                              categoryTitleLower.includes("pet products") ||
-                              categoryTitleLower.includes("stationery") ||
-                              categoryTitleLower.includes("home decor") ||
-                              categoryTitleLower.includes("beauty") ||
-                              categoryTitleLower.includes("toys & games")) &&
+                            (categoryTitleLower === "home & living" ||
+                              categoryTitleLower === "wall art" ||
+                              categoryTitleLower === "towels" ||
+                              categoryTitleLower === "aprons" ||
+                              categoryTitleLower === "drinkware & coasters" ||
+                              categoryTitleLower === "pet products" ||
+                              categoryTitleLower === "stationery" ||
+                              categoryTitleLower === "home decor" ||
+                              categoryTitleLower === "beauty" ||
+                              categoryTitleLower === "toys & games") &&
                               styles.customHomeLivingImage,
 
                             // --- NEW COLLECTION STYLE LOGIC ---
-                            (categoryTitleLower.includes("collections") ||
-                              categoryTitleLower.includes("sportswear") ||
-                              categoryTitleLower.includes("streetwear") ||
-                              categoryTitleLower.includes("beachwear") ||
-                              categoryTitleLower.includes("eco-friendly") ||
-                              categoryTitleLower.includes("gifts") ||
-                              categoryTitleLower.includes("new products") ||
-                              categoryTitleLower.includes("back to school")) &&
+                            (categoryTitleLower === "collections" ||
+                              categoryTitleLower === "sportswear" ||
+                              categoryTitleLower === "streetwear" ||
+                              categoryTitleLower === "beachwear" ||
+                              categoryTitleLower === "eco-friendly" ||
+                              categoryTitleLower === "gifts" ||
+                              categoryTitleLower === "new products" ||
+                              categoryTitleLower === "back to school") &&
                               styles.customCollectionsImage,
                             // --- END COLLECTION STYLE LOGIC ---
 

@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import AnimatedReanimated, { useSharedValue, useAnimatedStyle, useAnimatedScrollHandler, interpolate, Extrapolate } from "react-native-reanimated";
+import { MotiView } from "moti"; // <-- Import MotiView
 import { Colors } from "@/constants/Colors";
 import { useUser } from "../../lib/UserContext";
 import { useCreateDesign } from "../../lib/CreateDesignContext";
@@ -448,54 +449,73 @@ export default function VariantsScreen() {
     return (
       <>
         <AnimatedReanimated.ScrollView ref={variantScrollViewRef} style={styles.scrollView} showsVerticalScrollIndicator={false} onScroll={variantScrollHandler} scrollEventThrottle={16}>
-          <AnimatedReanimated.View style={[styles.imageContainerForAnimation, animatedImageStyle]}>
-            <Image source={{ uri: selectedColor ? selectedColor.image : product.image }} style={styles.mainProductImageNew} />
-          </AnimatedReanimated.View>
-          <View style={styles.detailsContainer}>
-            <Text style={styles.productTitleNew}>{product.title}</Text>
-            <Text style={styles.productPriceNew}>${selectedColor?.price || variants[0].price}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.colorScrollView}>
-              {uniqueColors.map((variant) => (
-                <View key={variant.id} style={styles.colorSelectorContainer}>
-                  <TouchableOpacity onPress={() => handleColorSelect(variant)} style={[styles.colorThumbnail, selectedColor?.color === variant.color && styles.colorThumbnailSelected]}>
-                    <Image source={{ uri: variant.image }} style={styles.colorThumbnailImage} />
-                  </TouchableOpacity>
-                  <Text style={styles.colorNameText} numberOfLines={1}>
-                    {variant.color}
-                  </Text>
-                </View>
-              ))}
-            </ScrollView>
-            <View style={styles.sizeHeader}>
-              <Text style={styles.selectionTitle}>Select Size</Text>
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  Alert.alert("Size Guide", "Coming soon!");
-                }}
-              >
-                <Text style={styles.sizeGuideLink}>Size Guide</Text>
-              </TouchableOpacity>
-            </View>
-            {selectedColor && (
-              <View style={styles.sizeButtonContainer}>
-                {availableSizes.map((size) => (
-                  <TouchableOpacity key={size} onPress={() => handleSizeSelect(size)} style={[styles.sizeButtonNew, selectedSize === size && styles.sizeButtonNewSelected]}>
-                    <Text style={[styles.sizeButtonTextNew, selectedSize === size && styles.sizeButtonTextNewSelected]}>{size}</Text>
-                  </TouchableOpacity>
+          {/* --- WRAPPED IMAGE IN MOTIVIEW --- */}
+          <MotiView
+            from={{ opacity: 0, scale: 0.95, translateY: -10 }}
+            animate={{ opacity: 1, scale: 1, translateY: 0 }}
+            transition={{ type: "timing", duration: 300 }}
+          >
+            <AnimatedReanimated.View style={[styles.imageContainerForAnimation, animatedImageStyle]}>
+              <Image source={{ uri: selectedColor ? selectedColor.image : product.image }} style={styles.mainProductImageNew} />
+            </AnimatedReanimated.View>
+          </MotiView>
+
+          {/* --- WRAPPED DETAILS IN MOTIVIEW --- */}
+          <MotiView
+            from={{ opacity: 0, translateY: 20 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: "timing", duration: 300, delay: 100 }}
+          >
+            <View style={styles.detailsContainer}>
+              <Text style={styles.productTitleNew}>{product.title}</Text>
+              <Text style={styles.productPriceNew}>${selectedColor?.price || variants[0].price}</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.colorScrollView}>
+                {uniqueColors.map((variant) => (
+                  <View key={variant.id} style={styles.colorSelectorContainer}>
+                    <TouchableOpacity onPress={() => handleColorSelect(variant)} style={[styles.colorThumbnail, selectedColor?.color === variant.color && styles.colorThumbnailSelected]}>
+                      <Image source={{ uri: variant.image }} style={styles.colorThumbnailImage} />
+                    </TouchableOpacity>
+                    <Text style={styles.colorNameText} numberOfLines={1}>
+                      {variant.color}
+                    </Text>
+                  </View>
                 ))}
+              </ScrollView>
+              <View style={styles.sizeHeader}>
+                <Text style={styles.selectionTitle}>Select Size</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    Alert.alert("Size Guide", "Coming soon!");
+                  }}
+                >
+                  <Text style={styles.sizeGuideLink}>Size Guide</Text>
+                </TouchableOpacity>
               </View>
-            )}
-          </View>
+              {selectedColor && (
+                <View style={styles.sizeButtonContainer}>
+                  {availableSizes.map((size) => (
+                    <TouchableOpacity key={size} onPress={() => handleSizeSelect(size)} style={[styles.sizeButtonNew, selectedSize === size && styles.sizeButtonNewSelected]}>
+                      <Text style={[styles.sizeButtonTextNew, selectedSize === size && styles.sizeButtonTextNewSelected]}>{size}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+          </MotiView>
         </AnimatedReanimated.ScrollView>
 
-        {/* Bottom confirmation bar */}
         {selectedVariant && (
-          <View style={styles.bottomBar}>
+          <MotiView
+            style={styles.bottomBar}
+            from={{ opacity: 0, translateY: 50 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: "spring", damping: 35, stiffness: 250,}}
+          >
             <TouchableOpacity style={styles.confirmButton} onPress={handleConfirmSelection}>
               <Text style={styles.confirmButtonText}>Confirm Selection</Text>
             </TouchableOpacity>
-          </View>
+          </MotiView>
         )}
       </>
     );

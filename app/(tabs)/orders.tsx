@@ -29,7 +29,13 @@ export default function OrdersScreen() {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    
+    // Only set loading to true if we have no products to display (i.e., the first load)
+    if (products.length === 0) {
+      setLoading(true);
+    }
+    // If products.length > 0, loading stays false, and this is a background refresh.
+
     try {
       const basicProductList = await getPrintfulStoreProducts(printfulApiKey, currentStoreId);
 
@@ -40,9 +46,10 @@ export default function OrdersScreen() {
       console.error("Failed to fetch Printful products:", error);
       Alert.alert("Error", "Could not load your products from Printful.");
     } finally {
-      setLoading(false);
+      setLoading(false); // This will turn off the modal after the first fetch
     }
-  }, [printfulApiKey, currentStoreId]);
+    // Add products.length to the dependency array
+  }, [printfulApiKey, currentStoreId, products.length]); 
 
   useFocusEffect(
     useCallback(() => {
@@ -88,6 +95,9 @@ export default function OrdersScreen() {
         </View>
       );
     }
+    
+    // We now check for loading AND products.length
+    // Don't show "no products" text if we are on the initial load
     if (products.length === 0 && !loading) {
       return (
         <View style={styles.messageContainer}>
@@ -102,47 +112,55 @@ export default function OrdersScreen() {
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.grid}
         showsVerticalScrollIndicator={false}
-        renderItem={({ item: product }) => {
+        renderItem={({ item: product, index }) => { // <-- Added index
           const firstVariant = product.sync_variants?.[0];
           const variantDetails = firstVariant ? getVariantInfo(firstVariant) : { color: "N/A", size: "N/A", colorCode: null };
           const price = firstVariant?.retail_price ?? "0.00";
 
           return (
-            <Swipeable
-              ref={(ref: Swipeable | null) => {
-                if (ref) {
-                  swipeableRefs.current[product.id] = ref;
-                }
-              }}
-              renderRightActions={() => renderRightActions(product.id)}
-              onSwipeableWillOpen={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}
+            // --- WRAPPED IN MOTIVIEW ---
+            <MotiView
+              from={{ opacity: 0, translateY: 20 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: "timing", duration: 300, delay: index * 50 }}
             >
-              <TouchableOpacity
-                style={[styles.card, { backgroundColor: theme.card }]}
-                onPress={() => router.push({ pathname: "/product-detail" as any, params: { productId: product.id } })}
-                activeOpacity={0.8}
+              <Swipeable
+                ref={(ref: Swipeable | null) => {
+                  if (ref) {
+                    swipeableRefs.current[product.id] = ref;
+                  }
+                }}
+                renderRightActions={() => renderRightActions(product.id)}
+                onSwipeableWillOpen={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}
               >
-                <Image source={{ uri: product.thumbnail_url }} style={styles.image} resizeMode="cover" />
-                <View style={styles.infoContainer}>
-                  <Text style={[styles.productName, { color: theme.text }]} numberOfLines={2}>
-                    {product.name}
-                  </Text>
-                  <View style={styles.detailsRow}>
-                    <View style={styles.detailItem}>
-                      <Text style={[styles.detailLabel, { color: theme.secondaryText }]}>Size: </Text>
-                      <Text style={[styles.detailValue, { color: theme.text }]}>{variantDetails.size}</Text>
-                    </View>
-                    <View style={styles.detailItem}>
-                      <Text style={[styles.detailLabel, { color: theme.secondaryText }]}>Color: </Text>
-                      <ColorSwatch color={variantDetails.colorCode || variantDetails.color} size={14} />
-                    </View>
-                    <View style={styles.priceContainer}>
-                      <Text style={[styles.priceText, { color: theme.text }]}>${price}</Text>
+                <TouchableOpacity
+                  style={[styles.card, { backgroundColor: theme.card }]}
+                  onPress={() => router.push({ pathname: "/product-detail" as any, params: { productId: product.id } })}
+                  activeOpacity={0.8}
+                >
+                  <Image source={{ uri: product.thumbnail_url }} style={styles.image} resizeMode="cover" />
+                  <View style={styles.infoContainer}>
+                    <Text style={[styles.productName, { color: theme.text }]} numberOfLines={2}>
+                      {product.name}
+                    </Text>
+                    <View style={styles.detailsRow}>
+                      <View style={styles.detailItem}>
+                        <Text style={[styles.detailLabel, { color: theme.secondaryText }]}>Size: </Text>
+                        <Text style={[styles.detailValue, { color: theme.text }]}>{variantDetails.size}</Text>
+                      </View>
+                      <View style={styles.detailItem}>
+                        <Text style={[styles.detailLabel, { color: theme.secondaryText }]}>Color: </Text>
+                        <ColorSwatch color={variantDetails.colorCode || variantDetails.color} size={14} />
+                      </View>
+                      <View style={styles.priceContainer}>
+                        <Text style={[styles.priceText, { color: theme.text }]}>${price}</Text>
+                      </View>
                     </View>
                   </View>
-                </View>
-              </TouchableOpacity>
-            </Swipeable>
+                </TouchableOpacity>
+              </Swipeable>
+            </MotiView>
+            // --- END OF WRAPPER ---
           );
         }}
       />
@@ -151,6 +169,7 @@ export default function OrdersScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top", "left", "right"]}>
+      {/* The modal will now only show on the first load, not on background refreshes */}
       <LoadingModal visible={loading} text="Loading Products..." />
 
       <MotiView from={{ opacity: 0, translateY: -10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: 100, type: "timing", duration: 300 }}>
