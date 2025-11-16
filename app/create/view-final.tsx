@@ -173,7 +173,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     finalDesignContent: {
       alignItems: "center",
       padding: 20,
-      paddingBottom: 120,
+      paddingBottom: 40, // <-- MODIFIED from 120
     },
     finalDesignProductText: { fontSize: 16, color: theme.secondaryText, marginBottom: 10, textAlign: "center", fontFamily: "Inter-ExtraBold" },
     input: {
@@ -249,12 +249,8 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     noMockupText: { fontSize: 16, color: theme.secondaryText, textAlign: "center", fontFamily: "Inter-ExtraBold" },
 
     startOverContainer: {
-      position: "absolute",
-      bottom: 105,
-      left: 20,
-      right: 20,
-      paddingTop: 10,
       backgroundColor: "transparent",
+      width: "100%",
     },
     startOverButton: {
       paddingVertical: 16,
@@ -336,7 +332,7 @@ const ProgressBar = () => {
 
   // This is now hardcoded to step 3
   const currentStep = 3;
-  const progress = useRef(new Animated.Value(0)).current; // <-- Import useRef from React
+  const progress = useRef(new Animated.Value(0)).current; 
 
   useEffect(() => {
     Animated.timing(progress, {
@@ -575,6 +571,7 @@ export default function ViewFinalDesignScreen() {
       />
       <ProgressBar />
 
+      {/* --- MODIFIED JSX STRUCTURE --- */}
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.finalDesignContent}>
         <Text style={styles.finalDesignProductText}>
           Selected: {selectedProduct?.title} ({selectedColor?.color}, {selectedSize})
@@ -643,14 +640,18 @@ export default function ViewFinalDesignScreen() {
             <Text style={styles.designControlButtonText}>PHOTOSHOOT</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Floating "Start Over" Button -- MOVED INSIDE SCROLLVIEW */}
+        <View style={styles.startOverContainer}>
+          <TouchableOpacity style={styles.startOverButton} onPress={handleStartNewDesign}>
+            <Text style={styles.startOverButtonText}>START NEW DESIGN</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
-      {/* Floating "Start Over" Button */}
-      <View style={styles.startOverContainer}>
-        <TouchableOpacity style={styles.startOverButton} onPress={handleStartNewDesign}>
-          <Text style={styles.startOverButtonText}>START NEW DESIGN</Text>
-        </TouchableOpacity>
-      </View>
+      {/* This View is now gone from here */}
+
+      {/* --- END MODIFIED JSX --- */}
 
       <Modal transparent={true} visible={selectedImageIndex !== null} onRequestClose={() => setSelectedImageIndex(null)}>
         <View style={styles.modalContainer}>

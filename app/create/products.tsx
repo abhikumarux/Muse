@@ -6,13 +6,16 @@ import { MotiView } from "moti";
 import { Colors } from "@/constants/Colors";
 import { useUser } from "../../lib/UserContext";
 import { useCreateDesign } from "../../lib/CreateDesignContext";
-import { Product, ProductsResponse } from "@/lib/types/printful";
+import { Product, ProductsResponse, ProductDetailsResponse, Variant } from "@/lib/types/printful";
 import { Ionicons } from "@expo/vector-icons";
 import { MuseCoin } from "@/assets/svg/MuseCoin";
 import * as Haptics from "expo-haptics";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 60) / 2;
+
+// Define the type for our new detailed product state
+type ProductColor = { name: string; code: string | null };
 
 const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
   StyleSheet.create({
@@ -32,7 +35,14 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     productImage: { width: "100%", height: CARD_WIDTH * 0.8, borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: theme.tabIconDefault },
     productTitle: { fontSize: 14, color: theme.text, paddingHorizontal: 12, paddingTop: 12, fontFamily: "Inter-ExtraBold" },
     productBrand: { fontSize: 12, color: theme.secondaryText, paddingHorizontal: 12, paddingTop: 4, fontFamily: "Inter-ExtraBold" },
-    productVariants: { fontSize: 11, color: theme.secondaryText, paddingHorizontal: 12, paddingTop: 2, fontFamily: "Inter-ExtraBold" },
+    productVariants: {
+      fontSize: 11,
+      color: theme.secondaryText,
+      paddingHorizontal: 12,
+      paddingTop: 6,
+      minHeight: 20, // Ensures height consistency
+      fontFamily: "Inter-ExtraBold",
+    },
     loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.background },
     loadingText: { marginTop: 10, fontSize: 16, color: theme.secondaryText, fontFamily: "Inter-ExtraBold" },
     errorContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.background, paddingHorizontal: 20 },
@@ -160,6 +170,31 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       color: theme.text,
       fontFamily: "Inter-ExtraBold",
     },
+    colorSwatchContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 12,
+      paddingTop: 6,
+      minHeight: 20, // To prevent layout jump
+    },
+    colorSwatch: {
+      width: 14,
+      height: 14,
+      borderRadius: 7,
+      borderWidth: 1,
+      marginRight: 4,
+    },
+    colorSwatchMore: {
+      fontSize: 11,
+      fontFamily: "Inter-ExtraBold",
+      marginLeft: 2,
+    },
+    skeletonLoader: {
+      width: 100, // Approx 5 swatches + margins
+      height: 14,
+      borderRadius: 7,
+      backgroundColor: theme.tabIconDefault, // Use a neutral color
+    },
   });
 
 const ProductFlowHeader = ({ title, onBackPress }: { title: string; onBackPress?: () => void }) => {
@@ -247,6 +282,119 @@ const ProgressBar = () => {
   );
 };
 
+const ProductCard = ({
+  product,
+  onSelect,
+  motiDelay,
+  theme,
+  styles,
+}: {
+  product: Product;
+  onSelect: (product: Product) => void;
+  motiDelay: number;
+  theme: typeof Colors.light | typeof Colors.dark;
+  styles: ReturnType<typeof getStyles>;
+}) => {
+  const { printfulApiKey } = useUser();
+  const [uniqueColors, setUniqueColors] = useState<ProductColor[]>([]);
+  const [isLoadingColors, setIsLoadingColors] = useState(true);
+
+  useEffect(() => {
+    const fetchDetails = async () => {
+      if (!printfulApiKey || !product.id) {
+        setIsLoadingColors(false);
+        return;
+      }
+
+      try {
+        const detailResponse = await fetch(`https://api.printful.com/products/${product.id}`, {
+          headers: { Authorization: `Bearer ${printfulApiKey}` },
+        });
+        if (!detailResponse.ok) throw new Error("Failed detail fetch");
+
+        const detailData: ProductDetailsResponse = await detailResponse.json();
+
+        if (detailData.code === 200 && detailData.result.variants.length > 0) {
+          const colors: ProductColor[] = [];
+          const seenColors = new Set<string>();
+
+          for (const variant of detailData.result.variants) {
+            if (!seenColors.has(variant.color)) {
+              seenColors.add(variant.color);
+              // Use variant.color_code if available, otherwise null
+              colors.push({ name: variant.color, code: (variant as any).color_code || null });
+            }
+          }
+          setUniqueColors(colors);
+        }
+      } catch (e) {
+        console.error(`Failed to fetch details for ${product.id}`, e);
+        // Don't show an error, just fall back to variant count
+      } finally {
+        setIsLoadingColors(false);
+      }
+    };
+
+    // Add a small delay so the card animation can finish
+    setTimeout(fetchDetails, 300);
+  }, [product.id, printfulApiKey]);
+
+  return (
+    <MotiView from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "timing", duration: 300, delay: motiDelay }}>
+      <TouchableOpacity style={styles.productCard} onPress={() => onSelect(product)}>
+        <Image source={{ uri: product.image }} style={styles.productImage} resizeMode="cover" />
+        <Text style={styles.productTitle} numberOfLines={2}>
+          {product.title.replace(/All-?Over ?Print/gi, "AOP")}
+        </Text>
+        <Text style={styles.productBrand}>{product.brand}</Text>
+
+        {isLoadingColors ? (
+          // Show skeleton loading animation
+          <View style={styles.colorSwatchContainer}>
+            <MotiView
+              from={{ opacity: 0.5 }}
+              animate={{ opacity: 1 }}
+              transition={{
+                loop: true,
+                type: "timing",
+                duration: 700,
+              }}
+            >
+              <View style={styles.skeletonLoader} />
+            </MotiView>
+          </View>
+        ) : uniqueColors.length > 0 ? (
+          // Show colors once loaded with an animation
+          <MotiView
+            style={styles.colorSwatchContainer}
+            from={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ type: "timing", duration: 500 }}
+          >
+            {uniqueColors.slice(0, 5).map((color, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.colorSwatch,
+                  {
+                    backgroundColor: color.code || "#E0E0E0", // Use color code or grey fallback
+                    borderColor: theme.tabIconDefault,
+                  },
+                ]}
+                title={color.name}
+              />
+            ))}
+            {uniqueColors.length > 5 && <Text style={[styles.colorSwatchMore, { color: theme.secondaryText }]}>+{uniqueColors.length - 5}</Text>}
+          </MotiView>
+        ) : (
+          // Fallback to variant count if no colors found or fetch failed
+          <Text style={styles.productVariants}>{product.variant_count} variants</Text>
+        )}
+      </TouchableOpacity>
+    </MotiView>
+  );
+};
+
 export default function ProductsScreen() {
   const colorScheme = useDeviceColorScheme();
   const theme = Colors[colorScheme ?? "light"];
@@ -254,8 +402,8 @@ export default function ProductsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ categoryId: string; categoryName: string }>();
 
+  // products from context is now our *master list*
   const { products, setProducts, setSelectedProduct } = useCreateDesign();
-
   const { printfulApiKey } = useUser();
 
   const [loading, setLoading] = useState(true);
@@ -275,10 +423,12 @@ export default function ProductsScreen() {
         headers: { Authorization: `Bearer ${printfulApiKey}` },
       });
       const data: ProductsResponse = await response.json();
+
       if (data.code === 200) {
-        setProducts(data.result);
+        setProducts(data.result); // Set base products in context
       } else {
         setError("Failed to fetch products");
+        setProducts([]); // Clear products on error
       }
     } catch (err) {
       setError("Network error occurred");
@@ -295,7 +445,7 @@ export default function ProductsScreen() {
       setError("No category ID was provided.");
       setLoading(false);
     }
-  }, [params.categoryId, printfulApiKey, setProducts]);
+  }, [params.categoryId, printfulApiKey]); // `setProducts` removed as it's from context and stable
 
   const handleProductSelect = (product: Product) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -308,6 +458,7 @@ export default function ProductsScreen() {
   };
 
   const filteredProducts = useMemo(() => {
+    // Base filtering on the `products` from context
     return products.filter((p) => p.title.toLowerCase().includes(searchQuery.toLowerCase()));
   }, [products, searchQuery]);
 
@@ -353,16 +504,14 @@ export default function ProductsScreen() {
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.gridContainer}>
           {filteredProducts.map((product, index) => (
-            <MotiView key={product.id} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "timing", duration: 300, delay: index * 50 }}>
-              <TouchableOpacity style={styles.productCard} onPress={() => handleProductSelect(product)}>
-                <Image source={{ uri: product.image }} style={styles.productImage} resizeMode="cover" />
-                <Text style={styles.productTitle} numberOfLines={2}>
-                  {product.title}
-                </Text>
-                <Text style={styles.productBrand}>{product.brand}</Text>
-                <Text style={styles.productVariants}>{product.variant_count} variants</Text>
-              </TouchableOpacity>
-            </MotiView>
+            <ProductCard
+              key={product.id}
+              product={product}
+              onSelect={handleProductSelect}
+              motiDelay={index * 50}
+              theme={theme}
+              styles={styles}
+            />
           ))}
         </View>
       </ScrollView>

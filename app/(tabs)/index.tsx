@@ -41,6 +41,7 @@ import knitwearPlaceholder from "@/assets/images/Clothes-Category/Knitwear.png";
 import accessoriesPlaceholder from "@/assets/images/Accessories-Category/Accessories.png";
 import homeLivingPlaceholder from "@/assets/images/Home-&-Living-Category/Home-&-Living-Category.png";
 import collectionsPlaceholder from "@/assets/images/Collections-Category/Collections.png";
+import { CollectionsIcon } from "@/assets/svg/CollectionsIcon"; // <--- ADDED CollectionsIcon IMPORT
 import { Asset } from "expo-asset";
 import { useCreateDesign } from "@/lib/CreateDesignContext";
 import * as Haptics from "expo-haptics";
@@ -149,6 +150,13 @@ export default function CreateNewDesignTab() {
           require("@/assets/images/Collections-Category/New-Products.png"),
           require("@/assets/images/Collections-Category/Back-To-School.png"),
           require("@/assets/images/Collections-Category/Collections.png"),
+          require("@/assets/photoshoot/courtside glow.png"),
+          require("@/assets/photoshoot/deep frame.png"),
+          require("@/assets/photoshoot/dust & chrome.png"),
+          require("@/assets/photoshoot/late edition.png"),
+          require("@/assets/photoshoot/ocean static.png"),
+          require("@/assets/photoshoot/skyline grip.png"),
+          require("@/assets/photoshoot/studio drift.png"),
         ]);
         console.log("✅ Placeholder images preloaded");
       } catch (err) {
@@ -568,41 +576,45 @@ export default function CreateNewDesignTab() {
               <MotiView key={category.id} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "timing", duration: 300, delay: index * 50 }}>
                 <TouchableOpacity style={styles.categoryCard} onPress={() => handleCategorySelect(category)}>
                   <View style={styles.imageContainer}>
-                    <Image
-                      source={
-                        category.title.toLowerCase().includes("all shirts") || category.title.toLowerCase().includes("clothes")
-                          ? tshirtPlaceholder
-                          : category.title.toLowerCase().includes("all hoodies")
-                          ? hoodiePlaceholder
-                          : category.title.toLowerCase().includes("jackets & vests")
-                          ? jacketsPlaceholder
-                          : category.title.toLowerCase().includes("all bottoms")
-                          ? bottomsPlaceholder
-                          : category.title.toLowerCase().includes("swimwear")
-                          ? swimwearPlaceholder
-                          : category.title.toLowerCase().includes("knitwear")
-                          ? knitwearPlaceholder
-                          : category.title.toLowerCase().includes("accessories")
-                          ? accessoriesPlaceholder
-                          : category.title.toLowerCase().includes("home & living")
-                          ? homeLivingPlaceholder
-                          : category.title.toLowerCase().includes("collections")
-                          ? collectionsPlaceholder
-                          : { uri: category.image_url }
-                      }
-                      style={[
-                        styles.categoryImage,
-                        { opacity: 0.95 },
-                        category.title.toLowerCase().includes("swimwear") && styles.customSwimwearImage,
-                        category.title.toLowerCase().includes("knitwear") && styles.customKnitwearImage,
-                        category.title.toLowerCase().includes("accessories") && styles.customAccessoriesImage,
-                        category.title.toLowerCase().includes("home & living") && styles.customHomeLivingImage,
-                        category.title.toLowerCase().includes("collections") && styles.customCollectionsImage,
-                        (category.title.toLowerCase().includes("all shirts") || category.title.toLowerCase().includes("clothes")) && styles.customAllShirtsImage,
-                        category.title.toLowerCase().includes("all hoodies") && styles.customHoodiesImage, // NEW CONDITION
-                      ]}
-                      resizeMode="contain"
-                    />
+                    {category.title.toLowerCase().includes("collections") ? (
+                      <CollectionsIcon width="70%" height="70%" style={[{ opacity: 0.95 }, styles.customCollectionsImage]} fill={theme.text} />
+                    ) : (
+                      <Image
+                        source={
+                          category.title.toLowerCase().includes("all shirts") || category.title.toLowerCase().includes("clothes")
+                            ? tshirtPlaceholder
+                            : category.title.toLowerCase().includes("all hoodies")
+                            ? hoodiePlaceholder
+                            : category.title.toLowerCase().includes("jackets & vests")
+                            ? jacketsPlaceholder
+                            : category.title.toLowerCase().includes("all bottoms")
+                            ? bottomsPlaceholder
+                            : category.title.toLowerCase().includes("swimwear")
+                            ? swimwearPlaceholder
+                            : category.title.toLowerCase().includes("knitwear")
+                            ? knitwearPlaceholder
+                            : category.title.toLowerCase().includes("accessories")
+                            ? accessoriesPlaceholder
+                            : category.title.toLowerCase().includes("home & living")
+                            ? homeLivingPlaceholder
+                            : category.title.toLowerCase().includes("collections")
+                            ? collectionsPlaceholder
+                            : { uri: category.image_url }
+                        }
+                        style={[
+                          styles.categoryImage,
+                          { opacity: 0.95 },
+                          category.title.toLowerCase().includes("swimwear") && styles.customSwimwearImage,
+                          category.title.toLowerCase().includes("knitwear") && styles.customKnitwearImage,
+                          category.title.toLowerCase().includes("accessories") && styles.customAccessoriesImage,
+                          category.title.toLowerCase().includes("home & living") && styles.customHomeLivingImage,
+                          category.title.toLowerCase().includes("collections") && styles.customCollectionsImage,
+                          (category.title.toLowerCase().includes("all shirts") || category.title.toLowerCase().includes("clothes")) && styles.customAllShirtsImage,
+                          category.title.toLowerCase().includes("all hoodies") && styles.customHoodiesImage, // NEW CONDITION
+                        ]}
+                        resizeMode="contain"
+                      />
+                    )}
                   </View>
 
                   <Text style={styles.categoryTitle} numberOfLines={2}>
@@ -747,7 +759,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
     scrollView: { flex: 1 },
-    scrollContent: { padding: 20, paddingTop: 22, paddingBottom: 80 },
+    scrollContent: { padding: 20, paddingTop: 25, paddingBottom: 100 },
     gridContainer: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
     categoryCard: {
       width: CARD_WIDTH,
