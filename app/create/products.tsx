@@ -125,7 +125,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     stepContainerNew: {
       alignItems: "center",
       zIndex: 1,
-      backgroundColor: theme.background,
+      backgroundColor: "transparent",
       paddingHorizontal: 2,
       marginHorizontal: -2,
     },

@@ -32,15 +32,15 @@ import { AWS_REGION, AWS_S3_BUCKET as BUCKET, AWS_IDENTITY_POOL_ID } from "@/lib
 import { Category, CategoriesResponse, Muse } from "@/lib/types/printful";
 import { DesignText } from "@/assets/svg/DesignText";
 import { MuseCoin } from "@/assets/svg/MuseCoin";
-import tshirtPlaceholder from "@/assets/images/All-Shirts.png";
-import hoodiePlaceholder from "@/assets/images/Hoodies-&-Sweatshirt.png";
-import jacketsPlaceholder from "@/assets/images/Jackets-&-Vests-Category.png";
-import bottomsPlaceholder from "@/assets/images/All-Bottoms.png";
-import swimwearPlaceholder from "@/assets/images/Swimwear.png";
-import knitwearPlaceholder from "@/assets/images/Knitwear.png";
-import accessoriesPlaceholder from "@/assets/images/Accessories.png";
-import homeLivingPlaceholder from "@/assets/images/Home-&-Living-Category.png";
-import collectionsPlaceholder from "@/assets/images/Collections.png";
+import tshirtPlaceholder from "@/assets/images/Clothes-Category/All-Shirts.png";
+import hoodiePlaceholder from "@/assets/images/Clothes-Category/Hoodies-&-Sweatshirt.png";
+import jacketsPlaceholder from "@/assets/images/Clothes-Category/Jackets-&-Vests-Category.png";
+import bottomsPlaceholder from "@/assets/images/Clothes-Category/All-Bottoms.png";
+import swimwearPlaceholder from "@/assets/images/Clothes-Category/Swimwear.png";
+import knitwearPlaceholder from "@/assets/images/Clothes-Category/Knitwear.png";
+import accessoriesPlaceholder from "@/assets/images/Accessories-Category/Accessories.png";
+import homeLivingPlaceholder from "@/assets/images/Home-&-Living-Category/Home-&-Living-Category.png";
+import collectionsPlaceholder from "@/assets/images/Collections-Category/Collections.png";
 import { Asset } from "expo-asset";
 import { useCreateDesign } from "@/lib/CreateDesignContext";
 import * as Haptics from "expo-haptics";
@@ -115,15 +115,40 @@ export default function CreateNewDesignTab() {
     const preloadAssets = async () => {
       try {
         await Asset.loadAsync([
-          require("@/assets/images/All-Shirts.png"),
-          require("@/assets/images/Hoodies-&-Sweatshirt.png"),
-          require("@/assets/images/Jackets-&-Vests-Category.png"),
-          require("@/assets/images/All-Bottoms.png"),
-          require("@/assets/images/Swimwear.png"),
-          require("@/assets/images/Knitwear.png"),
-          require("@/assets/images/Accessories.png"),
-          require("@/assets/images/Home-&-Living-Category.png"),
-          require("@/assets/images/Collections.png"),
+          require("@/assets/images/Clothes-Category/All-Shirts.png"),
+          require("@/assets/images/Clothes-Category/Hoodies-&-Sweatshirt.png"),
+          require("@/assets/images/Clothes-Category/Jackets-&-Vests-Category.png"),
+          require("@/assets/images/Clothes-Category/All-Bottoms.png"),
+          require("@/assets/images/Clothes-Category/Swimwear.png"),
+          require("@/assets/images/Clothes-Category/Knitwear.png"),
+          require("@/assets/images/Accessories-Category/Accessories.png"),
+          require("@/assets/images/Home-&-Living-Category/Home-&-Living-Category.png"),
+          require("@/assets/images/Collections-Category/Collections.png"),
+          require("@/assets/images/Accessories-Category/Bags.png"),
+          require("@/assets/images/Accessories-Category/Face-Masks.png"),
+          require("@/assets/images/Accessories-Category/Footwear.png"),
+          require("@/assets/images/Accessories-Category/Patches.png"),
+          require("@/assets/images/Accessories-Category/Hair-Accessories.png"),
+          require("@/assets/images/Accessories-Category/Tech.png"),
+          require("@/assets/images/Accessories-Category/Pins.png"),
+          require("@/assets/images/Accessories-Category/Sports-Accessories.png"),
+          require("@/assets/images/Home-&-Living-Category/Home-&-Living-Category.png"),
+          require("@/assets/images/Home-&-Living-Category/Wall-Art.png"),
+          require("@/assets/images/Home-&-Living-Category/Towels.png"),
+          require("@/assets/images/Home-&-Living-Category/Aprons.png"),
+          require("@/assets/images/Home-&-Living-Category/Drinkware-&-Coasters.png"),
+          require("@/assets/images/Home-&-Living-Category/Pet-Products.png"),
+          require("@/assets/images/Home-&-Living-Category/Stationery.png"),
+          require("@/assets/images/Home-&-Living-Category/Home-Decor.png"),
+          require("@/assets/images/Home-&-Living-Category/Beauty.png"),
+          require("@/assets/images/Collections-Category/Sportswear.png"),
+          require("@/assets/images/Collections-Category/Streetwear.png"),
+          require("@/assets/images/Collections-Category/Beachwear.png"),
+          require("@/assets/images/Collections-Category/Eco-Friendly.png"),
+          require("@/assets/images/Collections-Category/Gifts.png"),
+          require("@/assets/images/Collections-Category/New-Products.png"),
+          require("@/assets/images/Collections-Category/Back-To-School.png"),
+          require("@/assets/images/Collections-Category/Collections.png"),
         ]);
         console.log("✅ Placeholder images preloaded");
       } catch (err) {

@@ -1,5 +1,21 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, useColorScheme as useDeviceColorScheme, ActivityIndicator, Animated, TextInput, Alert, Modal } from "react-native";
+import {
+  View,
+  Text,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
+  useColorScheme as useDeviceColorScheme,
+  ActivityIndicator,
+  Animated,
+  TextInput,
+  Alert,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { MotiView } from "moti";
@@ -118,7 +134,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     stepContainerNew: {
       alignItems: "center",
       zIndex: 1,
-      backgroundColor: theme.background,
+      backgroundColor: "transparent",
       paddingHorizontal: 2,
       marginHorizontal: -2,
     },
@@ -663,10 +679,7 @@ export default function DesignScreen() {
         console.log("No Muse selected, using generic prompt.");
       }
 
-      const museGuidanceSection = museString
-        ? `\nMuse Guidance (weight: +persona alignment)\n   - ${museString}\n`
-        : "";
-
+      const museGuidanceSection = museString ? `\nMuse Guidance (weight: +persona alignment)\n   - ${museString}\n` : "";
 
       // Maher's prompt
       const tempMuseString = `[ROLE]
@@ -714,21 +727,17 @@ Keywords: streetwear design, front graphic, organic layout, color harmony, premi
 ---
 [OUTPUT GOAL]
 Produce a hyper-realistic, original front graphic design inspired by the uploaded images —
-fresh, conceptually connected, and visually stunning enough for a premium streetwear T-shirt print.`;
+fresh, conceptually connected, and visually stunning enough for a premium streetwear T-shirt print. Also do not create the design on a T-shirt or any other product. Just the design by itself.`;
 
+      // Our prompt
 
-
-// Our prompt
-
-// const tempMuseString = usingSecond
-//         ? `Take the first image and the second image, merge them into one cohesive image that makes sense. ${
-//             museString ? `I want you to make the whole image theme based off of this description: ${museString}` : ""
-//           }`
-//         : `Use the first image to generate an appealing, well-composed design based on the image provided. ${
-//             museString ? `I want you to make the whole image theme based off of this description: ${museString}` : ""
-//           }`;
-
-
+      // const tempMuseString = usingSecond
+      //         ? `Take the first image and the second image, merge them into one cohesive image that makes sense. ${
+      //             museString ? `I want you to make the whole image theme based off of this description: ${museString}` : ""
+      //           }`
+      //         : `Use the first image to generate an appealing, well-composed design based on the image provided. ${
+      //             museString ? `I want you to make the whole image theme based off of this description: ${museString}` : ""
+      //           }`;
 
       const endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent";
 
@@ -1006,78 +1015,80 @@ fresh, conceptually connected, and visually stunning enough for a premium street
       />
       <ProgressBar />
 
-      <ScrollView ref={designScrollViewRef} style={styles.scrollView} contentContainerStyle={styles.designContent} showsVerticalScrollIndicator={false}>
-        <Text style={styles.designUploadTitle}>upload up to 2 inspo images</Text>
-        <Text style={styles.designUploadPrompt}>Tap the first box to add an image</Text>
-        <View style={styles.imagePreviewContainer}>
-          <View style={styles.imagePreviewWrapper}>
-            <View style={styles.imagePreviewBox}>
-              {uploadedImages.left ? (
-                <View style={styles.imageWithDelete}>
-                  <Image source={{ uri: uploadedImages.left }} style={styles.previewImage} />
-                  <TouchableOpacity style={styles.deleteButton} onPress={() => deleteImage("left")}>
-                    <Text style={styles.deleteButtonText}>×</Text>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <ScrollView ref={designScrollViewRef} style={styles.scrollView} contentContainerStyle={styles.designContent} showsVerticalScrollIndicator={false}>
+          <Text style={styles.designUploadTitle}>upload up to 2 inspo images</Text>
+          <Text style={styles.designUploadPrompt}>Tap the first box to add an image</Text>
+          <View style={styles.imagePreviewContainer}>
+            <View style={styles.imagePreviewWrapper}>
+              <View style={styles.imagePreviewBox}>
+                {uploadedImages.left ? (
+                  <View style={styles.imageWithDelete}>
+                    <Image source={{ uri: uploadedImages.left }} style={styles.previewImage} />
+                    <TouchableOpacity style={styles.deleteButton} onPress={() => deleteImage("left")}>
+                      <Text style={styles.deleteButtonText}>×</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity style={styles.emptyImageBox} onPress={() => handleImageAdd("left")}>
+                    <Ionicons name="add-circle-outline" size={width * 0.28} color={theme.text} />
                   </TouchableOpacity>
-                </View>
-              ) : (
-                <TouchableOpacity style={styles.emptyImageBox} onPress={() => handleImageAdd("left")}>
-                  <Ionicons name="add-circle-outline" size={width * 0.28} color={theme.text} />
-                </TouchableOpacity>
-              )}
-            </View>
-            <Text style={styles.imagePreviewLabel}>image #1</Text>
-          </View>
-
-          <View style={styles.imagePreviewWrapper}>
-            <View style={styles.imagePreviewBox}>
-              {uploadedImages.right ? (
-                <View style={styles.imageWithDelete}>
-                  <Image source={{ uri: uploadedImages.right }} style={styles.previewImage} />
-                  <TouchableOpacity style={styles.deleteButton} onPress={() => deleteImage("right")}>
-                    <Text style={styles.deleteButtonText}>×</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <TouchableOpacity style={styles.emptyImageBox} onPress={() => handleImageAdd("right")} disabled={!uploadedImages.left}>
-                  <Ionicons name="add-circle-outline" size={width * 0.28} color={!uploadedImages.left ? theme.tabIconDefault : theme.text} />
-                </TouchableOpacity>
-              )}
-            </View>
-            <Text style={[styles.imagePreviewLabel, !uploadedImages.left && styles.imagePreviewLabelDisabled]}>image #2</Text>
-          </View>
-        </View>
-        {generatedImage && (
-          <MotiView from={{ opacity: 0, scale: 0.9, translateY: 20 }} animate={{ opacity: 1, scale: 1, translateY: 0 }} transition={{ type: "timing", duration: 400 }}>
-            <View style={styles.generatedDesignContainer}>
-              <TouchableOpacity style={styles.deleteGeneratedButton} onPress={deleteGeneratedImage}>
-                <Text style={styles.deleteGeneratedButtonText}>×</Text>
-              </TouchableOpacity>
-              <Text style={styles.generatedDesignTitle}>Generated Design</Text>
-              <TouchableOpacity onPress={() => handleImageZoom(generatedImage)}>
-                <Image source={{ uri: generatedImage }} style={styles.generatedDesignImage} />
-              </TouchableOpacity>
-              <TextInput style={styles.input} placeholder="Type adjustments for a remix..." placeholderTextColor={theme.secondaryText} value={prompt} onChangeText={setPrompt} />
-              <View style={styles.designActionRow}>
-                <TouchableOpacity style={[styles.designControlButton, isProcessing && { opacity: 0.7 }]} onPress={handleRemix} disabled={isProcessing}>
-                  <Text style={styles.designControlButtonText}>Remix</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.designControlButtonPrimary, isProcessing && { opacity: 0.7 }]} onPress={putImageOnItem} disabled={isProcessing}>
-                  <Text style={styles.designControlButtonPrimaryText}>Apply to Item</Text>
-                </TouchableOpacity>
+                )}
               </View>
+              <Text style={styles.imagePreviewLabel}>image #1</Text>
             </View>
-          </MotiView>
-        )}
-        {!generatedImage && (
-          <TouchableOpacity
-            onPress={GenerateFinalDesign}
-            style={[styles.finalGenerateButton, isProcessing && { opacity: 0.7 }, !uploadedImages.left && styles.disabledButton]}
-            disabled={isProcessing || !uploadedImages.left}
-          >
-            <Text style={styles.finalGenerateButtonText}>Generate Design</Text>
-          </TouchableOpacity>
-        )}
-      </ScrollView>
+
+            <View style={styles.imagePreviewWrapper}>
+              <View style={styles.imagePreviewBox}>
+                {uploadedImages.right ? (
+                  <View style={styles.imageWithDelete}>
+                    <Image source={{ uri: uploadedImages.right }} style={styles.previewImage} />
+                    <TouchableOpacity style={styles.deleteButton} onPress={() => deleteImage("right")}>
+                      <Text style={styles.deleteButtonText}>×</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity style={styles.emptyImageBox} onPress={() => handleImageAdd("right")} disabled={!uploadedImages.left}>
+                    <Ionicons name="add-circle-outline" size={width * 0.28} color={!uploadedImages.left ? theme.tabIconDefault : theme.text} />
+                  </TouchableOpacity>
+                )}
+              </View>
+              <Text style={[styles.imagePreviewLabel, !uploadedImages.left && styles.imagePreviewLabelDisabled]}>image #2</Text>
+            </View>
+          </View>
+          {generatedImage && (
+            <MotiView from={{ opacity: 0, scale: 0.9, translateY: 20 }} animate={{ opacity: 1, scale: 1, translateY: 0 }} transition={{ type: "timing", duration: 400 }}>
+              <View style={styles.generatedDesignContainer}>
+                <TouchableOpacity style={styles.deleteGeneratedButton} onPress={deleteGeneratedImage}>
+                  <Text style={styles.deleteGeneratedButtonText}>×</Text>
+                </TouchableOpacity>
+                <Text style={styles.generatedDesignTitle}>Generated Design</Text>
+                <TouchableOpacity onPress={() => handleImageZoom(generatedImage)}>
+                  <Image source={{ uri: generatedImage }} style={styles.generatedDesignImage} />
+                </TouchableOpacity>
+                <TextInput style={styles.input} placeholder="Type adjustments for a remix..." placeholderTextColor={theme.secondaryText} value={prompt} onChangeText={setPrompt} />
+                <View style={styles.designActionRow}>
+                  <TouchableOpacity style={[styles.designControlButton, isProcessing && { opacity: 0.7 }]} onPress={handleRemix} disabled={isProcessing}>
+                    <Text style={styles.designControlButtonText}>Remix</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.designControlButtonPrimary, isProcessing && { opacity: 0.7 }]} onPress={putImageOnItem} disabled={isProcessing}>
+                    <Text style={styles.designControlButtonPrimaryText}>Apply to Item</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </MotiView>
+          )}
+          {!generatedImage && (
+            <TouchableOpacity
+              onPress={GenerateFinalDesign}
+              style={[styles.finalGenerateButton, isProcessing && { opacity: 0.7 }, !uploadedImages.left && styles.disabledButton]}
+              disabled={isProcessing || !uploadedImages.left}
+            >
+              <Text style={styles.finalGenerateButtonText}>Generate Design</Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Image Zoom Modal */}
       <Modal transparent={true} visible={!!selectedImageUrlForZoom} onRequestClose={() => setSelectedImageUrlForZoom(null)}>

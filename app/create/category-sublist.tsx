@@ -7,14 +7,43 @@ import { Colors } from "@/constants/Colors";
 import { useCreateDesign } from "../../lib/CreateDesignContext";
 import { Ionicons } from "@expo/vector-icons";
 import { MuseCoin } from "@/assets/svg/MuseCoin";
-import tshirtPlaceholder from "@/assets/images/All-Shirts.png";
-import hoodiePlaceholder from "@/assets/images/Hoodies-&-Sweatshirt.png";
-import jacketsPlaceholder from "@/assets/images/Jackets-&-Vests-Category.png";
-import bottomsPlaceholder from "@/assets/images/All-Bottoms.png";
-import swimwearPlaceholder from "@/assets/images/Swimwear.png";
-import knitwearPlaceholder from "@/assets/images/Knitwear.png";
-import accessoriesPlaceholder from "@/assets/images/Accessories.png";
-import homeLivingPlaceholder from "@/assets/images/Home-&-Living-Category.png";
+import tshirtPlaceholder from "@/assets/images/Clothes-Category/All-Shirts.png";
+import hoodiePlaceholder from "@/assets/images/Clothes-Category/Hoodies-&-Sweatshirt.png";
+import jacketsPlaceholder from "@/assets/images/Clothes-Category/Jackets-&-Vests-Category.png";
+import bottomsPlaceholder from "@/assets/images/Clothes-Category/All-Bottoms.png";
+import swimwearPlaceholder from "@/assets/images/Clothes-Category/Swimwear.png";
+import knitwearPlaceholder from "@/assets/images/Clothes-Category/Knitwear.png";
+import accessoriesPlaceholder from "@/assets/images/Accessories-Category/Accessories.png";
+import hatsPlaceholder from "@/assets/images/Accessories-Category/Accessories.png"; // Renamed from accessoriesPlaceholder
+import bagsPlaceholder from "@/assets/images/Accessories-Category/Bags.png";
+import faceMasksPlaceholder from "@/assets/images/Accessories-Category/Face-Masks.png";
+import footwearPlaceholder from "@/assets/images/Accessories-Category/Footwear.png";
+import patchesPlaceholder from "@/assets/images/Accessories-Category/Patches.png";
+import hairAccessoriesPlaceholder from "@/assets/images/Accessories-Category/Hair-Accessories.png";
+import techPlaceholder from "@/assets/images/Accessories-Category/Tech.png";
+import pinsPlaceholder from "@/assets/images/Accessories-Category/Pins.png";
+import sportsAccessoriesPlaceholder from "@/assets/images/Accessories-Category/Sports-Accessories.png";
+import homeLivingPlaceholder from "@/assets/images/Home-&-Living-Category/Home-&-Living-Category.png";
+// --- HOME & LIVING IMPORTS ---
+import wallArtPlaceholder from "@/assets/images/Home-&-Living-Category/Wall-Art.png";
+import towelsPlaceholder from "@/assets/images/Home-&-Living-Category/Towels.png";
+import apronsPlaceholder from "@/assets/images/Home-&-Living-Category/Aprons.png";
+import drinkwarePlaceholder from "@/assets/images/Home-&-Living-Category/Drinkware-&-Coasters.png";
+import petProductsPlaceholder from "@/assets/images/Home-&-Living-Category/Pet-Products.png";
+import stationeryPlaceholder from "@/assets/images/Home-&-Living-Category/Stationery.png";
+import homeDecorPlaceholder from "@/assets/images/Home-&-Living-Category/Home-Decor.png";
+import beautyPlaceholder from "@/assets/images/Home-&-Living-Category/Beauty.png";
+import toysAndGamesPlaceholder from "@/assets/images/Home-&-Living-Category/Toys-&-Games.png";
+// --- NEW COLLECTIONS IMPORTS ---
+import sportswearPlaceholder from "@/assets/images/Collections-Category/Sportswear.png";
+import streetwearPlaceholder from "@/assets/images/Collections-Category/Streetwear.png";
+import beachwearPlaceholder from "@/assets/images/Collections-Category/Beachwear.png";
+import ecoFriendlyPlaceholder from "@/assets/images/Collections-Category/Eco-Friendly.png";
+import giftsPlaceholder from "@/assets/images/Collections-Category/Gifts.png";
+import newProductsPlaceholder from "@/assets/images/Collections-Category/New-Products.png";
+import backToSchoolPlaceholder from "@/assets/images/Collections-Category/Back-To-School.png";
+import collectionsPlaceholder from "@/assets/images/Collections-Category/Collections.png";
+
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 
@@ -46,7 +75,8 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       justifyContent: "center", // Center vertically
       alignItems: "center", // Center horizontally
     },
-    categoryImage: { // just made the width and height from 100% to 80% to better fit the container 
+    categoryImage: {
+      // just made the width and height from 100% to 80% to better fit the container
       width: "80%", // Take up full width/height of container by default
       height: "80%",
       borderTopLeftRadius: 16,
@@ -66,6 +96,10 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
       height: "80%",
     },
     customHomeLivingImage: {
+      width: "80%",
+      height: "80%",
+    },
+    customCollectionsImage: {
       width: "80%",
       height: "80%",
     },
@@ -342,43 +376,143 @@ export default function CategorySublistScreen() {
           {gridCategories.map((category, index) => (
             <MotiView key={category.id} from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "timing", duration: 300, delay: index * 50 }}>
               <TouchableOpacity style={styles.categoryCard} onPress={() => handleCategorySelect(category)}>
-                <View style={styles.imageContainer}>
-                  <Image
-                    source={
-                      category.title.toLowerCase().includes("all shirts")
-                        ? tshirtPlaceholder
-                        : category.title.toLowerCase().includes("all hoodies")
-                        ? hoodiePlaceholder
-                        : category.title.toLowerCase().includes("jackets & vests")
-                        ? jacketsPlaceholder
-                        : category.title.toLowerCase().includes("all bottoms")
-                        ? bottomsPlaceholder
-                        : category.title.toLowerCase().includes("swimwear")
-                        ? swimwearPlaceholder
-                        : category.title.toLowerCase().includes("knitwear")
-                        ? knitwearPlaceholder
-                        : category.title.toLowerCase().includes("accessories")
-                        ? accessoriesPlaceholder
-                        : category.title.toLowerCase().includes("home & living")
-                        ? homeLivingPlaceholder
-                        : { uri: category.image_url }
-                    }
-                    style={[
-                      styles.categoryImage,
-                      { opacity: 0.95 },
-                      category.title.toLowerCase().includes("swimwear") && styles.customSwimwearImage,
-                      category.title.toLowerCase().includes("knitwear") && styles.customKnitwearImage,
-                      category.title.toLowerCase().includes("accessories") && styles.customAccessoriesImage,
-                      category.title.toLowerCase().includes("home & living") && styles.customHomeLivingImage,
-                      category.title.toLowerCase().includes("all shirts") && styles.customAllShirtsImage,
-                      category.title.toLowerCase().includes("all hoodies") && styles.customHoodiesImage, // NEW CONDITION
-                    ]}
-                    resizeMode="contain"
-                  />
-                </View>
-                <Text style={styles.categoryTitle} numberOfLines={2}>
-                  {category.title.toUpperCase()}
-                </Text>
+                {((): React.ReactNode => {
+                  const categoryTitleLower = category.title.toLowerCase();
+                  return (
+                    <>
+                      <View style={styles.imageContainer}>
+                        <Image
+                          source={
+                            categoryTitleLower.includes("all shirts")
+                              ? tshirtPlaceholder
+                              : categoryTitleLower.includes("all hoodies")
+                              ? hoodiePlaceholder
+                              : categoryTitleLower.includes("jackets & vests")
+                              ? jacketsPlaceholder
+                              : categoryTitleLower.includes("all bottoms")
+                              ? bottomsPlaceholder
+                              : categoryTitleLower.includes("swimwear")
+                              ? swimwearPlaceholder
+                              : categoryTitleLower.includes("knitwear")
+                              ? knitwearPlaceholder
+                              : // --- ACCESSORIES LOGIC START ---
+                              categoryTitleLower.includes("hats")
+                              ? hatsPlaceholder
+                              : categoryTitleLower.includes("bags")
+                              ? bagsPlaceholder
+                              : categoryTitleLower.includes("face masks")
+                              ? faceMasksPlaceholder
+                              : categoryTitleLower.includes("footwear")
+                              ? footwearPlaceholder
+                              : categoryTitleLower.includes("patches")
+                              ? patchesPlaceholder
+                              : categoryTitleLower.includes("hair accessories")
+                              ? hairAccessoriesPlaceholder
+                              : categoryTitleLower.includes("tech") // For "Tech Accessories"
+                              ? techPlaceholder
+                              : categoryTitleLower.includes("pins")
+                              ? pinsPlaceholder
+                              : categoryTitleLower.includes("sports accessories")
+                              ? sportsAccessoriesPlaceholder
+                              : categoryTitleLower.includes("accessories") // Generic fallback for "Accessories"
+                              ? hatsPlaceholder // Use hat image as the generic accessory placeholder
+                              : // --- ACCESSORIES LOGIC END ---
+
+                              // --- HOME & LIVING LOGIC START ---
+                              categoryTitleLower.includes("wall art")
+                              ? wallArtPlaceholder
+                              : categoryTitleLower.includes("towels")
+                              ? towelsPlaceholder
+                              : categoryTitleLower.includes("aprons")
+                              ? apronsPlaceholder
+                              : categoryTitleLower.includes("drinkware & coasters")
+                              ? drinkwarePlaceholder
+                              : categoryTitleLower.includes("pet products")
+                              ? petProductsPlaceholder
+                              : categoryTitleLower.includes("stationery")
+                              ? stationeryPlaceholder
+                              : categoryTitleLower.includes("home decor")
+                              ? homeDecorPlaceholder
+                              : categoryTitleLower.includes("beauty")
+                              ? beautyPlaceholder
+                              : categoryTitleLower.includes("toys & games")
+                              ? toysAndGamesPlaceholder
+                              : categoryTitleLower.includes("home & living")
+                              ? homeLivingPlaceholder
+                              : // --- HOME & LIVING LOGIC END ---
+
+                              // --- NEW COLLECTIONS LOGIC START ---
+                              categoryTitleLower.includes("sportswear")
+                              ? sportswearPlaceholder
+                              : categoryTitleLower.includes("streetwear")
+                              ? streetwearPlaceholder
+                              : categoryTitleLower.includes("beachwear")
+                              ? beachwearPlaceholder
+                              : categoryTitleLower.includes("eco-friendly")
+                              ? ecoFriendlyPlaceholder
+                              : categoryTitleLower.includes("gifts")
+                              ? giftsPlaceholder
+                              : categoryTitleLower.includes("new products")
+                              ? newProductsPlaceholder
+                              : categoryTitleLower.includes("back to school")
+                              ? backToSchoolPlaceholder
+                              : categoryTitleLower.includes("collections")
+                              ? collectionsPlaceholder
+                              : // --- NEW COLLECTIONS LOGIC END ---
+                                { uri: category.image_url }
+                          }
+                          style={[
+                            styles.categoryImage,
+                            { opacity: 0.95 },
+                            categoryTitleLower.includes("swimwear") && styles.customSwimwearImage,
+                            categoryTitleLower.includes("knitwear") && styles.customKnitwearImage,
+                            (categoryTitleLower.includes("accessories") ||
+                              categoryTitleLower.includes("hats") ||
+                              categoryTitleLower.includes("bags") ||
+                              categoryTitleLower.includes("face masks") ||
+                              categoryTitleLower.includes("footwear") ||
+                              categoryTitleLower.includes("patches") ||
+                              categoryTitleLower.includes("hair accessories") ||
+                              categoryTitleLower.includes("tech") ||
+                              categoryTitleLower.includes("pins") ||
+                              categoryTitleLower.includes("sports accessories")) &&
+                              styles.customAccessoriesImage,
+                            (categoryTitleLower.includes("home & living") ||
+                              categoryTitleLower.includes("wall art") ||
+                              categoryTitleLower.includes("towels") ||
+                              categoryTitleLower.includes("aprons") ||
+                              categoryTitleLower.includes("drinkware & coasters") ||
+                              categoryTitleLower.includes("pet products") ||
+                              categoryTitleLower.includes("stationery") ||
+                              categoryTitleLower.includes("home decor") ||
+                              categoryTitleLower.includes("beauty") ||
+                              categoryTitleLower.includes("toys & games")) &&
+                              styles.customHomeLivingImage,
+
+                            // --- NEW COLLECTION STYLE LOGIC ---
+                            (categoryTitleLower.includes("collections") ||
+                              categoryTitleLower.includes("sportswear") ||
+                              categoryTitleLower.includes("streetwear") ||
+                              categoryTitleLower.includes("beachwear") ||
+                              categoryTitleLower.includes("eco-friendly") ||
+                              categoryTitleLower.includes("gifts") ||
+                              categoryTitleLower.includes("new products") ||
+                              categoryTitleLower.includes("back to school")) &&
+                              styles.customCollectionsImage,
+                            // --- END COLLECTION STYLE LOGIC ---
+
+                            categoryTitleLower.includes("all shirts") && styles.customAllShirtsImage,
+                            categoryTitleLower.includes("all hoodies") && styles.customHoodiesImage,
+                          ]}
+                          resizeMode="contain"
+                        />
+                      </View>
+                      <Text style={styles.categoryTitle} numberOfLines={2}>
+                        {category.title.toUpperCase()}
+                      </Text>
+                    </>
+                  );
+                })()}
               </TouchableOpacity>
             </MotiView>
           ))}
