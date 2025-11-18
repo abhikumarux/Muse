@@ -16,6 +16,8 @@ import {
   Alert,
   Modal,
   FlatList,
+  KeyboardAvoidingView, // Added
+  Platform, // Added
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -332,7 +334,7 @@ const ProgressBar = () => {
 
   // This is now hardcoded to step 3
   const currentStep = 3;
-  const progress = useRef(new Animated.Value(0)).current; 
+  const progress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.timing(progress, {
@@ -572,86 +574,89 @@ export default function ViewFinalDesignScreen() {
       <ProgressBar />
 
       {/* --- MODIFIED JSX STRUCTURE --- */}
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.finalDesignContent}>
-        <Text style={styles.finalDesignProductText}>
-          Selected: {selectedProduct?.title} ({selectedColor?.color}, {selectedSize})
-        </Text>
-        {mockupImages.length > 0 ? (
-          <View style={styles.mockupContainer}>
-            <Text style={styles.mockupTitle}>Your Design on Product</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mockupScrollView} contentContainerStyle={styles.mockupScrollContent}>
-              {mockupImages.map((mockupUrl, index) => (
-                <TouchableOpacity key={index} onPress={() => handleImageZoom(index)} style={styles.mockupWrapper}>
-                  <View style={styles.mockupImageContainer}>
-                    <Image source={{ uri: mockupUrl }} style={styles.mockupImage} resizeMode="cover" />
-                  </View>
-                  <Text style={styles.mockupImageLabel}>View {index + 1}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+      {/* --- ADD KEYBOARD AVOIDING VIEW --- */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }} // Make it take up the remaining space
+      >
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.finalDesignContent}>
+          <Text style={styles.finalDesignProductText}>
+            Selected: {selectedProduct?.title} ({selectedColor?.color}, {selectedSize})
+          </Text>
+          {mockupImages.length > 0 ? (
+            <View style={styles.mockupContainer}>
+              <Text style={styles.mockupTitle}>Your Design on Product</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mockupScrollView} contentContainerStyle={styles.mockupScrollContent}>
+                {mockupImages.map((mockupUrl, index) => (
+                  <TouchableOpacity key={index} onPress={() => handleImageZoom(index)} style={styles.mockupWrapper}>
+                    <View style={styles.mockupImageContainer}>
+                      <Image source={{ uri: mockupUrl }} style={styles.mockupImage} resizeMode="cover" />
+                    </View>
+                    <Text style={styles.mockupImageLabel}>View {index + 1}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          ) : (
+            <View style={styles.noMockupContainer}>
+              <Text style={styles.noMockupText}>No mockups available</Text>
+            </View>
+          )}
+          <TextInput style={styles.input} placeholder="Type adjustments for a remix..." placeholderTextColor={theme.secondaryText} value={prompt} onChangeText={setPrompt} />
+          <View style={styles.finalDesignButtonRow}>
+            {/* ADD TO STORE Button with Icon */}
+            <TouchableOpacity
+              style={styles.designControlButton}
+              onPress={() => {
+                if (!mockupUrls || mockupUrls.length === 0) {
+                  Alert.alert("Error", "No mockups to add.");
+                  return;
+                }
+                addToStore(mockupUrls);
+              }}
+              disabled={isProcessing}
+            >
+              {/* Using fill={theme.text} */}
+              <Ionicons name="storefront-outline" size={32} color={theme.text} style={styles.designButtonIcon} />
+              <Text style={styles.designControlButtonText}>ADD TO STORE</Text>
+            </TouchableOpacity>
+            {/* REMIX Button with Icon */}
+            <TouchableOpacity style={[styles.designControlButton, isProcessing && { opacity: 0.7 }]} onPress={handleRemix} disabled={isProcessing}>
+              {/* Using fill={theme.text} */}
+              <RemixIcon fill={theme.text} style={styles.designButtonIcon} width={32} height={32} />
+              <Text style={styles.designControlButtonText}>REMIX</Text>
+            </TouchableOpacity>
           </View>
-        ) : (
-          <View style={styles.noMockupContainer}>
-            <Text style={styles.noMockupText}>No mockups available</Text>
+          <View style={styles.finalDesignButtonRow}>
+            {/* SAVE DESIGN Button with Icon */}
+            <TouchableOpacity style={styles.designControlButton} onPress={handleSaveDesign} disabled={isSaving || isProcessing}>
+              {isSaving ? (
+                <ActivityIndicator color={theme.text} />
+              ) : (
+                <>
+                  {/* Using fill={theme.text} */}
+                  <SaveIcon fill={theme.text} style={styles.designButtonIcon} width={32} height={32} />
+                  <Text style={styles.designControlButtonText}>SAVE DESIGN</Text>
+                </>
+              )}
+            </TouchableOpacity>
+            {/* PHOTOSHOOT Button with Icon */}
+            <TouchableOpacity style={styles.designControlButton} onPress={handlePhotoshootPress} disabled={isProcessing}>
+              {/* Using fill={theme.text} */}
+              <ContentIcon fill={theme.text} style={styles.designButtonIcon} width={34} height={34} />
+              <Text style={styles.designControlButtonText}>PHOTOSHOOT</Text>
+            </TouchableOpacity>
           </View>
-        )}
-        <TextInput style={styles.input} placeholder="Type adjustments for a remix..." placeholderTextColor={theme.secondaryText} value={prompt} onChangeText={setPrompt} />
-        <View style={styles.finalDesignButtonRow}>
-          {/* ADD TO STORE Button with Icon */}
-          <TouchableOpacity
-            style={styles.designControlButton}
-            onPress={() => {
-              if (!mockupUrls || mockupUrls.length === 0) {
-                Alert.alert("Error", "No mockups to add.");
-                return;
-              }
-              addToStore(mockupUrls);
-            }}
-            disabled={isProcessing}
-          >
-            {/* Using fill={theme.text} */}
-            <Ionicons name="storefront-outline" size={32} color={theme.text} style={styles.designButtonIcon} />
-            <Text style={styles.designControlButtonText}>ADD TO STORE</Text>
-          </TouchableOpacity>
-          {/* REMIX Button with Icon */}
-          <TouchableOpacity style={[styles.designControlButton, isProcessing && { opacity: 0.7 }]} onPress={handleRemix} disabled={isProcessing}>
-            {/* Using fill={theme.text} */}
-            <RemixIcon fill={theme.text} style={styles.designButtonIcon} width={32} height={32} />
-            <Text style={styles.designControlButtonText}>REMIX</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.finalDesignButtonRow}>
-          {/* SAVE DESIGN Button with Icon */}
-          <TouchableOpacity style={styles.designControlButton} onPress={handleSaveDesign} disabled={isSaving || isProcessing}>
-            {isSaving ? (
-              <ActivityIndicator color={theme.text} />
-            ) : (
-              <>
-                {/* Using fill={theme.text} */}
-                <SaveIcon fill={theme.text} style={styles.designButtonIcon} width={32} height={32} />
-                <Text style={styles.designControlButtonText}>SAVE DESIGN</Text>
-              </>
-            )}
-          </TouchableOpacity>
-          {/* PHOTOSHOOT Button with Icon */}
-          <TouchableOpacity style={styles.designControlButton} onPress={handlePhotoshootPress} disabled={isProcessing}>
-            {/* Using fill={theme.text} */}
-            <ContentIcon fill={theme.text} style={styles.designButtonIcon} width={34} height={34} />
-            <Text style={styles.designControlButtonText}>PHOTOSHOOT</Text>
-          </TouchableOpacity>
-        </View>
 
-        {/* Floating "Start Over" Button -- MOVED INSIDE SCROLLVIEW */}
-        <View style={styles.startOverContainer}>
-          <TouchableOpacity style={styles.startOverButton} onPress={handleStartNewDesign}>
-            <Text style={styles.startOverButtonText}>START NEW DESIGN</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-
-      {/* This View is now gone from here */}
-
-      {/* --- END MODIFIED JSX --- */}
+          {/* Floating "Start Over" Button -- MOVED INSIDE SCROLLVIEW */}
+          <View style={styles.startOverContainer}>
+            <TouchableOpacity style={styles.startOverButton} onPress={handleStartNewDesign}>
+              <Text style={styles.startOverButtonText}>START NEW DESIGN</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+      {/* --- END KEYBOARD AVOIDING VIEW --- */}
 
       <Modal transparent={true} visible={selectedImageIndex !== null} onRequestClose={() => setSelectedImageIndex(null)}>
         <View style={styles.modalContainer}>

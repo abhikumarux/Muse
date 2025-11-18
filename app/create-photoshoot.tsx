@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert, Dimensions, TextInput, Share, Modal, FlatList, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert, Dimensions, TextInput, Share, Modal, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
@@ -367,7 +367,7 @@ export default function CreatePhotoshootScreen() {
   );
 
   const renderDetail = () => (
-    <ScrollView contentContainerStyle={styles.detailContent} showsVerticalScrollIndicator={false}>
+    <ScrollView contentContainerStyle={styles.detailContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
           <Ionicons name="arrow-back" size={22} color={theme.text} />
@@ -489,8 +489,13 @@ export default function CreatePhotoshootScreen() {
 
   return (
     <>
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]} edges={["top", "left", "right"]}>
-        {mode === "select" ? renderScenarioPicker() : renderDetail()}
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.photoshootModal }]} edges={["top", "left", "right"]}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }} // This makes it fill the available space
+          behavior={Platform.OS === "ios" ? "padding" : "height"} // This tells it *how* to avoid the keyboard
+        >
+          {mode === "select" ? renderScenarioPicker() : renderDetail()}
+        </KeyboardAvoidingView>
         <LoadingModal visible={isLoading} text={loadingText} lottieSource={PhotoshootLoader} lottieStyle={{ width: 250, height: 150 }} />
       </SafeAreaView>
 
