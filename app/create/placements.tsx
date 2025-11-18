@@ -1,17 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-  useColorScheme as useDeviceColorScheme,
-  ActivityIndicator,
-  Animated,
-  Alert, // Import Alert
-} from "react-native";
+import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Animated, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Colors } from "@/constants/Colors";
@@ -21,6 +9,7 @@ import { PrintFilesResponse } from "@/lib/types/printful";
 import { Ionicons } from "@expo/vector-icons";
 import { MuseCoin } from "@/assets/svg/MuseCoin";
 import * as Haptics from "expo-haptics"; // Import Haptics
+import { useColorScheme } from "@/hooks/useColorScheme";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 60) / 2;
@@ -240,7 +229,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
 
 // Header Component
 const ProductFlowHeader = ({ title, onBackPress }: { title: string; onBackPress?: () => void }) => {
-  const colorScheme = useDeviceColorScheme();
+  const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const styles = getStyles(theme);
 
@@ -274,7 +263,7 @@ const ProductFlowHeader = ({ title, onBackPress }: { title: string; onBackPress?
 
 // Progress Bar Component
 const ProgressBar = () => {
-  const colorScheme = useDeviceColorScheme();
+  const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const styles = getStyles(theme);
 
@@ -336,7 +325,7 @@ const ProgressBar = () => {
 };
 
 export default function PlacementsScreen() {
-  const colorScheme = useDeviceColorScheme();
+  const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const styles = getStyles(theme);
   const router = useRouter();

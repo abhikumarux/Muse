@@ -1,9 +1,10 @@
 import React, { useState, useCallback } from "react";
-import { View, Text, StyleSheet, Image, TouchableOpacity, Alert, useColorScheme as useDeviceColorScheme, Dimensions, FlatList, Modal, Pressable, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, Image, TouchableOpacity, Alert, Dimensions, FlatList, Modal, Pressable, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import { listPhotoshootsForCurrentUser, deletePhotoshoot, MusePhotoshootRow } from "@/lib/aws/savePhotoshoot";
 import { Colors } from "@/constants/Colors";
+import { useColorScheme } from "@/hooks/useColorScheme";
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
 
@@ -15,7 +16,7 @@ const formatDate = (iso?: string) => {
 };
 
 export default function SavedPhotoshootsScreen() {
-  const colorScheme = useDeviceColorScheme() ?? "light";
+  const colorScheme = useColorScheme() ?? "light";
   const theme = Colors[colorScheme];
   const router = useRouter();
 

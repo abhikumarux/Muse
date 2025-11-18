@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { StyleSheet, Text, View, TextInput, Pressable, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, Image, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "@/constants/Colors";
-import { useColorScheme as useDeviceColorScheme } from "@/hooks/useColorScheme";
+import { useColorScheme } from "@/hooks/useColorScheme";
 import { useRouter } from "expo-router";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { CognitoIdentityClient } from "@aws-sdk/client-cognito-identity";
@@ -20,7 +20,7 @@ import {
 } from "@/lib/config/constants";
 
 export default function CreateMuseScreen() {
-  const colorScheme = useDeviceColorScheme();
+  const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const styles = getStyles(theme);
   const router = useRouter();

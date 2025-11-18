@@ -7,8 +7,17 @@ import { UserProvider } from "../lib/UserContext";
 import { Colors } from "@/constants/Colors";
 import { CreateDesignProvider } from "../lib/CreateDesignContext";
 import React, { useMemo } from "react";
+import { ThemePreferenceProvider } from "@/lib/ThemePreferenceContext";
 
 export default function RootLayout() {
+  return (
+    <ThemePreferenceProvider>
+      <RootLayoutNav />
+    </ThemePreferenceProvider>
+  );
+}
+
+function RootLayoutNav() {
   const colorScheme = useColorScheme() ?? "light";
   const theme = Colors[colorScheme];
   const [fontsLoaded] = useFonts({

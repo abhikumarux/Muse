@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, useColorScheme as useDeviceColorScheme, Animated } from "react-native";
+import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, Animated } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { MotiView } from "moti";
@@ -38,6 +38,7 @@ import toysAndGamesPlaceholder from "@/assets/images/Home-&-Living-Category/Toys
 import sportswearPlaceholder from "@/assets/images/Collections-Category/Sportswear.png";
 import streetwearPlaceholder from "@/assets/images/Collections-Category/Streetwear.png";
 import beachwearPlaceholder from "@/assets/images/Collections-Category/Beachwear.png";
+import { useColorScheme } from "@/hooks/useColorScheme";
 import ecoFriendlyPlaceholder from "@/assets/images/Collections-Category/Eco-Friendly.png";
 import giftsPlaceholder from "@/assets/images/Collections-Category/Gifts.png";
 import newProductsPlaceholder from "@/assets/images/Collections-Category/New-Products.png";
@@ -187,7 +188,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
     },
   });
 const ProductFlowHeader = ({ title, onBackPress }: { title: string; onBackPress?: () => void }) => {
-  const colorScheme = useDeviceColorScheme();
+  const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const styles = getStyles(theme);
 
@@ -223,7 +224,7 @@ const ProgressBar = () => {
 };
 
 export default function CategorySublistScreen() {
-  const colorScheme = useDeviceColorScheme();
+  const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const styles = getStyles(theme);
   const router = useRouter();

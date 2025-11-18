@@ -1,11 +1,12 @@
 import React from "react";
-import { View, Text, Modal, StyleSheet, useColorScheme } from "react-native";
+import { View, Text, Modal, StyleSheet } from "react-native";
 import LottieView from "lottie-react-native";
 import { MotiView } from "moti";
 import { Colors } from "@/constants/Colors";
 import { StatusBar } from "expo-status-bar";
 // DEFAULT loader here
 import DefaultLoader from "@/assets/lottie/loader8.json";
+import { useColorScheme } from "@/hooks/useColorScheme";
 
 // Define the types for the props
 type LoadingModalProps = {

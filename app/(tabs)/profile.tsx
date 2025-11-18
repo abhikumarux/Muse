@@ -26,7 +26,6 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, interpolate, Ex
 import { MotiView } from "moti";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
-import { useColorScheme } from "react-native";
 import { Colors } from "@/constants/Colors";
 import { useUser } from "../../lib/UserContext";
 import { getIdTokenFromStorage } from "../../lib/aws/auth";
@@ -39,6 +38,8 @@ import * as Haptics from "expo-haptics";
 import ColorPicker from "react-native-wheel-color-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
+import { useColorScheme } from "@/hooks/useColorScheme";
+import { useThemePreference } from "@/lib/ThemePreferenceContext";
 
 const { width, height } = Dimensions.get("window");
 const SHEET_HEIGHT = Math.round(Math.min(height * 0.5, 720));
@@ -48,6 +49,7 @@ const DEFAULT_AVATAR = "https://i.pravatar.cc/300";
 
 export default function AnimatedProfile() {
   const colorScheme = useColorScheme() ?? "light";
+  const themePreference = useThemePreference();
   const theme = Colors[colorScheme];
   const router = useRouter();
   const { name: userName, printfulApiKey, currentStoreId, signOutLocal } = useUser();
@@ -216,6 +218,13 @@ export default function AnimatedProfile() {
         },
       },
     ]);
+  };
+
+  const handleToggleTheme = (value: boolean) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (themePreference?.setPreference) {
+      themePreference.setPreference(value ? "dark" : "system");
+    }
   };
 
   async function fetchStores() {
@@ -431,13 +440,25 @@ export default function AnimatedProfile() {
             <View style={styles.settingRow}>
               <Ionicons name="moon-outline" size={20} color={theme.tint} />
               <Text style={[styles.settingLabel, { color: theme.text }]}>Dark Mode</Text>
-              <Switch value={colorScheme === "dark"} trackColor={{ false: "#767577", true: "#0a7ea4" }} />
+              <Switch
+                value={themePreference?.preference === "dark"}
+                trackColor={{ false: "#767577", true: "#0a7ea4" }}
+                thumbColor={colorScheme === "dark" ? theme.background : "#f4f3f4"}
+                onValueChange={handleToggleTheme}
+              />
             </View>
+            {/*
             <View style={styles.settingRow}>
               <Ionicons name="notifications-outline" size={20} color={theme.tint} />
               <Text style={[styles.settingLabel, { color: theme.text }]}>Notifications</Text>
-              <Switch value={colorScheme === "dark"} trackColor={{ false: "#767577", true: "#0a7ea4" }} />
+              <Switch
+                value={notificationsEnabled}
+                trackColor={{ false: "#767577", true: "#0a7ea4" }}
+                thumbColor={notificationsEnabled ? theme.background : "#f4f3f4"}
+                onValueChange={handleToggleNotifications}
+              />
             </View>
+            */}
           </BlurView>
         </MotiView>
 

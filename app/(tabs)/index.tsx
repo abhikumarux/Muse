@@ -1,20 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import {
-  useColorScheme as useDeviceColorScheme,
-  Animated,
-  Alert,
-  Modal,
-  View,
-  Text,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-  ActivityIndicator,
-  Platform,
-  TouchableWithoutFeedback,
-} from "react-native";
+import { Animated, Alert, Modal, View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Platform, TouchableWithoutFeedback } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as FileSystem from "expo-file-system/legacy";
 import { MotiView } from "moti";
@@ -45,6 +30,7 @@ import { CollectionsIcon } from "@/assets/svg/CollectionsIcon"; // <--- ADDED Co
 import { Asset } from "expo-asset";
 import { useCreateDesign } from "@/lib/CreateDesignContext";
 import * as Haptics from "expo-haptics";
+import { useColorScheme } from "@/hooks/useColorScheme";
 
 LogBox.ignoreLogs(["Warning: ..."]);
 LogBox.ignoreAllLogs();
@@ -56,7 +42,7 @@ const MUSE_ITEM_SPACING = (width - MUSE_ITEM_WIDTH) / 2;
 const MUSE_CARD_ASPECT_RATIO = 1.25;
 
 export default function CreateNewDesignTab() {
-  const colorScheme = useDeviceColorScheme();
+  const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const styles = getStyles(theme);
   const router = useRouter();

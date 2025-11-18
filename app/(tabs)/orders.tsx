@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from "react";
-import { View, Text, StyleSheet, Image, TouchableOpacity, Alert, useColorScheme as useDeviceColorScheme, Dimensions, FlatList } from "react-native";
+import { View, Text, StyleSheet, Image, TouchableOpacity, Alert, Dimensions, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useUser } from "@/lib/UserContext";
@@ -10,10 +10,11 @@ import * as Haptics from "expo-haptics";
 import ColorSwatch from "@/components/ColorSwatch";
 import { LoadingModal } from "@/components/ui/LoadingModal";
 import { MotiView } from "moti";
+import { useColorScheme } from "@/hooks/useColorScheme";
 const { width } = Dimensions.get("window");
 
 export default function OrdersScreen() {
-  const colorScheme = useDeviceColorScheme() ?? "light";
+  const colorScheme = useColorScheme() ?? "light";
   const theme = Colors[colorScheme];
   const router = useRouter();
 

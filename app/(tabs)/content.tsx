@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useColorScheme as useDeviceColorScheme, View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -21,7 +21,7 @@ const scenarioIsStudio = (scenario: PhotoshootScenario) => scenario.category ===
 const getDisplayTitle = (title: string) => title.replace(STUDIO_TAG_REGEX, "").trim();
 
 export default function ContentTab() {
-  const colorScheme = useDeviceColorScheme();
+  const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const styles = getStyles(theme);
   const router = useRouter();

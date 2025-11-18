@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, useColorScheme as useDeviceColorScheme, ActivityIndicator, Animated } from "react-native";
+import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Animated } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { MotiView } from "moti";
@@ -10,6 +10,7 @@ import { Product, ProductsResponse, ProductDetailsResponse, Variant } from "@/li
 import { Ionicons } from "@expo/vector-icons";
 import { MuseCoin } from "@/assets/svg/MuseCoin";
 import * as Haptics from "expo-haptics";
+import { useColorScheme } from "@/hooks/useColorScheme";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 60) / 2;
@@ -198,7 +199,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
   });
 
 const ProductFlowHeader = ({ title, onBackPress }: { title: string; onBackPress?: () => void }) => {
-  const colorScheme = useDeviceColorScheme();
+  const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const styles = getStyles(theme);
 
@@ -231,7 +232,7 @@ const ProductFlowHeader = ({ title, onBackPress }: { title: string; onBackPress?
 };
 
 const ProgressBar = () => {
-  const colorScheme = useDeviceColorScheme();
+  const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const styles = getStyles(theme);
 
@@ -396,7 +397,7 @@ const ProductCard = ({
 };
 
 export default function ProductsScreen() {
-  const colorScheme = useDeviceColorScheme();
+  const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const styles = getStyles(theme);
   const router = useRouter();

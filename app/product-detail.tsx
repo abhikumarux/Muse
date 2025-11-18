@@ -1,17 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  ScrollView,
-  ActivityIndicator,
-  Alert,
-  TouchableOpacity,
-  useColorScheme as useDeviceColorScheme,
-  Dimensions,
-  Modal,
-} from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, ActivityIndicator, Alert, TouchableOpacity, Dimensions, Modal } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getPrintfulProductDetails, PrintfulSyncProduct, deletePrintfulProduct, PrintfulSyncVariant, getVariantInfo } from '@/lib/aws/printful';
@@ -20,10 +8,11 @@ import { Colors } from '@/constants/Colors';
 import { WebView } from 'react-native-webview';
 import * as Haptics from 'expo-haptics';
 import ColorSwatch from '@/components/ColorSwatch';
+import { useColorScheme } from "@/hooks/useColorScheme";
 const { width } = Dimensions.get("window");
 
 export default function ProductDetailScreen() {
-  const colorScheme = useDeviceColorScheme() ?? "light";
+  const colorScheme = useColorScheme() ?? "light";
   const theme = Colors[colorScheme];
   const router = useRouter();
   const { productId } = useLocalSearchParams<{ productId: string }>();

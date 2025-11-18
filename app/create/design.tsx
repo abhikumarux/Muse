@@ -1,21 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-  useColorScheme as useDeviceColorScheme,
-  ActivityIndicator,
-  Animated,
-  TextInput,
-  Alert,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
-} from "react-native";
+import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, Animated, TextInput, Alert, Modal, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { MotiView } from "moti";
@@ -37,6 +21,7 @@ import { GEMINI_API_KEY, REMOVE_BG_API_KEY, AWS_REGION, AWS_S3_BUCKET as BUCKET,
 import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
 import * as Haptics from "expo-haptics"; // Import Haptics
 import DesignLoader from "@/assets/lottie/loader2.json";
+import { useColorScheme } from "@/hooks/useColorScheme";
 const { width } = Dimensions.get("window");
 
 const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
@@ -344,7 +329,7 @@ const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>
 
 // Header Component
 const ProductFlowHeader = ({ title, onBackPress }: { title: string; onBackPress?: () => void }) => {
-  const colorScheme = useDeviceColorScheme();
+  const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const styles = getStyles(theme);
 
@@ -378,7 +363,7 @@ const ProductFlowHeader = ({ title, onBackPress }: { title: string; onBackPress?
 
 // Progress Bar Component
 const ProgressBar = () => {
-  const colorScheme = useDeviceColorScheme();
+  const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const styles = getStyles(theme);
 
@@ -439,7 +424,7 @@ const ProgressBar = () => {
 
 // This is your new Design screen component
 export default function DesignScreen() {
-  const colorScheme = useDeviceColorScheme();
+  const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const styles = getStyles(theme);
   const router = useRouter();
