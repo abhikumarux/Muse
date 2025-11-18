@@ -75,6 +75,7 @@ function RootLayoutNav() {
             >
               <Stack.Screen name="index" options={{ headerShown: false }} />
               <Stack.Screen name="landing" options={{ headerShown: false, animation: "fade", animationDuration: 250 }} />
+              <Stack.Screen name="onboarding" options={{ headerShown: false, animation: "fade", animationDuration: 250 }} />
               <Stack.Screen name="login" options={{ headerShown: false, animation: "fade", animationDuration: 250 }} />
               <Stack.Screen name="register" options={{ headerShown: false, animation: "fade", animationDuration: 250 }} />
               <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: "fade", animationDuration: 250 }} />
