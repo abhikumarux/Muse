@@ -36,7 +36,7 @@ import { LoadingModal } from "@/components/ui/LoadingModal";
 import { GEMINI_API_KEY, REMOVE_BG_API_KEY, AWS_REGION, AWS_S3_BUCKET as BUCKET, AWS_IDENTITY_POOL_ID } from "@/lib/config/constants";
 import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
 import * as Haptics from "expo-haptics"; // Import Haptics
-import DesignLoader from "@/assets/lottie/design-creation-loader.json";
+import DesignLoader from "@/assets/lottie/loader2.json";
 const { width } = Dimensions.get("window");
 
 const getStyles = (theme: typeof Colors.light | typeof Colors.dark) =>

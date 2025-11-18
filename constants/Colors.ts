@@ -41,6 +41,7 @@ export const Colors = {
     loaderBackground: "rgba(250, 250, 250, 0.9)",
     authGradient: ["#F7F7F7", "#E9E9E9", "#F0F2F5"], // New auth gradient
     forgotPasswordHeader: "#F7F7F7",
+    photoshootModal: "#FFFFFF",
   },
   dark: {
     text: "#FFFFFF", // White text
@@ -82,5 +83,6 @@ export const Colors = {
     loaderBackground: "rgba(28, 28, 30, 0.9)",
     authGradient: ["#151515ff", "#020202ff", "#050505ff"], // New auth gradient
     forgotPasswordHeader: "#151515ff",
+    photoshootModal: "#161616ff",
   },
 } as const;
