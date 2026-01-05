@@ -65,6 +65,7 @@ Follow these instructions to get the project running on your local machine for d
     npx expo start
     ```
 
+<br><br>
 
 © 2026 WOULDNTLIKE STUDIO LLC. All Rights Reserved.
 
