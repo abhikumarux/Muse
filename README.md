@@ -64,7 +64,3 @@ Follow these instructions to get the project running on your local machine for d
     ```bash
     npx expo start
     ```
-
-## License
-
-This project is licensed under the MIT License.
