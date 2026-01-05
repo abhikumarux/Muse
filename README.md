@@ -64,3 +64,10 @@ Follow these instructions to get the project running on your local machine for d
     ```bash
     npx expo start
     ```
+
+
+© 2026 WOULDNTLIKE STUDIO LLC. All Rights Reserved.
+
+This repository is provided for viewing and evaluation purposes only.
+No permission is granted to use, modify, distribute, or commercialize
+this code without explicit written consent from the author.
