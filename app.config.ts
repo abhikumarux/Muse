@@ -2,25 +2,30 @@ import "dotenv/config";
 
 export default {
   expo: {
-    name: "expo-multiscreen-app",
-    slug: "expo-multiscreen-app",
+    name: "Muse",
+    slug: "muse",
     version: "1.0.0",
     orientation: "portrait",
-    icon: "./assets/images/icon.png",
+    icon: "./assets/images/MuseLogo.png",
     scheme: "expomultiscreenapp",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.jake14turner.expo-multiscreen-app",
+      icon: "./assets/images/MuseLogo.png",
+      bundleIdentifier: "art.usemuse.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     android: {
+      icon: "./assets/images/MuseLogo.png",
       adaptiveIcon: {
         foregroundImage: "./assets/images/adaptive-icon.png",
         backgroundColor: "#ffffff",
       },
       edgeToEdgeEnabled: true,
-      package: "com.jake14turner.expomultiscreenapp",
+      package: "art.usemuse.app",
     },
     web: {
       bundler: "metro",
@@ -52,6 +57,9 @@ export default {
       AWS_S3_BUCKET: process.env.AWS_S3_BUCKET,
       MUSE_REFERENCE_IMAGE_URL: process.env.MUSE_REFERENCE_IMAGE_URL,
       REMOVE_BG_API_KEY: process.env.REMOVE_BG_API_KEY,
+      "eas":{
+        "projectId": "4724cafc-bafc-4e2a-9b8b-6f1ded6d1bd0"
+      }
     },
   },
 };

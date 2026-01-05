@@ -1,0 +1,33 @@
+# Dependencies (EAS installs them itself)
+node_modules/
+
+# Expo / build artifacts
+.expo/
+.expo-shared/
+dist/
+build/
+
+# Native folders (EAS regenerates)
+ios/
+android/
+
+# Version control
+.git/
+
+# Environment variables (use EAS secrets)
+.env
+.env.*
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# OS / editor files
+.DS_Store
+.vscode/
+.idea/
+
+# Large non-runtime folders
+diagrams/
+serverFiles/
